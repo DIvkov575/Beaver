@@ -3,55 +3,88 @@ provider "google" {
   region      = "us-central1"
 }
 
-resource "google_bigquery_dataset" "data_lake" {
-  dataset_id = "data_lake"
+resource "google_storage_bucket" "static" {
+  name          = "new-bucket-askldf"
+  location      = "US"
+  storage_class = "COLDLINE"
+
+  uniform_bucket_level_access = true
+}
+# This creates a bucket in the US region named "my-bucket" with a pseudorandom suffix.
+resource "random_id" "bucket_name_suffix" {
+  byte_length = 8
+}
+resource "google_storage_bucket" "default" {
+  name                        = "my-bucket-${random_id.bucket_name_suffix.hex}"
+  location                    = "US"
+  force_destroy               = true
+  uniform_bucket_level_access = true
 }
 
-# Define sources and pipelines
-variable "data_sources" {
-  type = list(object({
-    name        = string
-    source_type = string
-    location    = string
-  }))
-  default = [
-    {
-      name        = "source_1"
-      source_type = "cloud_storage"
-      location    = "gs://source_1_bucket"
-    },
-    {
-      name        = "source_2"
-      source_type = "bigtable"
-      location    = "projects/project-id/instances/instance-id/tables/table-id"
-    },
-  ]
+# This queries the provider for project information.
+data "google_project" "project" {}
+
+# This creates a connection in the US region named "my-connection".
+# This connection is used to access the bucket.
+resource "google_bigquery_connection" "default" {
+  connection_id = "my-connection"
+  location      = "US"
+  cloud_resource {}
 }
 
-# data sources
-resource "google_bigquery_external_table" "external_tables" {
-  count       = length(var.data_sources)
-  dataset_id  = google_bigquery_dataset.data_lake.dataset_id
-  table_id    = var.data_sources[count.index].name
-  source_type = var.data_sources[count.index].source_type
+# This grants the previous connection IAM role access to the bucket.
+resource "google_project_iam_member" "default" {
+  role    = "roles/storage.objectViewer"
+  project = data.google_project.project.id
+  member  = "serviceAccount:${google_bigquery_connection.default.cloud_resource[0].service_account_id}"
+}
 
+# This makes the script wait for seven minutes before proceeding.
+# This lets IAM permissions propagate.
+resource "time_sleep" "wait_7_min" {
+  depends_on      = [google_project_iam_member.default]
+  create_duration = "7m"
+}
+
+# This defines a Google BigQuery dataset with
+# default expiration times for partitions and tables, a
+# description, a location, and a maximum time travel.
+resource "google_bigquery_dataset" "default" {
+  dataset_id                      = "my_dataset"
+  default_partition_expiration_ms = 2592000000  # 30 days
+  default_table_expiration_ms     = 31536000000 # 365 days
+  description                     = "My dataset description"
+  location                        = "US"
+  max_time_travel_hours           = 96 # 4 days
+
+  # This defines a map of labels for the bucket resource,
+  # including the labels "billing_group" and "pii".
+  labels = {
+    billing_group = "accounting",
+    pii           = "sensitive"
+  }
+}
+
+
+# This creates a BigQuery table named "my_table" in the dataset "default".
+# The table has three columns, named "country", "product", and "price", which are of types STRING, STRING, and INT64 respectively.
+resource "google_bigquery_table" "default" {
+  depends_on = [time_sleep.wait_7_min]
+  dataset_id = google_bigquery_dataset.default.dataset_id
+  table_id   = "my_table"
+  schema = jsonencode([
+    { "name" : "country", "type" : "STRING" },
+    { "name" : "product", "type" : "STRING" },
+    { "name" : "price", "type" : "INT64" }
+  ])
   external_data_configuration {
-    source_uris = [var.data_sources[count.index].location]
-    autodetect = true
+    # This defines an external data configuration for the BigQuery table
+    # that reads Parquet data from the publish directory of the default
+    # Google Cloud Storage bucket.
+    autodetect    = false
+    source_format = "PARQUET"
+    connection_id = google_bigquery_connection.default.name
+    source_uris   = ["gs://${google_storage_bucket.default.name}/data/*"]
   }
-}
-
-# pipeline
-resource "google_dataflow_job" "dataflow_pipelines" {
-  count     = length(var.data_sources)
-  name      = "pipeline_${var.data_sources[count.index].name}"
-  project   = var.project
-  region    = var.region
-  # template_gcs_path = "gs://dataflow-templates/latest/GCS_Text_to_BigQuery"
-  template_gcs_path = "gs://my-template-bucket/template
-  
-  parameters = {
-    inputFilePattern = var.data_sources[count.index].location
-    outputTableSpec  = "${google_bigquery_dataset.data_lake.dataset_id}.${var.data_sources[count.index].name}"
-  }
+  deletion_protection = false
 }
