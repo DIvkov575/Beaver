@@ -10,6 +10,8 @@ anyhow = "1.0.75"
 clap_complete = "4.4.3"
 clap_mangen = "0.2.14"
 either = "1.9.0"
+exitcode = "1.1.2"
+inquire = "0.6.2"
 
 
 [dependencies.clap]
