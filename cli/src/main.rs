@@ -3,7 +3,7 @@ mod config;
 mod commands;
 
 use anyhow::{Result};
-use clap;
+use clap::{self, Parser};
 use commands::Command;
 
 
@@ -26,7 +26,15 @@ pub struct Args {
     // #[clap(flatten)]
     // put_args: put::PutArgs,
 }
-
+impl Args {
+    pub fn run(self) -> Result<()> {
+        match self.command {
+            None => self.put_args.run(&self.config_args)?,
+            Some(command) => command.run(&self.config_args)?,
+        }
+        Ok(())
+    }
+}
 
 fn main() -> Result<()> {
     config_parsing::handle_creation("../test")?;
