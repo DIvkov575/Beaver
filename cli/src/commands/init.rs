@@ -41,3 +41,9 @@ pub fn handle_creation(file_path: &str) -> Result<()>  {
 
     Ok(())
 }
+
+pub fn init() -> Result<()> {
+    print!("init");
+    handle_creation("test")?;
+    Ok(())    
+}
