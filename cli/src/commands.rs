@@ -6,12 +6,6 @@ mod init;
 use init::init;
 
 
-// fn manpage() -> Result<()> {
-//     let man = clap_mangen::Man::new(app::Args::command());
-//     man.render(&mut io::stdout())?;
-//     Ok(())
-// }
-
 #[derive(Parser, Debug)]
 pub enum Command {
     Init,
