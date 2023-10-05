@@ -40,13 +40,13 @@ pub enum Command {
     /// Generates manpages
     Manpage(),
 }
-impl Command {
-    pub fn run(self, config_args: &super::ConfigArgs) -> Result<()> {
-        use Command::*;
-        match self {
-            Init() => Init,
-            // Tmp(args) => args.run(config_args),
-            Manpage(args) => args.run(),
-        }
-    }
-}
+// impl Command {
+//     pub fn run(self, config_args: &super::ConfigArgs) -> Result<()> {
+//         use Command::*;
+//         match self {
+//             Init() => Init,
+//             // Tmp(args) => args.run(config_args),
+//             Manpage(args) => args.run(),
+//         }
+//     }
+// }

@@ -6,7 +6,6 @@ use anyhow::{Result};
 use clap::{self, Parser};
 use commands::Command;
 
-
 #[derive(Debug, Parser)]
 #[command(
     version,
@@ -16,21 +15,14 @@ use commands::Command;
                  details.",
 )]
 pub struct Args {
-    /// The command to run.
     #[clap(subcommand)]
     pub command: Option<Command>,
-
-    // #[clap(flatten)]
-    // config_args: ConfigArgs,
-
-    // #[clap(flatten)]
-    // put_args: put::PutArgs,
 }
 impl Args {
     pub fn run(self) -> Result<()> {
         match self.command {
-            None => self.put_args.run(&self.config_args)?,
-            Some(command) => command.run(&self.config_args)?,
+            None => print!("None"),
+            Some(command) => print!("some"),
         }
         Ok(())
     }
