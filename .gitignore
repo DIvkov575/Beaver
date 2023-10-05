@@ -12,3 +12,4 @@
 *.backup
 .terraform.lock.hcl
 *.tfstate
+cli/target/
