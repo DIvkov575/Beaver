@@ -29,11 +29,17 @@ pub fn init() -> Result<()> {
     let config_dir_name= Text::new("Configuration Directory Path:").prompt()?;
     let config_dir_path = Path::new(&std::env::current_dir()?).join(&config_dir_name);
     
-    if config_dir_path.is_file() {
-        panic!("asdf {}", config_dir_name);
-    } else if !Path::new(&config_dir_path).join("BeaverConfig.yaml").exists() {
-        std::fs::create_dir_all(&config_dir_name)?;
-    }
+     
+
+
+    // if config_dir_path.is_file() {
+    //     panic!("File exists at  {}", config_dir_name);
+    // } else if config_dir_path.read_dir().next()
+    
+    
+    // !Path::new(&config_dir_path).join("BeaverConfig.yaml").exists() {
+    //     panic!("")
+    // }
     
 
 
