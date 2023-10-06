@@ -7,14 +7,14 @@ use init::init;
 
 #[derive(Parser, Debug)]
 pub enum Command {
-    Init { path: Option<String> },
+    Init,
     Manpage,
 }
 impl Command {
     pub fn run(self) -> Result<()> {
         use Command::*;
         match self {
-            Init {path } => init(path),
+            Init => init(),
             _ => {print!("asldkfj"); return Ok(());}
         }
     }
