@@ -5,20 +5,17 @@ use clap::{self, Parser};
 mod init;
 use init::init;
 
-
 #[derive(Parser, Debug)]
 pub enum Command {
-    Init,
+    Init { path: Option<String> },
     Manpage,
 }
 impl Command {
     pub fn run(self) -> Result<()> {
         use Command::*;
         match self {
-            Init => init(),
+            Init {path } => init(path),
             _ => {print!("asldkfj"); return Ok(());}
-
-            // Tmp(args) => args.run(config_args),
         }
     }
 }
