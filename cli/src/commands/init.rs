@@ -36,7 +36,8 @@ pub fn init() -> Result<()> {
         Command::new("terraform").arg("init").output()?;
     spinner.success("Terraform Initialized");
 
-    
+
+
     deploy()?;
         
 // terraform: innit, validate, plan, app,y, destroty
