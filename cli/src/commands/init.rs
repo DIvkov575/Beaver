@@ -1,13 +1,12 @@
+use crate::commands::deploy::deploy;
 use std::{path::Path, thread::panicking};
 use std::fs::File;
 use anyhow::Result;
 use inquire::{Text, Select, Confirm};
 use std::process::Command;
-use std::thread::sleep;
-use std::time::Duration;
-
 use spinoff::{Spinner, spinners, Color};
-use spinoff::*;
+
+
 
 
 
@@ -33,11 +32,12 @@ pub fn init() -> Result<()> {
         create_config_dir(path.to_str().unwrap())?;
     }
     
-
     let mut spinner = Spinner::new(spinners::Dots, "Initializing Terraform...", Color::Blue); 
         Command::new("terraform").arg("init").output()?;
-    spinner.success("Terraform Intialized!");
+    spinner.success("Terraform Initialized");
 
+    
+    deploy()?;
         
 // terraform: innit, validate, plan, app,y, destroty
 
