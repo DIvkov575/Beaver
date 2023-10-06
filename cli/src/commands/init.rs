@@ -2,6 +2,12 @@ use std::{path::Path, thread::panicking};
 use std::fs::File;
 use anyhow::Result;
 use inquire::{Text, Select, Confirm};
+use std::process::Command;
+use std::thread::sleep;
+use std::time::Duration;
+
+use spinoff::{Spinner, spinners, Color};
+use spinoff::*;
 
 
 
@@ -21,13 +27,19 @@ pub fn init() -> Result<()> {
     let project = &Text::new("Enter GCP project-id:").prompt()?;
 
     if !Confirm::new("Do you have an existing Beaver Directory (y/n)").prompt()? {
-        let name= Text::new("Config Directory Path:").prompt()?;
-        let path = Path::new(&std::env::current_dir()?).join(&_config_dir_name);
+        let _name= Text::new("Config Directory Path:").prompt()?;
+        let path = Path::new(&std::env::current_dir()?).join(&_name);
         std::fs::create_dir_all(&path)?;
         create_config_dir(path.to_str().unwrap())?;
     }
+    
+
+    let mut spinner = Spinner::new(spinners::Dots, "Initializing Terraform...", Color::Blue); 
+        Command::new("terraform").arg("init").output()?;
+    spinner.success("Terraform Intialized!");
 
         
+// terraform: innit, validate, plan, app,y, destroty
 
     Ok(())    
 }
