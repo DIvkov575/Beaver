@@ -9,6 +9,7 @@ use destroy::destroy;
 mod init;
 use init::init;
 
+
 #[derive(Parser, Debug)]
 pub enum Command {
     Init,
