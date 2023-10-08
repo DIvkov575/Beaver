@@ -13,4 +13,12 @@ variable "container_image1" {
   default = "timberio/vector:0.33.0-debian"
 }
 
+variable "pubsub_topic" {
+  description = "Pub/Sub topic name"
+  default = "pubsub-topic"
+}
+
+variable "sources" {
+  default = ["sub-1", "sub-2", "sub-3"]
+}
 
