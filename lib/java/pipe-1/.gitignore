@@ -1,0 +1,21 @@
+# Build directories
+build/
+target/
+
+# IDEs
+.classpath
+.project
+.settings/
+.vscode/
+
+# Gradle
+.gradle/
+bin/
+
+# sbt
+.bloop/
+.bsp/
+.metals/
+project/*
+!project/plugins.sbt
+.scalafmt.conf
