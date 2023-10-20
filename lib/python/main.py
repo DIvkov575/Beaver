@@ -17,15 +17,14 @@ def run():
     with beam.Pipeline(options=pipeline_options) as p:
         # Read from Pub/Sub
         messages = (p
-                    | 'ReadFromPubSub' >> beam.io.ReadFromPubSub(topic=pubsub_to_bigquery_options.input_topic)
+                    # | 'ReadFromPubSub' >> beam.io.ReadFromPubSub(topic=pubsub_to_bigquery_options.input_topic)
+                    | 'ReadFromPubSub' >> beam.io.ReadFromPubSub(topic="projects/neon-circle-400322/topics/topic-sub-1")
                     | 'ParseJSON' >> beam.Map(lambda x: eval(x.decode('utf-8'))))
 
         # Write to BigQuery
-        messages | 'WriteToBigQuery' >> beam.io.WriteToBigQuery(
-            table=pubsub_to_bigquery_options.output_table,
-            schema='field1:STRING,field2:INTEGER,field3:FLOAT',  # Update with your schema
-            create_disposition=beam.io.BigQueryDisposition.CREATE_IF_NEEDED,
-            write_disposition=beam.io.BigQueryDisposition.WRITE_APPEND)
+        messages | 'WriteToBigQuery' >> beam.io.WriteToBigQuery(table="neon-circle-400322.bigquery_dataset_1.bigquery_table_1")
+            # create_disposition=beam.io.BigQueryDisposition.CREATE_IF_NEEDED,
+            # write_disposition=beam.io.BigQueryDisposition.WRITE_APPEND)
 
 
 if __name__ == '__main__':

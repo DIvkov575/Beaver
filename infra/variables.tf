@@ -19,6 +19,6 @@ variable "pubsub_topic" {
 }
 
 variable "sources" {
-  default = ["sub-1", "sub-2", "sub-3"]
+  default = ["sub-1"]
 }
 

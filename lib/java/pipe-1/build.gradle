@@ -1,0 +1,51 @@
+// Copyright 2022 Google LLC
+//
+// Licensed under the Apache License, Version 2.0 <LICENSE-APACHE or
+// https://www.apache.org/licenses/LICENSE-2.0> or the MIT license
+// <LICENSE-MIT or https://opensource.org/licenses/MIT>, at your
+// option. This file may not be copied, modified, or distributed
+// except according to those terms.
+
+plugins {
+    id 'application'
+}
+
+repositories {
+    mavenCentral()
+}
+
+application {
+    mainClass = 'com.example.App'
+}
+
+test {
+    // JUnit 4.
+    useJUnit()
+}
+
+dependencies {
+    // App dependencies.
+    implementation "org.apache.beam:beam-sdks-java-core:2.46.0"
+    implementation "org.apache.beam:beam-runners-direct-java:2.46.0"
+    implementation "org.slf4j:slf4j-jdk14:1.7.32"
+
+    // Tests dependencies.
+    testImplementation "junit:junit:4.13.2"
+    testImplementation 'org.hamcrest:hamcrest:2.2'
+}
+
+// Package a self-contained jar file.
+jar {
+    archiveBaseName = 'pipeline'
+    destinationDirectory = file('build')
+    manifest {
+        attributes 'Main-Class': 'com.example.App'
+    }
+    exclude 'META-INF/*.SF'
+    exclude 'META-INF/*.DSA'
+    exclude 'META-INF/*.RSA'
+    duplicatesStrategy = DuplicatesStrategy.INCLUDE
+    from {
+        configurations.runtimeClasspath.collect { it.isDirectory() ? it : zipTree(it) }
+    }
+}

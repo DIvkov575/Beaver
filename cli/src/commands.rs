@@ -9,12 +9,15 @@ use destroy::destroy;
 mod init;
 use init::init;
 
+mod tmp;
+use tmp::tmp;
 
 #[derive(Parser, Debug)]
 pub enum Command {
     Init,
     Destroy,
     Deploy,
+    Tmp,
     Manpage,
 }
 impl Command {
@@ -24,6 +27,7 @@ impl Command {
             Init => init(),
             Deploy => deploy(),
             Destroy => destroy(),
+            Tmp => tmp(),
             _ => {print!("asldkfj"); return Ok(());}
         }
     }
