@@ -7,9 +7,11 @@ use log::Level::Error;
 
 pub fn tmp() -> Result<()> {
 
-    let mut spinner = Spinner::new(spinners::Dots, "Deploying Terraform...", Color::Blue);
-    let status1 = Command::new("terraform").arg("-chdir=../infra").arg("apply").arg("-auto-approve").output()?;
+   // print!("{:#?}", Command::new("ls").output()?);
 
+    // let mut spinner = Spinner::new(spinners::Dots, "Deploying Terraform...", Color::Blue);
+    // let status1 = Command::new("terraform").arg("-chdir=../infra").arg("apply").arg("-auto-approve").output()?;
+    //
     // if status1.stderr.is_empty() {
     //     spinner.success("Terraform Done!")
     // } else {
