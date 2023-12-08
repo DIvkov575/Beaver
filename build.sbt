@@ -1,7 +1,16 @@
+// Copyright 2022 Google LLC
+//
+// Licensed under the Apache License, Version 2.0 <LICENSE-APACHE or
+// https://www.apache.org/licenses/LICENSE-2.0> or the MIT license
+// <LICENSE-MIT or https://opensource.org/licenses/MIT>, at your
+// option. This file may not be copied, modified, or distributed
+// except according to those terms.
+
 mainClass := Some("com.example.App")
 
 val beamVersion = "2.46.0"
 libraryDependencies ++= Seq(
+  // App dependencies.
   "org.apache.beam" % "beam-sdks-java-core" % beamVersion,
   "org.apache.beam" % "beam-runners-direct-java" % beamVersion,
   "org.slf4j" % "slf4j-jdk14" % "1.7.32",
