@@ -1,14 +1,1 @@
-*.info
-*.backup
-.terraform.lock.hcl
-*.tfstate
-
-.idea/
-.terraform/
-
-infra/.DS_Store
-.DS_Store
-
-cli/target/
-lib/java/target/
-lib/python/venv/
+target/
