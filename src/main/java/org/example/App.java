@@ -10,9 +10,14 @@ import org.apache.beam.sdk.transforms.windowing.FixedWindows;
 import org.apache.beam.sdk.transforms.windowing.Window;
 import org.joda.time.Duration;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 public class App {
+    private static final Logger LOG = LoggerFactory.getLogger(App.class);
     public static void main(String[] args) {
-        System.out.println("stuff");
+        LOG.info("stuff");
+
         int numShards = 1;
         int windowSize = 2;
         String outputFilePath = "gs://tmp_bucket_93/temp";
@@ -24,17 +29,20 @@ public class App {
         pipeline
                 .apply("Read PubSub Messages", PubsubIO.readStrings().fromTopic(topicName))
                 .apply("windowing", Window.into(FixedWindows.of(Duration.standardMinutes(windowSize))))
-                .apply("logging", ParDo.of(new MyT()));
+                .apply("logging", ParDo.of(new MyLogger()));
+
 
         pipeline.run().waitUntilFinish();
 
     }
+
+    static class MyLogger extends DoFn<String, String> {
+        @ProcessElement
+        public void processElement(@Element String word, OutputReceiver<String> out) {
+            LOG.info(word + "\n");
+            out.output(word);
+        }
+    }
+
 }
 
-class MyT extends DoFn<String, String> {
-    @ProcessElement
-    public void processElement(@Element String word, OutputReceiver<String> out) {
-        System.out.println(word);
-        out.output(word);
-    }
-}
