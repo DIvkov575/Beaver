@@ -12,3 +12,5 @@ infra/.DS_Store
 cli/target/
 lib/java/target/
 lib/python/venv/
+
+target/
