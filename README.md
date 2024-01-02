@@ -3,8 +3,9 @@
 SEIM (data security log analysis tool)
 inspired by matano, executes completely within gcp
 
----
-execute cli command from outside cargo dir \n
-cargo run --manifest-path cli/Cargo.toml
----
-cli (create config, read config, find terraform/gcp -> upload stack, upload code)
+----
+
+- upload vector to artifact registry
+- create cloud run
+- create job scheduler + configure
+- create pubsub to collect vector output + configure to write? |-> create dataflow/function/cloudrun
