@@ -33,24 +33,6 @@ pub fn describe_formatted_crj(job_name: &str, config: &Config) -> Result<Vec<u8>
     Ok(raw_out)
 }
 
-pub fn exec_crj(job_name: &str, config: &Config) -> Result<(), Box<dyn Error>> {
-    let mut args: Vec<&str> = Vec::from(["run", "jobs", "describe", job_name]);
-    args.extend(config.flatten());
-
-
-    Ok(())
-}
-
-// pub fn enable_apis(config: Config) -> Result<(), Box<dyn Error>> {
-//     // gcloud services enable cloudscheduler.googleapis.com pubsub.googleapis.com
-//     let job_name = "beaver-vrl";
-//     let mut args: Vec<&str> = Vec::from(["run", "jobs", "describe", job_name]);
-//     args.extend(config.decompose());
-//
-//
-//     Ok(())
-// }
-
 
 pub fn mount_gcs_crj(job_name: &str, config: &Config) -> Result<(), Box<dyn Error>> {
     // update crj_description to have gcs mounting point
