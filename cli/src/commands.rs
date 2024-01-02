@@ -14,11 +14,12 @@ use tmp::tmp;
 
 #[derive(Parser, Debug)]
 pub enum Command {
+    #[command(about="Create a config")]
     Init,
-    Destroy,
+    #[command(about="Create Beaver instance on GCP")]
     Deploy,
-    Tmp,
-    Manpage,
+    #[command(about="Destroy Beaver instance")]
+    Destroy,
 }
 impl Command {
     pub fn run(self) -> Result<()> {
@@ -27,7 +28,6 @@ impl Command {
             Init => init(),
             Deploy => deploy(),
             Destroy => destroy(),
-            Tmp => tmp(),
             _ => {print!("asldkfj"); return Ok(());}
         }
     }
