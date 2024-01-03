@@ -50,7 +50,7 @@ sources:
     project: \"{project}\"
     subscription: \"input-sub-1\"
     decoding:
-      codec: \"json\"\
+      codec: \"json\"
 transforms:
   transform1:
     type: remap

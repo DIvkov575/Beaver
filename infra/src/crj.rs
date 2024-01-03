@@ -57,7 +57,6 @@ impl<'a> CRJ<'a> {
         macro_rules! gm {($a:ident, $($b:literal,)*) => {$a$(.get_mut($b).ok_or("error during description unwrap")?)*};}
 
         let mut description: Mapping = serde_yaml::from_slice(&self.describe_formatted()?)?;
-        // let mut ref_description = &mut description;
 
         let volume_mounts=  Vec::from([
             Mapping::from_iter(HashMap::from([
