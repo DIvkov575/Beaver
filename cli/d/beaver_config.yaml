@@ -6,7 +6,8 @@ sources:
     project: ""
     subscription: "input-sub-1"
     decoding:
-      codec: "json"transforms:
+      codec: "json"
+transforms:
   transform1:
     type: remap
     inputs:
