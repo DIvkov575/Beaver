@@ -203,6 +203,7 @@ dependencies = [
  "inquire",
  "log",
  "log4rs",
+ "serde_yaml",
  "spinoff",
 ]
 
