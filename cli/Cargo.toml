@@ -15,6 +15,7 @@ inquire = "0.6.2"
 log4rs = "1.2.0"
 spinoff = "0.8.0"
 log = "0.4.20"
+serde_yaml = "0.8.26"
 
 
 

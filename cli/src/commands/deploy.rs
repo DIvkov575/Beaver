@@ -1,12 +1,12 @@
+use std::fs::OpenOptions;
 use anyhow::Result;
 use spinoff::{Spinner, spinners, Color};
 use std::process::Command;
 
-pub fn deploy() -> Result<()> {
+pub fn deploy(config_path: &str) -> Result<()> {
+    // let mut beaver_conf_file = OpenOptions::new().write(true).create(true).open(path.join("beaver_config.yaml")).unwrap();
+    // println!("{:?}", config_path);
 
-    let mut spinner = Spinner::new(spinners::Dots, "Deploying Terraform...", Color::Blue); 
-        Command::new("terraform").arg("-chdir=infra").arg("apply").spawn()?;
-    spinner.success("Done!");
 
     Ok(())
 }

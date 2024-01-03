@@ -1,4 +1,6 @@
+use std::fmt::{Display, Formatter};
 use std::io;
+use std::path::Component::ParentDir;
 use anyhow::Result;
 use clap::{self, Parser};
 
@@ -9,8 +11,15 @@ use destroy::destroy;
 mod init;
 use init::init;
 
-mod tmp;
-use tmp::tmp;
+use crate::commands::Command::Deploy;
+
+
+
+// #[derive(Debug)]
+// struct Error<'a > { pub source: &'a str }
+// impl Display for Error { fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result { write!(f, "My Error?!") } }
+// impl std::error::Error for Error { fn source(&self) -> Option<&(dyn std::error::Error + 'static)> { Some(&self.source) } }
+
 
 #[derive(Parser, Debug)]
 pub enum Command {
@@ -22,13 +31,20 @@ pub enum Command {
     Destroy,
 }
 impl Command {
-    pub fn run(self) -> Result<()> {
+    pub fn run(self, config_args: ConfigArgs) -> Result<()> {
         use Command::*;
         match self {
             Init => init(),
-            Deploy => deploy(),
+            Deploy => {
+                if let Some(path) = config_args.config_path {
+                    deploy(path.as_str())?;
+                    Ok(())
+                } else {
+                    Err(anyhow::anyhow!("Missing config argument eg. `beaver --config=\"./conf\" deploy`"))
+                }
+            }
             Destroy => destroy(),
-            _ => {print!("asldkfj"); return Ok(());}
+            _ => {print!("No command was passed"); return Ok(());}
         }
     }
 }
@@ -42,13 +58,26 @@ impl Command {
 pub struct Args {
     #[clap(subcommand)]
     pub command: Option<Command>,
+    #[clap(flatten)]
+    config_args: ConfigArgs,
+
 }
 impl Args {
     pub fn run(self) -> Result<()> {
         match self.command {
             None => print!("No Command was passed"),
-            Some(command) => command.run()?,
+            Some(command) => command.run(self.config_args)?
         }
         Ok(())
     }
+}
+
+
+#[derive(Debug, Parser)]
+pub struct ConfigArgs {
+    #[arg(
+        short='c',
+        long="config"
+    )]
+    pub config_path: Option<String>
 }
