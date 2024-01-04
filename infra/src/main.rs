@@ -33,7 +33,6 @@ fn main() -> Result<(), Box<dyn Error>> {
 
 
 pub fn check_for_python() -> Result<(String, String)> {
-    //test
     //!  - Inner line doc
     ///  - Outer line doc (exactly 3 slashes)
     /// Output Result< python command, pip command >
