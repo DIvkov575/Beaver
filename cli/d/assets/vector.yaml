@@ -1,0 +1,13 @@
+---
+sources:
+  pubsub_in:
+    type: gcp_pubsub
+    project: ""
+    subscription: input-sub-1
+    decoding:
+      codec: json
+transforms:
+  transform1:
+    type: remap
+    inputs:
+      - pubsub-in
