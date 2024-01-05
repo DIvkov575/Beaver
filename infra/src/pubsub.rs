@@ -5,12 +5,12 @@ use anyhow::Result;
 use rand::distributions::Alphanumeric;
 use rand::Rng;
 
-pub struct bq_table<'a> {
+pub struct BqTable<'a> {
     project_id: &'a str,
     dataset_id: &'a str,
     table_id: &'a str,
 }
-impl<'a> bq_table<'a> {
+impl<'a> BqTable<'a> {
     pub fn new (project_id: &'a str, dataset_id: &'a str, table_id: &'a str) -> Self {
         Self {project_id, dataset_id, table_id}
     }
@@ -26,7 +26,7 @@ impl<'a> bq_table<'a> {
 
 
 
-pub fn create_bq_subscription(subscription_id: &str, topic_id: &str, bq_table: &bq_table, config: &Config) -> Result<()> {
+pub fn create_bq_subscription(subscription_id: &str, topic_id: &str, bq_table: &BqTable, config: &Config) -> Result<()> {
     // https://cloud.google.com/pubsub/docs/create-bigquery-subscription
     // gcloud pubsub subscriptions create SUBSCRIPTION_ID \
     // --topic=TOPIC_ID \
