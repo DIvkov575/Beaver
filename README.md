@@ -5,9 +5,13 @@ inspired by matano, executes completely within gcp
 
 ----
 
+**Done:**
 - create bq
     - create bq dataset
     - create bq table w/ json col
+
+
+**Todo:** 
 - create o_pubsub w/ auto-write to bq
 - generate intermediate files
   - vector.yaml
