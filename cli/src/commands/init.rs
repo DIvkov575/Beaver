@@ -44,6 +44,8 @@ pub fn create_config_dir(file_path: &str, region: &str, project: &str) -> Result
     let config = format!("\
 project_id: {project}
 region: {region}
+bq_location: \"us\"
+
 sources:
   pubsub_in:
     type: gcp_pubsub
