@@ -6,23 +6,13 @@ use serde_yaml::Mapping;
 
 use crate::config::Config;
 
-pub fn delete(job_name: &str, config: &Config) -> Result<(), Box<dyn Error>>{
-    let mut args: Vec<&str> =  Vec::from(["run", "jobs", "delete", job_name]);
-    args.extend(config.flatten());
-
-    Command::new("gcloud").args(args).status()?;
+pub fn delete_crj(job_name: &str, config: &Config) -> Result<(), Box<dyn Error>>{
+    let args: Vec<&str> =  Vec::from(["run", "jobs", "delete", job_name]);
+    Command::new("gcloud").args(args).args(config.flatten()).status()?;
     Ok(())
 }
 
-pub fn create() -> Result<(), Box<dyn Error>>{
-    create_on_gcs()?;
-    mount_gcs("", "vector.yaml")?;
-
-    Ok(())
-}
-
-
-pub fn create_on_gcs(job_name: &str, config: &Config) -> Result<(), Box<dyn Error>>{
+pub fn create_crj(job_name: &str, config: &Config) -> Result<(), Box<dyn Error>>{
     let image_url = "docker.io/timberio/vector:latest-alpine";
     let mut args: Vec<&str> =  Vec::from(["run", "jobs", "create", job_name, "--image", image_url]);
     args.extend(config.flatten());
@@ -31,24 +21,22 @@ pub fn create_on_gcs(job_name: &str, config: &Config) -> Result<(), Box<dyn Erro
     Ok(())
 }
 
-pub fn describe_formatted(job_name: &str, config: &Config) -> Result<Vec<u8>, Box<dyn Error>> {
+#[inline(always)]
+pub fn describe_formatted_crj(job_name: &str, config: &Config) -> Result<Vec<u8>, Box<dyn Error>> {
     let mut args: Vec<&str> =  Vec::from(["run", "jobs", "describe", job_name, "--format", "export"]);
     args.extend(config.flatten());
 
     let Output {status: _, stdout: raw_out, stderr: raw_err } = Command::new("gcloud").args(args).output()?;
-    if !raw_err.is_empty() {
-        return Err(String::from_utf8(raw_err)?.into())
-    }
-
+    if !raw_err.is_empty() { return Err(String::from_utf8(raw_err)?.into()) }
     Ok(raw_out)
 }
 
 
-pub fn mount_gcs(bucket_name: &str, volume_name: &str, config: &Config) -> Result<(), Box<dyn Error>> {
+pub fn mount_gcs_crj(job_name: &str, bucket_name: &str, volume_name: &str, config: &Config) -> Result<(), Box<dyn Error>> {
     #[macro_export]
     macro_rules! gm {($a:ident, $($b:literal,)*) => {$a$(.get_mut($b).ok_or("error during description unwrap")?)*};}
 
-    let mut description: Mapping = serde_yaml::from_slice(&describe_formatted()?)?;
+    let mut description: Mapping = serde_yaml::from_slice(&describe_formatted_crj(job_name, &config)?)?;
 
     let volume_mounts=  Vec::from([
         Mapping::from_iter(HashMap::from([
