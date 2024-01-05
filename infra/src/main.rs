@@ -5,6 +5,7 @@ mod gcs;
 mod bq;
 mod pubsub;
 mod cron;
+mod service_accounts;
 
 use cron::*;
 
@@ -20,6 +21,7 @@ use serde_yaml;
 use serde_yaml::Mapping;
 use crate::bq::*;
 use crate::pubsub::create_pubsub_topic;
+use crate::service_accounts::create_service_account;
 
 fn main() -> Result<()> {
     let config = Config::new("us-east1", "neon-circle-400322", None);
@@ -30,16 +32,10 @@ fn main() -> Result<()> {
     // create_table("table1", "test_sasdf", &config)?;
 
     // create_pubsub_topic(&config)?;
-    cron::create_scheduler("0 12 * * *", "beaver-vrl", &config)?;
+    // cron::create_scheduler("0 12 * * *", "beaver-vrl", &config)?;
+    create_service_account("tmpasdflk")?;
 
     Ok(())
 }
 
 
-
-pub fn create_service_account() -> Result<()> {
-
-
-
-    Ok(())
-}
