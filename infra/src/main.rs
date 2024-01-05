@@ -4,6 +4,9 @@ mod config;
 mod gcs;
 mod bq;
 mod pubsub;
+mod cron;
+
+use cron::*;
 
 use anyhow::Result;
 use std::collections::HashMap;
@@ -16,7 +19,6 @@ use config::*;
 use serde_yaml;
 use serde_yaml::Mapping;
 use crate::bq::*;
-use crate::gcs::Bucket;
 use crate::pubsub::create_pubsub_topic;
 
 fn main() -> Result<()> {
@@ -27,7 +29,8 @@ fn main() -> Result<()> {
     // create_bq(&config)?;
     // create_table("table1", "test_sasdf", &config)?;
 
-    create_pubsub_topic(&config)?;
+    // create_pubsub_topic(&config)?;
+    cron::create_scheduler("0 12 * * *", "beaver-vrl", &config)?;
 
     Ok(())
 }
