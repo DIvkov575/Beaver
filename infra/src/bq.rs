@@ -46,6 +46,7 @@ pub fn create_dataset(dataset_name: &str, config: &Config) -> Result<()> {
 
 
 pub fn check_for_bq() -> Result<()> {
+    // test
     match Command::new("bq").output() {
         Ok(_) => return Ok(()),
         Err(_) => panic!("Please ensure you have bq (biqquery utility tool installed)"),
