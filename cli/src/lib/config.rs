@@ -1,5 +1,3 @@
-use std::fmt::format;
-
 pub struct Config<'a> {
     pub region: &'a str,
     pub project: &'a str,
@@ -15,6 +13,11 @@ impl<'a> Config<'a> {
             Self {region, project, service_account, formatted_service_account: Some(format!("--impersonate-service-account={}", service_account.unwrap()))}
         }
     }
+    // pub fn empty() -> Config<'a> {
+    //     Config {region: "", project: "", service_account: None, formatted_service_account: None}
+    // }
+    //
+    // pub fn new_from_file(path: &str ) -> {}
     pub fn flatten(&self) -> Vec<&str> {
         if self.service_account.is_none() {
             Vec::from(["--region", self.region, "--project", self.project,  ])

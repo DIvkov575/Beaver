@@ -4,7 +4,7 @@ use std::process::{Command, Output};
 
 use serde_yaml::Mapping;
 
-use crate::config::Config;
+use crate::lib::config::Config;
 
 pub fn delete_crj(job_name: &str, config: &Config) -> Result<(), Box<dyn Error>>{
     let args: Vec<&str> =  Vec::from(["run", "jobs", "delete", job_name]);
@@ -34,7 +34,9 @@ pub fn describe_formatted_crj(job_name: &str, config: &Config) -> Result<Vec<u8>
 
 pub fn mount_gcs_crj(job_name: &str, bucket_name: &str, volume_name: &str, config: &Config) -> Result<(), Box<dyn Error>> {
     #[macro_export]
-    macro_rules! gm {($a:ident, $($b:literal,)*) => {$a$(.get_mut($b).ok_or("error during description unwrap")?)*};}
+    macro_rules! gm {($a:ident, $($b:literal,)*) => {$a$(.get_mut(&serde_yaml::Value::String($b.to_owned().into())).ok_or("error during description unwrap")?)*};}
+    // macro_rules! gm {($a:ident, $($b:literal,)*) => {$a$(.get_mut($b.to_owned().into()).ok_or("error during description unwrap")?)*};} // macro_rules! gm {($a:ident, $($b:literal,)*) => {$a$(.get_mut($b).ok_or("error during description unwrap")?)*};}
+    // macro_rules! gm {($a:ident, $($b:literal,)*) => {$a$(.get_mut($b.to_owned().into()).ok_or("error during description unwrap")?)*};}
 
     let mut description: Mapping = serde_yaml::from_slice(&describe_formatted_crj(job_name, &config)?)?;
 
@@ -58,7 +60,7 @@ pub fn mount_gcs_crj(job_name: &str, bucket_name: &str, volume_name: &str, confi
     ]);
 
 
-    let point_a=  gm!(description, "spec", "template", "spec", "template", "spec", "containers", 0,).as_mapping_mut().unwrap();
+    let point_a=  gm!(description, "spec", "template", "spec", "template", "spec", "containers", ).as_mapping_mut().unwrap();
     point_a.insert("volumeMounts".into(), volume_mounts.into());
     let point_b =  gm!(description, "spec", "template", "spec", "template", "spec",).as_mapping_mut().unwrap();
     point_b.insert("volumes".into(), volumes.into());

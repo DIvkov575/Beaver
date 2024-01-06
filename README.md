@@ -6,8 +6,9 @@ inspired by matano, executes completely within gcp
 ----
 
 
+
 **Todo:**
-- create service account
+-- gcloud check
 
 **full list:** 
 - create bq !! needs testing

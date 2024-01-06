@@ -1,7 +1,7 @@
 use std::fmt::format;
 use std::process::Command;
 use anyhow::Result;
-use crate::config::Config;
+use crate::lib::config::Config;
 
 pub fn create_service_account(sa_name: &str) -> Result<()> {
     let args: Vec<&str> =  Vec::from([
@@ -13,18 +13,18 @@ pub fn create_service_account(sa_name: &str) -> Result<()> {
     Ok(())
 }
 
-pub fn update_service_account_roles(sa_name: &str, config: &Config, roles: Vec<String>) -> Result<()> {
+pub fn add_service_account_roles(sa_name: &str, config: &Config, roles: Vec<String>) -> Result<()> {
     // gcloud projects add-iam-policy-binding PROJECT_ID \
     // --member="serviceAccount:SA_NAME@PROJECT_ID.iam.gserviceaccount.com" \
     // --role="ROLE_NAME"
     let member_binding = format!("--member=serviceAccount:{}@{}.iam.gserviceaccount.com", sa_name, config.project);
-    let mut args: Vec<&str> =  Vec::from([
+    let mut args: Vec<String> =  Vec::from([
         "projects", "add-iam-policy-binding", config.project,
         &member_binding,
-    ]);
-    for role in roles.map(|x| format!("--role={}", x)) {
-        args.append(role)
-    }
+    ].map(|x|x.to_string()));
+
+    args.extend(roles.iter().map(|x| -> String {format!("--role={}", x)}));
+
     Command::new("gcloud").args(args).status()?;
     Ok(())
 }

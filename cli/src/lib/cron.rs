@@ -8,7 +8,7 @@
 use std::fmt::format;
 use std::process::Command;
 use anyhow::Result;
-use crate::config::Config;
+use crate::lib::config::Config;
 
 pub fn create_scheduler(schedule: &str, job_name: &str, config: &Config) -> Result<()> {
     // https://cloud.google.com/run/docs/execute/jobs-on-schedule
