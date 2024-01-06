@@ -1,4 +1,6 @@
 mod commands;
+mod lib;
+
 use anyhow::Result;
 use clap::{self, Parser};
 

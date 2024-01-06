@@ -1,7 +1,7 @@
 use std::error::Error;
 use std::fmt::format;
 use std::process::Command;
-use crate::config::Config;
+use crate::lib::config::Config;
 use anyhow::Result;
 // use uuid
 
