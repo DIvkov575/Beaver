@@ -31,9 +31,8 @@ pub fn deploy(path_arg: &str) -> Result<()> {
     bq::check_for_bq()?;
     bq::create_dataset(&resources, &config)?;
     bq::create_table(&resources, &config)?;
-    // let topic_id = pubsub::create_pubsub_topic(&config)?;
-    //
-    // pubsub::create_bq_subscription(&topic_id, &BqTable::new(config.project, "beaver_data_warehouse", "table1"), &config)?;
+
+    pubsub::create_pubsub_to_bq_subscription(&resources, &config)?;
 
     // generate_vector_config(&path)?;
 
