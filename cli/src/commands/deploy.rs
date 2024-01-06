@@ -1,4 +1,5 @@
 use std::cell::{Cell, RefCell};
+use std::fmt::format;
 use std::fs::{File, OpenOptions};
 use std::path::Path;
 
@@ -21,40 +22,55 @@ pub fn deploy(path_arg: &str) -> Result<()> {
     validate_config_path(&path)?;
     let beaver_config: Mapping = serde_yaml::from_reader(File::open(path.join("beaver_config.yaml"))?)?;
     let region: String = beaver_config[&Value::String("region".into())].clone().as_str().unwrap().to_owned();
-    let project: String = beaver_config[&Value::String("project".into())].clone().as_str().unwrap().to_owned();
+    let project: String = beaver_config[&Value::String("project_id".into())].clone().as_str().unwrap().to_owned();
     let config: Config = Config::new(&region, &project, None);
 
     let mut resources: Resources = Resources::empty();
     resources.biq_query = Some(RefCell::new(BqTable::new(config.project, "beaver_data_warehouse", "table1")));
-    resources.output_pubsub = Some(Cell::new(PubSub::empty()));
+    resources.output_pubsub = Some(RefCell::new(PubSub::empty()));
 
     bq::check_for_bq()?;
-    bq::create_dataset(&resources, &config)?;
-    bq::create_table(&resources, &config)?;
+    // bq::create_dataset(&resources, &config)?;
+    // bq::create_table(&resources, &config)?;
 
     pubsub::create_pubsub_to_bq_subscription(&resources, &config)?;
 
-    // generate_vector_config(&path)?;
+    // generate_vector_config(&path, &resources, &config)?;
 
 
 
     Ok(())
 }
 
-fn generate_vector_config(path: &Path, resources: &Resources) -> Result<()> {
-    let beaver_config_file = File::open(path.join("beaver_config.yaml"))?;
-    let mut vector_config_file = OpenOptions::new()
-        .write(true)
-        .create(true)
-        .open(path.join("artifacts/vector.yaml"))
-        .unwrap();
+fn generate_vector_config(path: &Path, resources: &Resources, config: &Config ) -> Result<()> {
+    let beaver_config: Mapping = serde_yaml::from_reader(&File::open(path.join("beaver_config.yaml"))?)?;
+    let mut vector_config_file = OpenOptions::new().write(true).create(true)
+        .open(path.join("artifacts/vector.yaml"))?;
+    // let pubsub = resources.output_pubsub.as
 
-    let beaver_config: Mapping = serde_yaml::from_reader(&beaver_config_file)?;
+    let sources_yaml =  beaver_config[&Value::String("sources".into())].clone();
+    let transforms_yaml =  beaver_config[&Value::String("transforms".into())].clone();
 
-    let sources =  beaver_config[&Value::String("sources".into())].clone();
-    let transforms=  beaver_config[&Value::String("transforms".into())].clone();
+    let transforms: Vec<Value> = transforms_yaml
+        .as_mapping()
+        .iter()
+        .map(|mapping| mapping
+            .iter()
+            .map(|(key ,value)|
+                format!("\n\t\t-{}", key.as_str().unwrap())
+            ).collect())
+        .collect();
 
-    println!("{:?}", transforms);
+let sinks= serde_yaml::from_str(&format!("\
+bq_writing_pubsub:
+    inputs: {:#?}
+    type: gcp_pubsub
+    project: {}
+
+", transforms, config.project))?;
+
+
+    // }
 
     // let vector_config: Mapping = Mapping::from_iter([
     //     ("sources".into(), beaver_config[&Value::String("sources".into())].clone()),
