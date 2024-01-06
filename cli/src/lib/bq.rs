@@ -36,7 +36,7 @@ pub fn create_table(resources: &Resources, config: &Config) -> Result<()> {
         id_binding.as_ref(),
         "data: JSON"
     ]);
-    Command::new("bq").args(args).spawn()?;
+    Command::new("bq").args(args).spawn().unwrap().wait_with_output()?;
     Ok(())
 }
 
@@ -45,18 +45,6 @@ pub fn create_dataset(resources: &Resources, config: &Config) -> Result<()> {
     // roles/bigquery.dataOwner
     // roles/bigquery.user
     // roles/bigquery.admin
-
-    // bq --location=LOCATION mk \
-    // --dataset \
-    // --default_kms_key=KMS_KEY_NAME \
-    // --default_partition_expiration=PARTITION_EXPIRATION \
-    // --default_table_expiration=TABLE_EXPIRATION \
-    // --description="DESCRIPTION" \
-    // --label=LABEL_1:VALUE_1 \
-    // --label=LABEL_2:VALUE_2 \
-    // --max_time_travel_hours=HOURS \
-    // --storage_billing_model=BILLING_MODEL \
-    // PROJECT_ID:DATASET_ID
 
     let bq_table = resources.biq_query.as_ref().unwrap().borrow();
     let id_binding = format!("{}:{}", config.project, bq_table.dataset_id);
