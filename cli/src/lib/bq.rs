@@ -2,15 +2,20 @@ use std::fmt::format;
 use std::process::Command;
 use anyhow::Result;
 use crate::lib::config::Config;
+use crate::lib::resources::Resources;
 
-pub struct BqTable<'a> {
-    pub project_id: &'a str,
-    pub dataset_id: &'a str,
-    pub table_id: &'a str,
+pub struct BqTable {
+    pub project_id: String,
+    pub dataset_id: String,
+    pub table_id: String,
+
 }
-impl<'a> BqTable<'a> {
+impl<'a> BqTable {
     pub fn new (project_id: &'a str, dataset_id: &'a str, table_id: &'a str) -> Self {
-        Self {project_id, dataset_id, table_id}
+        Self {
+            project_id: project_id.to_string(),
+            dataset_id: dataset_id.to_string(),
+            table_id: table_id.to_string()}
     }
     pub fn flatten(&self) -> String {
         format!("{}:{}.{}", self.project_id, self.dataset_id, self.table_id)
@@ -22,8 +27,9 @@ impl<'a> BqTable<'a> {
 
 }
 
-pub fn create_table(dataset_name: &str, table_name: &str, config: &Config) -> Result<()> {
-    let id_binding = format!("{}:{}.{}", config.project, dataset_name, table_name);
+pub fn create_table(resources: &Resources, config: &Config) -> Result<()> {
+    let bq_table = resources.biq_query.as_ref().unwrap().borrow();
+    let id_binding = format!("{}:{}.{}", config.project, bq_table.dataset_id, bq_table.table_id);
     let args: Vec<&str> = Vec::from([
         "mk",
         "--table",
@@ -34,7 +40,7 @@ pub fn create_table(dataset_name: &str, table_name: &str, config: &Config) -> Re
     Ok(())
 }
 
-pub fn create_dataset(dataset_name: &str, config: &Config) -> Result<()> {
+pub fn create_dataset(resources: &Resources, config: &Config) -> Result<()> {
     // roles/bigquery.dataEditor
     // roles/bigquery.dataOwner
     // roles/bigquery.user
@@ -52,7 +58,8 @@ pub fn create_dataset(dataset_name: &str, config: &Config) -> Result<()> {
     // --storage_billing_model=BILLING_MODEL \
     // PROJECT_ID:DATASET_ID
 
-    let id_binding = format!("{}:{}", config.project, dataset_name);
+    let bq_table = resources.biq_query.as_ref().unwrap().borrow();
+    let id_binding = format!("{}:{}", config.project, bq_table.dataset_id);
     let args: Vec<&str> = Vec::from([
         "mk",
         "--dataset",
