@@ -8,14 +8,28 @@ use rand::Rng;
 use crate::lib::bq::BqTable;
 
 
+pub struct PubSub {
+    topic_id: String,
+    subscriptions: Vec<String>
+}
+
+impl PubSub {
+    pub fn empty() -> Self {
+        Self {
+            topic_id: String::new(),
+            subscriptions: Vec::new(),
+        }
+    }
+}
 
 
-pub fn create_bq_subscription(topic_id: &str, bq_table: &BqTable, config: &Config) -> Result<()> {
+pub fn create_bq_subscription(topic_id: &str, bq_table: &BqTable, config: &Config) -> Result<String> {
     // https://cloud.google.com/pubsub/docs/create-bigquery-subscription
     // gcloud pubsub subscriptions create SUBSCRIPTION_ID \
     // --topic=TOPIC_ID \
     // --bigquery-table=PROJECT_ID:DATASET_ID.TABLE_ID
     let mut random_string: String;
+    let mut subscription_id;
 
     loop {
         random_string = rand::thread_rng()
@@ -24,7 +38,7 @@ pub fn create_bq_subscription(topic_id: &str, bq_table: &BqTable, config: &Confi
             .map(char::from)
             .map(|c| c.to_ascii_lowercase())
             .collect();
-        let subscription_binding = format!("beaver_{random_string}");
+        subscription_id = format!("beaver_{random_string}");
 
         let topic_binding = format!("--topic={topic_id}");
         let bq_table_binding = bq_table.formatted_flatten();
@@ -32,7 +46,7 @@ pub fn create_bq_subscription(topic_id: &str, bq_table: &BqTable, config: &Confi
             "pubsub",
             "subscriptions",
             "create",
-            &subscription_binding,
+            &subscription_id,
             &topic_binding,
             &bq_table_binding,
         ]);
@@ -44,7 +58,7 @@ pub fn create_bq_subscription(topic_id: &str, bq_table: &BqTable, config: &Confi
         }
     }
 
-    Ok(())
+    Ok(subscription_id)
 }
 
 pub fn create_pubsub_topic(config: &Config) -> Result<String> {
