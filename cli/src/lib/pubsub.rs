@@ -16,6 +16,12 @@ pub struct PubSub {
 }
 
 impl PubSub {
+    pub fn new(topic_id: &str, subscription_id: &str) -> Self {
+        Self {
+            topic_id: topic_id.to_string(),
+            subscription_id: subscription_id.to_string(),
+        }
+    }
     pub fn empty() -> Self {
         Self {
             topic_id: String::new(),
@@ -95,14 +101,12 @@ pub fn create_pubsub_topic(config: &Config) -> Result<String> {
 
 pub fn create_pubsub_to_bq_subscription(resources: &Resources, config: &Config) -> Result<()> {
     let bq_table = resources.biq_query.as_ref().unwrap().borrow();
-    let pubsub_binding = resources.output_pubsub.unwrap();
-    let pubsub = pubsub_binding.get_mut();
+    let pubsub = resources.output_pubsub.as_ref().unwrap();
 
     let topic_id = create_pubsub_topic(&config)?;
     let subscription_id = create_bq_subscription(&topic_id, &bq_table, &config)?;
 
-    pubsub.topic_id = topic_id;
-    pubsub.subscription_id = subscription_id;
+    pubsub.set(PubSub::new(&topic_id, &subscription_id));
 
     Ok(())
 }
