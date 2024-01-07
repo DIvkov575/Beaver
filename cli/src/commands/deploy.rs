@@ -27,15 +27,18 @@ pub fn deploy(path_arg: &str) -> Result<()> {
 
     let mut resources: Resources = Resources::empty();
     resources.biq_query = Some(RefCell::new(BqTable::new(config.project, "beaver_data_warehouse", "table1")));
-    resources.output_pubsub = Some(RefCell::new(PubSub::empty()));
+    resources.output_pubsub = Some(RefCell::new(PubSub::new("testtopic", "subsc")));
+    // resources.output_pubsub = Some(RefCell::new(PubSub::empty()));
 
     bq::check_for_bq()?;
     // bq::create_dataset(&resources, &config)?;
     // bq::create_table(&resources, &config)?;
 
-    pubsub::create_pubsub_to_bq_subscription(&resources, &config)?;
+    // pubsub::create_pubsub_to_bq_subscription(&resources, &config)?;
 
-    // generate_vector_config(&path, &resources, &config)?;
+
+
+    generate_vector_config(&path, &resources, &config)?;
 
 
 
@@ -44,44 +47,53 @@ pub fn deploy(path_arg: &str) -> Result<()> {
 
 fn generate_vector_config(path: &Path, resources: &Resources, config: &Config ) -> Result<()> {
     let beaver_config: Mapping = serde_yaml::from_reader(&File::open(path.join("beaver_config.yaml"))?)?;
-    let mut vector_config_file = OpenOptions::new().write(true).create(true)
-        .open(path.join("artifacts/vector.yaml"))?;
-    // let pubsub = resources.output_pubsub.as
+    let mut vector_config_file = OpenOptions::new().write(true).create(true).open(path.join("artifacts/vector.yaml"))?;
+
+    let output_pubsub = resources.output_pubsub.as_ref().unwrap().borrow();
 
     let sources_yaml =  beaver_config[&Value::String("sources".into())].clone();
     let transforms_yaml =  beaver_config[&Value::String("transforms".into())].clone();
 
-    let transforms: Vec<Value> = transforms_yaml
+    let transforms = transforms_yaml
         .as_mapping()
         .iter()
         .map(|mapping| mapping
             .iter()
             .map(|(key ,value)|
-                format!("\n\t\t-{}", key.as_str().unwrap())
-            ).collect())
-        .collect();
+                format!("\n     - '{}'", key.as_str().unwrap())
+            ).collect::<Vec<String>>()[0].clone())
+        .map(|x| Value::String(x))
+        .collect::<Vec<Value>>();
 
-let sinks= serde_yaml::from_str(&format!("\
-bq_writing_pubsub:
-    inputs: {:#?}
-    type: gcp_pubsub
-    project: {}
+//     let sinks_yaml = serde_yaml::from_str(&format!("\
+// bq_writing_pubsub:
+//     inputs: {}
+//     type: gcp_pubsub
+//     project: '{}'
+//     topic: \'{}\'
+//     encoding:
+//         codec: \'json\'",
+//    transforms, config.project, output_pubsub.topic_id))?;
 
-", transforms, config.project))?;
+    let sinks_yaml: Value = Value::Mapping(Mapping::from_iter([
+        (Value::String("bq_writing_pubsub".into()), Value::Mapping(Mapping::from_iter([
+            (Value::String("type".into()), Value::String("gcp_pubsub".into())),
+            (Value::String("inputs".into()), Value::Sequence(serde_yaml::Sequence::from(transforms))),
+            (Value::String("project".into()), Value::String(config.project.into())),
+            (Value::String("topic".into()), Value::String(output_pubsub.topic_id.clone().into())),
+            (Value::String("encoding".into()), Value::Mapping(Mapping::from_iter([
+                ("codec".into(), "json".into())
+            ]))),
+        ])))
+    ]));
 
+    let vector_config: Mapping = Mapping::from_iter([
+        ("sources".into(), sources_yaml),
+        ("transforms".into(), transforms_yaml),
+        ("sinks".into(), sinks_yaml)
+    ]);
 
-    // }
-
-    // let vector_config: Mapping = Mapping::from_iter([
-    //     ("sources".into(), beaver_config[&Value::String("sources".into())].clone()),
-    //     ("transforms".into(), beaver_config[&Value::String("transforms".into())].clone()),
-    // ]);
-    //
-    //
-    // serde_yaml::to_writer(&vector_config_file, &vector_config).unwrap();
-
-
-
+    serde_yaml::to_writer(&vector_config_file, &vector_config).unwrap();
     Ok(())
 }
 

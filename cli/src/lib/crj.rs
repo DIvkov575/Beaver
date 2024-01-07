@@ -41,10 +41,10 @@ pub fn mount_gcs_crj(job_name: &str, bucket_name: &str, volume_name: &str, confi
     let mut description: Mapping = serde_yaml::from_slice(&describe_formatted_crj(job_name, &config)?)?;
 
     let volume_mounts=  Vec::from([
-        Mapping::from_iter(HashMap::from([
+        Mapping::from_iter([
             ("mountPath".into(), "/etc/vector".into()),
             ("name".into(), volume_name.into())
-        ]))
+        ])
     ]);
 
     let volumes = Vec::from([

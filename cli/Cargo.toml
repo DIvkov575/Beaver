@@ -15,12 +15,9 @@ inquire = "0.6.2"
 log4rs = "1.2.0"
 spinoff = "0.8.0"
 log = "0.4.20"
-serde_yaml = "0.8.26"
+serde_yaml = "0.9.30"
 rand = { version = "0.8.5", features = [] }
 tempfile = { version = "3.9.0", features = [] }
-
-
-
 
 [dependencies.clap]
 version = "4.4.6"
