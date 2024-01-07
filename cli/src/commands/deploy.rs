@@ -1,7 +1,9 @@
 use std::cell::{Cell, RefCell};
 use std::fmt::format;
 use std::fs::{File, OpenOptions};
+use std::io::Stdout;
 use std::path::Path;
+use std::process::Stdio;
 
 use anyhow::Result;
 use serde_yaml::{Mapping, Value};
@@ -12,6 +14,7 @@ use crate::lib::{
         BqTable,
         self
     },
+    gcs,
     resources
 };
 use crate::lib::pubsub::PubSub;
@@ -33,12 +36,13 @@ pub fn deploy(path_arg: &str) -> Result<()> {
     bq::check_for_bq()?;
     // bq::create_dataset(&resources, &config)?;
     // bq::create_table(&resources, &config)?;
-
     // pubsub::create_pubsub_to_bq_subscription(&resources, &config)?;
 
-
-
     generate_vector_config(&path, &resources, &config)?;
+
+    // gcs::create_bucket(&resources, &config)?;
+
+
 
 
 
@@ -47,10 +51,8 @@ pub fn deploy(path_arg: &str) -> Result<()> {
 
 fn generate_vector_config(path: &Path, resources: &Resources, config: &Config ) -> Result<()> {
     let beaver_config: Mapping = serde_yaml::from_reader(&File::open(path.join("beaver_config.yaml"))?)?;
-    let mut vector_config_file = OpenOptions::new().write(true).create(true).open(path.join("artifacts/vector.yaml"))?;
-
+    let vector_config_file = OpenOptions::new().write(true).create(true).open(path.join("artifacts/vector.yaml"))?;
     let output_pubsub = resources.output_pubsub.as_ref().unwrap().borrow();
-
     let sources_yaml =  beaver_config[&Value::String("sources".into())].clone();
     let transforms_yaml =  beaver_config[&Value::String("transforms".into())].clone();
 
@@ -60,20 +62,11 @@ fn generate_vector_config(path: &Path, resources: &Resources, config: &Config ) 
         .map(|mapping| mapping
             .iter()
             .map(|(key ,value)|
-                format!("\n     - '{}'", key.as_str().unwrap())
+                key.as_str().unwrap().to_string()
             ).collect::<Vec<String>>()[0].clone())
         .map(|x| Value::String(x))
         .collect::<Vec<Value>>();
 
-//     let sinks_yaml = serde_yaml::from_str(&format!("\
-// bq_writing_pubsub:
-//     inputs: {}
-//     type: gcp_pubsub
-//     project: '{}'
-//     topic: \'{}\'
-//     encoding:
-//         codec: \'json\'",
-//    transforms, config.project, output_pubsub.topic_id))?;
 
     let sinks_yaml: Value = Value::Mapping(Mapping::from_iter([
         (Value::String("bq_writing_pubsub".into()), Value::Mapping(Mapping::from_iter([
@@ -94,6 +87,7 @@ fn generate_vector_config(path: &Path, resources: &Resources, config: &Config ) 
     ]);
 
     serde_yaml::to_writer(&vector_config_file, &vector_config).unwrap();
+
     Ok(())
 }
 
