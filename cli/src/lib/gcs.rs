@@ -36,14 +36,14 @@ pub fn create_bucket(resources: &Resources, config: &Config) -> Result<String> {
     Ok(format!("beaver_{random_string}"))
 }
 
-pub fn upload_to_bucket(object_location: &str, bucket_name: &str, config: &Config) -> Result<()> {
+pub fn upload_to_bucket(local_location: &str, resources: &Resources, config: &Config) -> Result<()> {
     // https://cloud.google.com/storage/docs/uploading-objects#permissions-cli
     // gcloud storage cp OBJECT_LOCATION gs://DESTINATION_BUCKET_NAME/
-    let destination_bucket_binding = format!("gs://{bucket_name}");
-    let mut args: Vec<&str> = Vec::from([
+    let destination_bucket_binding = format!("gs://{}", resources.gcs_bucket.clone().into_inner());
+    let args: Vec<&str> = Vec::from([
         "storage",
         "cp",
-        &object_location,
+        &local_location,
         &destination_bucket_binding,
     ]);
 
