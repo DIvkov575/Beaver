@@ -2,6 +2,7 @@ use std::cell::{Cell, RefCell};
 use std::fmt::format;
 use std::fs::{File, OpenOptions};
 use std::io::Stdout;
+use std::net::Shutdown::Read;
 use std::path::Path;
 use std::process::Stdio;
 
@@ -15,7 +16,8 @@ use crate::lib::{
         self
     },
     gcs,
-    resources
+    resources,
+    crj,
 };
 use crate::lib::pubsub::PubSub;
 use crate::lib::resources::Resources;
@@ -31,6 +33,7 @@ pub fn deploy(path_arg: &str) -> Result<()> {
     let mut resources: Resources = Resources::empty();
     resources.biq_query = Some(RefCell::new(BqTable::new(config.project, "beaver_data_warehouse", "table1")));
     resources.output_pubsub = Some(RefCell::new(PubSub::new("testtopic", "subsc")));
+    resources.crj_instance = RefCell::new(String::from("beaver_vector_instance_1"));
     // resources.output_pubsub = Some(RefCell::new(PubSub::empty()));
 
     bq::check_for_bq()?;
@@ -40,8 +43,10 @@ pub fn deploy(path_arg: &str) -> Result<()> {
 
     generate_vector_config(&path, &resources, &config)?;
 
-    gcs::create_bucket(&resources, &config)?;
+    // gcs::create_bucket(&resources, &config)?;
+    // gcs::upload_to_bucket(path.join("artifacts/vector.yaml").to_str()?, &resources, &config)?;
 
+    // crj::create_vector(&resources, &config)?;
 
 
 
