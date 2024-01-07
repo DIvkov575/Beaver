@@ -1,0 +1,10 @@
+config_path: ./beaver_config
+biq_query:
+  project_id: neon-circle-400322
+  dataset_id: beaver_data_warehouse
+  table_id: table1
+gcs_bucket: beaver_82uhctxig
+output_pubsub:
+  topic_id: beaver_u5vjme2gj
+  subscription_id: beaver_nmv9ur6nj
+crj_instance: beaver-vector-instance-1
