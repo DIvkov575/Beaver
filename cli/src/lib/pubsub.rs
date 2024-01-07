@@ -10,9 +10,10 @@ use crate::lib::bq::BqTable;
 use crate::lib::resources::Resources;
 
 
+#[derive(Debug)]
 pub struct PubSub {
-    topic_id: String,
-    subscription_id: String
+    pub topic_id: String,
+    pub subscription_id: String
 }
 
 impl PubSub {
@@ -97,6 +98,8 @@ pub fn create_pubsub_topic(config: &Config) -> Result<String> {
     }
    Ok(topic_binding)
 }
+
+
 
 
 pub fn create_pubsub_to_bq_subscription(resources: &Resources, config: &Config) -> Result<()> {
