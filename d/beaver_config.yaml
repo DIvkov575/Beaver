@@ -13,4 +13,4 @@ transforms:
   transform1:
     type: remap
     inputs:
-      - 'pubsub-in'
+      - 'pubsub_in'

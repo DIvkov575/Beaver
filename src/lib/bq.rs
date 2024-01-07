@@ -1,9 +1,12 @@
 use std::fmt::format;
 use std::process::Command;
 use anyhow::Result;
+use serde::Serialize;
 use crate::lib::config::Config;
 use crate::lib::resources::Resources;
 
+
+#[derive(Serialize)]
 pub struct BqTable {
     pub project_id: String,
     pub dataset_id: String,
@@ -54,7 +57,7 @@ pub fn create_dataset(resources: &Resources, config: &Config) -> Result<()> {
         id_binding.as_ref(),
     ]);
 
-    Command::new("bq").args(args).spawn()?;
+    Command::new("bq").args(args).spawn().unwrap().wait_with_output()?;
     Ok(())
 }
 

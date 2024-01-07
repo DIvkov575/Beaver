@@ -6,11 +6,12 @@ use anyhow::Result;
 use log::warn;
 use rand::distributions::Alphanumeric;
 use rand::Rng;
+use serde::Serialize;
 use crate::lib::bq::BqTable;
 use crate::lib::resources::Resources;
 
 
-#[derive(Debug)]
+#[derive(Debug, Serialize)]
 pub struct PubSub {
     pub topic_id: String,
     pub subscription_id: String
