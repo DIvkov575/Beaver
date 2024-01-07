@@ -9,12 +9,18 @@ use std::fmt::format;
 use std::process::Command;
 use anyhow::Result;
 use crate::lib::config::Config;
+use crate::lib::resources::Resources;
 
-pub fn create_scheduler(schedule: &str, job_name: &str, config: &Config) -> Result<()> {
+pub fn create_scheduler(schedule: &str, resources: &Resources, config: &Config) -> Result<()> {
     // https://cloud.google.com/run/docs/execute/jobs-on-schedule
 
-    let uri_binding =   format!("--uri=https://{}-run.googleapis.com/apis/run.googleapis.com/v1/namespaces/{}/jobs/{job_name}:run", {config.region}, {config.project});
     let location_binding = format!("--location={}", config.region);
+    let uri_binding =
+        format!("--uri=https://{}-run.googleapis.com/apis/run.googleapis.com/v1/namespaces/{}/jobs/{}:run",
+            config.region,
+            config.project,
+            resources.crj_instance.borrow()
+        );
 
     let args: Vec<&str> =  Vec::from([
         "scheduler", "jobs", "create", "http", "job",
