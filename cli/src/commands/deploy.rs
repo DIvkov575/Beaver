@@ -40,7 +40,7 @@ pub fn deploy(path_arg: &str) -> Result<()> {
 
     generate_vector_config(&path, &resources, &config)?;
 
-    // gcs::create_bucket(&resources, &config)?;
+    gcs::create_bucket(&resources, &config)?;
 
 
 
