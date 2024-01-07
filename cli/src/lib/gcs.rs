@@ -5,10 +5,11 @@ use crate::lib::config::Config;
 use anyhow::Result;
 // use uuid
 
-use rand::{distributions::Alphanumeric, Rng}; // 0.8
+use rand::{distributions::Alphanumeric, Rng};
+use crate::lib::resources::Resources; // 0.8
 
 
-pub fn create_bucket(config: &Config) -> Result<String> {
+pub fn create_bucket(resources: &Resources, config: &Config) -> Result<String> {
     let mut random_string: String;
 
     loop {
@@ -31,6 +32,7 @@ pub fn create_bucket(config: &Config) -> Result<String> {
         }
     }
 
+    resources.gcs_bucket.replace(format!("beaver_{}", random_string));
     Ok(format!("beaver_{random_string}"))
 }
 
