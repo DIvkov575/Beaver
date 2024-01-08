@@ -1,7 +1,27 @@
-use std::fmt::format;
 use std::process::Command;
 use anyhow::Result;
+use serde::Serialize;
 use crate::lib::config::Config;
+use crate::lib::resources::Resources;
+
+#[derive(Serialize)]
+pub struct SA {
+    pub name: String,
+    pub email: String,
+    pub roles: Vec<String>,
+    pub description: String,
+}
+impl SA {
+    pub fn empty() -> Self {
+        Self {
+            name: String::new(),
+            email: String::new(),
+            roles: Vec::new(),
+            description: String::new()
+        }
+    }
+}
+
 
 pub fn create_service_account(sa_name: &str) -> Result<()> {
     let args: Vec<&str> =  Vec::from([
@@ -13,10 +33,7 @@ pub fn create_service_account(sa_name: &str) -> Result<()> {
     Ok(())
 }
 
-pub fn add_service_account_roles(sa_name: &str, config: &Config, roles: Vec<String>) -> Result<()> {
-    // gcloud projects add-iam-policy-binding PROJECT_ID \
-    // --member="serviceAccount:SA_NAME@PROJECT_ID.iam.gserviceaccount.com" \
-    // --role="ROLE_NAME"
+pub fn add_sa_roles(sa_name: &str, config: &Config, roles: Vec<&str>) -> Result<()> {
     let member_binding = format!("--member=serviceAccount:{}@{}.iam.gserviceaccount.com", sa_name, config.project);
     let mut args: Vec<String> =  Vec::from([
         "projects", "add-iam-policy-binding", config.project,
@@ -39,6 +56,37 @@ pub fn allow_service_account_impersonation(sa_name: &str, user_email: &str, conf
         "--role=roles/iam.serviceAccountUser"
     ]);
     Command::new("gcloud").args(args).status()?;
+
+    Ok(())
+}
+
+pub fn create_creational_sa(user_email: &str, config: &Config) -> Result<()> {
+    create_service_account("BeaverCreationalSA")?;
+    allow_service_account_impersonation("BeaverCreationalSA", user_email, &config)?;
+    add_sa_roles("BeaverCreationalSA", &config, vec![
+        "roles/compute.instanceAdmin.v1", // creating compute sa
+        "roles/iam.serviceAccountCreator", // creating compute sa
+        "roles/run.developer" // creating cloud run?
+
+    ])?;
+
+    Ok(())
+}
+
+pub fn create_compute_sa(user_email: &str, resources: &Resources, config: &Config) -> Result<()> {
+    let compute_sa = resources.compute_sa.borrow_mut();
+    compute_sa.name = "BeaverComputeSA".to_String();
+    compute_sa.email =format!("{}@{}.iam.gserviceaccount.com", compute_sa.name, config.project);
+
+    create_service_account(&compute_sa.name)?;
+    allow_service_account_impersonation(&compute_sa.name, user_email, &config)?;
+    add_sa_roles("BeaverComputeSA", &config, vec![
+        "roles/compute.serviceAgent",
+        "roles/pubsub.publisher",
+        "roles/pubsub.subscriber",
+        "roles/run.invoker" // cron
+    ])?;
+
 
     Ok(())
 }
