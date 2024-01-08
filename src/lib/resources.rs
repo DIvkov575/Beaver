@@ -1,31 +1,32 @@
 use std::cell::{Cell, Ref, RefCell};
 use std::path::{Path, PathBuf};
-use serde::Serialize;
+use serde::{Deserialize, Serialize};
 use crate::lib::bq::BqTable;
 use crate::lib::pubsub::PubSub;
 use crate::lib::service_accounts::SA;
 
 
-#[derive(Serialize)]
+#[derive(Deserialize, Serialize)]
 pub struct Resources {
+    #[serde(skip)]
     pub config_path: String,
-    pub biq_query: Option<RefCell<BqTable>>,
-    pub gcs_bucket: RefCell<String>,
-    pub output_pubsub: Option<RefCell<PubSub>>,
-    pub crj_instance: RefCell<String>,
-    pub cron_job: RefCell<SA>,
+    pub biq_query: RefCell<Option<BqTable>>,
+    pub output_pubsub: RefCell<Option<PubSub>>,
+    pub cron_job: RefCell<String>,
     pub compute_sa: RefCell<SA>,
+    pub gcs_bucket: RefCell<Option<String>>,
+    pub crj_instance: RefCell<String>,
 }
 
 impl Resources {
     pub fn empty() -> Self {
         Self {
-            biq_query: None,
-            output_pubsub: Some(RefCell::new(PubSub::empty())),
             config_path: String::new(),
-            cron_job: RefCell::new(SA::empty()),
+            biq_query: RefCell::new(None),
+            output_pubsub: RefCell::new(None),
+            cron_job: RefCell::new(String::new()),
             compute_sa: RefCell::new(SA::empty()),
-            gcs_bucket: RefCell::new(String::new()),
+            gcs_bucket: RefCell::new(None),
             crj_instance: RefCell::new(String::new()),
         }
     }
