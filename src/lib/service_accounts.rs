@@ -74,8 +74,8 @@ pub fn create_creational_sa(user_email: &str, config: &Config) -> Result<()> {
 }
 
 pub fn create_compute_sa(user_email: &str, resources: &Resources, config: &Config) -> Result<()> {
-    let compute_sa = resources.compute_sa.borrow_mut();
-    compute_sa.name = "BeaverComputeSA".to_String();
+    let mut compute_sa = resources.compute_sa.borrow_mut();
+    compute_sa.name = String::from("BeaverComputeSA");
     compute_sa.email =format!("{}@{}.iam.gserviceaccount.com", compute_sa.name, config.project);
 
     create_service_account(&compute_sa.name)?;

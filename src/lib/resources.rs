@@ -21,7 +21,7 @@ impl Resources {
     pub fn empty() -> Self {
         Self {
             biq_query: None,
-            output_pubsub: None,
+            output_pubsub: Some(RefCell::new(PubSub::empty())),
             config_path: String::new(),
             cron_job: RefCell::new(SA::empty()),
             compute_sa: RefCell::new(SA::empty()),

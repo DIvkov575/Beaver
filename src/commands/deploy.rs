@@ -23,15 +23,25 @@ use crate::lib::{
 };
 use crate::lib::pubsub::PubSub;
 use crate::lib::resources::Resources;
+macro_rules! get {
+    ($config: ident,  $($b:literal,)*) => {
+        &$config$([&Value::String($b.into())])*.clone().as_str().unwrap().to_owned()
+    };
+}
 
 pub fn deploy(path_arg: &str) -> Result<()> {
 
     let path = Path::new(path_arg);
     validate_config_path(&path)?;
     let beaver_config: Mapping = serde_yaml::from_reader(File::open(path.join("beaver_config.yaml"))?)?;
+    // let region =beaver_config[&Value::String("region".into())].clone().as_str().unwrap().to_owned();
+        // &beaver_config.as_ref()[&Value::String("project_id".into())].clone().as_str().unwrap().to_owned(),
+    let region = get!(beaver_config, "region",);
+    let project_id= get!(beaver_config, "project_id",);
+
     let config: Config = Config::new(
-        &beaver_config[&Value::String("region".into())].clone().as_str().unwrap().to_owned(),
-        &beaver_config[&Value::String("project_id".into())].clone().as_str().unwrap().to_owned(),
+        &region,
+        &region,
         None
     );
 
@@ -39,7 +49,6 @@ pub fn deploy(path_arg: &str) -> Result<()> {
     resources.config_path = path.to_str().unwrap().to_string();
     resources.biq_query = Some(RefCell::new(BqTable::new(config.project, "beaver_data_warehouse", "table1")));
     resources.crj_instance = RefCell::new(String::from("beaver-vector-instance-1"));
-    resources.output_pubsub = Some(RefCell::new(PubSub::empty()));
 
     // bq::check_for_bq()?;
     // bq::create_dataset(&resources, &config)?;
@@ -67,6 +76,9 @@ pub fn deploy(path_arg: &str) -> Result<()> {
 
     Ok(())
 }
+
+#[macro_export]
+
 
 fn generate_vector_config(path: &Path, resources: &Resources, config: &Config ) -> Result<()> {
     let beaver_config: Mapping = serde_yaml::from_reader(&File::open(path.join("beaver_config.yaml"))?)?;

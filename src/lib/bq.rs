@@ -1,12 +1,12 @@
 use std::fmt::format;
 use std::process::Command;
 use anyhow::Result;
-use serde::Serialize;
+use serde::{Deserialize, Serialize};
 use crate::lib::config::Config;
 use crate::lib::resources::Resources;
 
 
-#[derive(Serialize)]
+#[derive(Deserialize, Serialize)]
 pub struct BqTable {
     pub project_id: String,
     pub dataset_id: String,
