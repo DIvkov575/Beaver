@@ -63,7 +63,7 @@ transforms:
     beaver_conf_file.write(config.as_bytes())?;
 
     let mut log_conf = OpenOptions::new().write(true).create(true).open(path.join("logging_config.yaml")).unwrap();
-    log_conf.write(include_bytes!("../../../beaver_config/logging_config.yaml"))?;
+    log_conf.write(include_bytes!("../beaver_config/logging_config.yaml"))?;
 
 
     Ok(())
