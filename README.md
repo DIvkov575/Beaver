@@ -12,6 +12,7 @@ inspired by matano, executes completely within gcp
   2024-01-07T22:22:02.424692Z ERROR vector::topology::builder: Configuration error. error=Transform "transform1": must provide exactly one of `source` or `file` configuration
 
 -- give cron access to running cloud run
+  https://cloud.google.com/scheduler/docs/http-target-auth
 -- gcloud check
 -- logging
 -- minimize gcloud stdout + feature for verbose execution

@@ -5,7 +5,6 @@
 // --http-method POST \
 // --oauth-service-account-email PROJECT-NUMBER-compute@developer.gserviceaccount.com
 
-use std::fmt::format;
 use std::process::Command;
 use anyhow::Result;
 use crate::lib::config::Config;
@@ -30,6 +29,15 @@ pub fn create_scheduler(schedule: &str, resources: &Resources, config: &Config) 
         &uri_binding,
      ]);
     Command::new("gcloud").args(args).status()?;
+
+    Ok(())
+}
+
+
+pub fn scheduler_update() -> Result<()> {
+    // gcloud RESOURCE_TYPE add-iam-policy-binding RESOURCE_ID \
+    // --member=PRINCIPAL --role=ROLE
+
 
     Ok(())
 }

@@ -29,21 +29,17 @@ pub fn deploy(path_arg: &str) -> Result<()> {
     let path = Path::new(path_arg);
     validate_config_path(&path)?;
     let beaver_config: Mapping = serde_yaml::from_reader(File::open(path.join("beaver_config.yaml"))?)?;
-    let region: String = beaver_config[&Value::String("region".into())].clone().as_str().unwrap().to_owned();
-    let project: String = beaver_config[&Value::String("project_id".into())].clone().as_str().unwrap().to_owned();
-    let config: Config = Config::new(&region, &project, None);
+    let config: Config = Config::new(
+        &beaver_config[&Value::String("region".into())].clone().as_str().unwrap().to_owned(),
+        &beaver_config[&Value::String("project_id".into())].clone().as_str().unwrap().to_owned(),
+        None
+    );
 
     let mut resources: Resources = Resources::empty();
     resources.config_path = path.to_str().unwrap().to_string();
     resources.biq_query = Some(RefCell::new(BqTable::new(config.project, "beaver_data_warehouse", "table1")));
     resources.crj_instance = RefCell::new(String::from("beaver-vector-instance-1"));
     resources.output_pubsub = Some(RefCell::new(PubSub::empty()));
-
-    // ctrlc::set_handler(|| {
-    //     &resources.save();
-    //     println!("\nBeaver: graceful shutdown");
-    //     exit(1);
-    // }).expect("Error setting Ctrl-C handler");
 
     // bq::check_for_bq()?;
     // bq::create_dataset(&resources, &config)?;

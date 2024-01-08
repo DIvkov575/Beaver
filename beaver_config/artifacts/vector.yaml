@@ -9,7 +9,7 @@ transforms:
   transform1:
     type: remap
     inputs:
-    - pubsub_in
+    - "pubsub_in"
 sinks:
   bq_writing_pubsub:
     type: gcp_pubsub
