@@ -6,12 +6,12 @@ use anyhow::Result;
 use log::warn;
 use rand::distributions::Alphanumeric;
 use rand::Rng;
-use serde::Serialize;
+use serde::{Deserialize, Serialize};
 use crate::lib::bq::BqTable;
 use crate::lib::resources::Resources;
 
 
-#[derive(Debug, Serialize)]
+#[derive(Debug,Deserialize, Serialize)]
 pub struct PubSub {
     pub topic_id: String,
     pub subscription_id: String
@@ -104,8 +104,10 @@ pub fn create_pubsub_topic(config: &Config) -> Result<String> {
 
 
 pub fn create_pubsub_to_bq_subscription(resources: &Resources, config: &Config) -> Result<()> {
-    let bq_table = resources.biq_query.as_ref().unwrap().borrow();
-    let mut pubsub = resources.output_pubsub.as_ref().unwrap().borrow_mut();
+    let bq_table_binding = resources.biq_query.borrow();
+    let bq_table= bq_table_binding.as_ref().unwrap();
+    let mut pubsub_binding = resources.output_pubsub.borrow_mut();
+    let mut pubsub = pubsub_binding.as_mut().unwrap();
 
     let topic_id = create_pubsub_topic(&config)?;
     let subscription_id = create_bq_subscription(&topic_id, &bq_table, &config)?;

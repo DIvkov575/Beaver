@@ -23,52 +23,17 @@ use crate::lib::{
 };
 use crate::lib::pubsub::PubSub;
 use crate::lib::resources::Resources;
-macro_rules! get {
-    ($config: ident,  $($b:literal,)*) => {
-        &$config$([&Value::String($b.into())])*.clone().as_str().unwrap().to_owned()
-    };
-}
+
 
 pub fn deploy(path_arg: &str) -> Result<()> {
+    validate_config_path(&Path::new(path_arg))?;
 
     let path = Path::new(path_arg);
-    validate_config_path(&path)?;
-    let beaver_config: Mapping = serde_yaml::from_reader(File::open(path.join("beaver_config.yaml"))?)?;
-    // let region =beaver_config[&Value::String("region".into())].clone().as_str().unwrap().to_owned();
-        // &beaver_config.as_ref()[&Value::String("project_id".into())].clone().as_str().unwrap().to_owned(),
-    let region = get!(beaver_config, "region",);
-    let project_id= get!(beaver_config, "project_id",);
-
-    let config: Config = Config::new(
-        &region,
-        &region,
-        None
-    );
-
-    let mut resources: Resources = Resources::empty();
-    resources.config_path = path.to_str().unwrap().to_string();
-    resources.biq_query = Some(RefCell::new(BqTable::new(config.project, "beaver_data_warehouse", "table1")));
-    resources.crj_instance = RefCell::new(String::from("beaver-vector-instance-1"));
-
-    // bq::check_for_bq()?;
-    // bq::create_dataset(&resources, &config)?;
-    // bq::create_table(&resources, &config)?;
-    pubsub::create_pubsub_to_bq_subscription(&resources, &config)?;
-    generate_vector_config(&path, &resources, &config)?;
-
-    gcs::create_bucket(&resources, &config)?;
-    gcs::upload_to_bucket(
-        path
-            .join("artifacts/vector.yaml")
-            .to_str()
-            .ok_or(anyhow!("path `<config>/artifacts/vector.yaml`"))?,
-        &resources, &config
+    let config: Config = Config::from_path(&path);
+    let mut resources: Resources =  serde_yaml::from_reader(
+        File::open(path.join("artifacts/resources.yaml"))?
     )?;
 
-    crj::create_vector(&resources, &config)?;
-
-    // let scheduler = "11 * * * *";
-    // cron::create_scheduler(scheduler, &resources, &config)?;
 
 
 
@@ -81,9 +46,11 @@ pub fn deploy(path_arg: &str) -> Result<()> {
 
 
 fn generate_vector_config(path: &Path, resources: &Resources, config: &Config ) -> Result<()> {
-    let beaver_config: Mapping = serde_yaml::from_reader(&File::open(path.join("beaver_config.yaml"))?)?;
+    let beaver_config: Mapping = serde_yaml::from_reader(&File::open(path.join("../beaver_config/beaver_config.yaml"))?)?;
     let vector_config_file = OpenOptions::new().write(true).create(true).open(path.join("artifacts/vector.yaml"))?;
-    let output_pubsub = resources.output_pubsub.as_ref().unwrap().borrow();
+
+    let _output_pubsub_binding= resources.output_pubsub.borrow();
+    let output_pubsub = _output_pubsub_binding.as_ref().unwrap();
     let sources_yaml =  beaver_config[&Value::String("sources".into())].clone();
     let transforms_yaml =  beaver_config[&Value::String("transforms".into())].clone();
 
@@ -103,7 +70,7 @@ fn generate_vector_config(path: &Path, resources: &Resources, config: &Config ) 
         (Value::String("bq_writing_pubsub".into()), Value::Mapping(Mapping::from_iter([
             (Value::String("type".into()), Value::String("gcp_pubsub".into())),
             (Value::String("inputs".into()), Value::Sequence(serde_yaml::Sequence::from(transforms))),
-            (Value::String("project".into()), Value::String(config.project.into())),
+            (Value::String("project".into()), Value::String(config.project.clone().into())),
             (Value::String("topic".into()), Value::String(output_pubsub.topic_id.clone().into())),
             (Value::String("encoding".into()), Value::Mapping(Mapping::from_iter([
                 ("codec".into(), "json".into())
@@ -123,7 +90,7 @@ fn generate_vector_config(path: &Path, resources: &Resources, config: &Config ) 
 }
 
 fn validate_config_path(path: &Path) -> Result<()> {
-    if !path.join("beaver_config.yaml").exists() {
+    if !path.join("../beaver_config/beaver_config.yaml").exists() {
         return Err(anyhow::anyhow!("config path does not exist or broken"));
     }
     Ok(())

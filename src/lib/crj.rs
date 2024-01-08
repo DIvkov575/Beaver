@@ -10,8 +10,8 @@ use crate::lib::resources::Resources;
 macro_rules! gm {($a:ident, $($b:literal,)*) => {$a$(.get_mut(&serde_yaml::Value::String($b.to_owned().into())).unwrap())*};}
 
 pub fn create_vector(resources: &Resources, config: &Config) -> Result<()> {
-    let crj_instance_id = resources.crj_instance.borrow();
-    let bucket_name = resources.gcs_bucket.borrow();
+    let crj_instance_id = resources.crj_instance.borrow().clone();
+    let bucket_name = resources.gcs_bucket.borrow().clone().unwrap();
     create_crj(&crj_instance_id, &config)?;
     mount_gcs_crj(&crj_instance_id, &bucket_name, &config)?;
     Ok(())
@@ -73,7 +73,7 @@ pub fn mount_gcs_crj(job_name: &str, bucket_name: &str, config: &Config) -> Resu
     let a = gm!(description, "metadata", ).as_mapping_mut().unwrap().remove("labels");
 
     let tmp_file = tempfile::NamedTempFile::new()?;
-    // let tmp_file = std::fs::OpenOptions::new().write(true).open("tmp.yaml")?;
+    // let tmp_file = std::fs::OpenOptions::new().write(true).open("beaver_config.yaml")?;
     // serde_yaml::to_writer(std::io::stdout(), &description).unwrap();
     serde_yaml::to_writer(&tmp_file, &description).unwrap();
 
