@@ -1,3 +1,4 @@
+use std::fmt::format;
 use std::process::Command;
 use anyhow::Result;
 use serde::{Deserialize, Serialize};
@@ -20,6 +21,14 @@ impl SA {
             description: String::new()
         }
     }
+    // pub fn new(name: &str, roles: Vec<String>, description: &str) -> Self {
+    //     Self {
+    //         name: name.to_string(),
+    //         roles: roles.clone(),
+    //         description: description
+    //
+    //     }
+    // }
 }
 
 

@@ -14,7 +14,7 @@ use crate::lib::resources::Resources;
 #[derive(Debug,Deserialize, Serialize)]
 pub struct PubSub {
     pub topic_id: String,
-    pub subscription_id: String
+    pub subscription_id: String,
 }
 
 impl PubSub {
@@ -30,14 +30,25 @@ impl PubSub {
             subscription_id: String::new(),
         }
     }
+    pub fn create(&mut self, resources: &Resources, config: &Config) -> Result<()> {
+        // create topic from config if topic name was given, else creates one "beaver_{random_string}"
+        // creates subscription from topic to biquery defined in resources
+
+        if self.topic_id.is_empty() {
+            self.topic_id = create_pubsub_topic(&config)?;
+        } else {
+            create_named_pubsub_topic(&self.topic_id, &config)?;
+        }
+
+        create_pubsub_to_bq_subscription(&resources, &config)?;
+
+        Ok(())
+
+    }
 }
 
 
 pub fn create_bq_subscription(topic_id: &str, bq_table: &BqTable, config: &Config) -> Result<String> {
-    // https://cloud.google.com/pubsub/docs/create-bigquery-subscription
-    // gcloud pubsub subscriptions create SUBSCRIPTION_ID \
-    // --topic=TOPIC_ID \
-    // --bigquery-table=PROJECT_ID:DATASET_ID.TABLE_ID
     let mut random_string: String;
     let mut subscription_id;
 
@@ -71,6 +82,18 @@ pub fn create_bq_subscription(topic_id: &str, bq_table: &BqTable, config: &Confi
     Ok(subscription_id)
 }
 
+
+pub fn create_named_pubsub_topic(topic_id: &str, config: &Config) -> Result<()> {
+        let args: Vec<&str> = Vec::from([
+            "pubsub",
+            "topics",
+            "create",
+            topic_id
+        ]);
+
+        Command::new("gcloud").args(args).args(config.get_project()).spawn().unwrap().wait_with_output()?;
+    Ok(())
+}
 pub fn create_pubsub_topic(config: &Config) -> Result<String> {
     let mut random_string: String;
     let mut topic_binding: String;

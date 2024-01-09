@@ -1,32 +1,18 @@
-use std::cell::{Cell, RefCell};
-use std::error::Error;
-use std::fmt::format;
 use std::fs::{File, OpenOptions};
-use std::io::Stdout;
-use std::net::Shutdown::Read;
 use std::path::Path;
-use std::process::{exit, Stdio};
 
 use anyhow::{anyhow, Result};
 use serde_yaml::{Mapping, Value};
 
-use crate::lib::{
-    config::Config,
-    pubsub, bq::{
-        BqTable,
-        self
-    },
-    gcs,
-    resources,
-    crj,
-    cron,
-};
-use crate::lib::pubsub::PubSub;
+use crate::lib::{bq::{
+    self
+}, config::Config, crj, cron, gcs};
 use crate::lib::resources::Resources;
-
 
 pub fn deploy(path_arg: &str) -> Result<()> {
     validate_config_path(&Path::new(path_arg))?;
+    bq::check_for_bq()?;
+    bq::check_for_gcloud()?;
 
     let path = Path::new(path_arg);
     let config: Config = Config::from_path(&path);
@@ -34,7 +20,20 @@ pub fn deploy(path_arg: &str) -> Result<()> {
         File::open(path.join("artifacts/resources.yaml"))?
     )?;
 
+    resources.biq_query.get_mut().unwrap().create()?;
+    resources.output_pubsub.get_mut().unwrap().create(&resources, &config)?;
+    generate_vector_config(&path, &resources, &config)?;
 
+    gcs::create_bucket(&resources, &config)?;
+    gcs::upload_to_bucket(
+        path
+            .join("artifacts/vector.yaml")
+            .to_str()
+            .ok_or(anyhow!("path `<config>/artifacts/vector.yaml`"))?,
+        &resources, &config)?;
+
+    crj::create_vector(&resources, &config)?;
+    cron::create_scheduler(&resources, &config)?;
 
 
 
@@ -42,7 +41,6 @@ pub fn deploy(path_arg: &str) -> Result<()> {
     Ok(())
 }
 
-#[macro_export]
 
 
 fn generate_vector_config(path: &Path, resources: &Resources, config: &Config ) -> Result<()> {

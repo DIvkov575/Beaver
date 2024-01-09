@@ -10,7 +10,7 @@ use anyhow::Result;
 use crate::lib::config::Config;
 use crate::lib::resources::Resources;
 
-pub fn create_scheduler(schedule: &str, resources: &Resources, config: &Config) -> Result<()> {
+pub fn create_scheduler(resources: &Resources, config: &Config) -> Result<()> {
     // https://cloud.google.com/run/docs/execute/jobs-on-schedule
 
     let location_binding = format!("--location={}", config.region);
@@ -24,7 +24,7 @@ pub fn create_scheduler(schedule: &str, resources: &Resources, config: &Config) 
     let args: Vec<&str> =  Vec::from([
         "scheduler", "jobs", "create", "http", "job",
         "--http-method", "POST",
-        "--schedule", schedule,
+        "--schedule", &config.schedule,
         &location_binding,
         &uri_binding,
      ]);
