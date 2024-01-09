@@ -6,7 +6,7 @@ use serde_yaml::{Mapping, Value};
 
 use crate::lib::{bq::{
     self
-}, config::Config, crj, cron, gcs};
+}, config::Config, crj, gcs};
 use crate::lib::resources::Resources;
 
 pub fn deploy(path_arg: &str) -> Result<()> {
@@ -20,8 +20,8 @@ pub fn deploy(path_arg: &str) -> Result<()> {
         File::open(path.join("artifacts/resources.yaml"))?
     )?;
 
-    resources.biq_query.get_mut().unwrap().create()?;
-    resources.output_pubsub.get_mut().unwrap().create(&resources, &config)?;
+    resources.biq_query.borrow_mut().as_mut().unwrap().create()?;
+    resources.output_pubsub.borrow_mut().as_mut().unwrap().create(&resources, &config)?;
     generate_vector_config(&path, &resources, &config)?;
 
     gcs::create_bucket(&resources, &config)?;
@@ -33,7 +33,6 @@ pub fn deploy(path_arg: &str) -> Result<()> {
         &resources, &config)?;
 
     crj::create_vector(&resources, &config)?;
-    cron::create_scheduler(&resources, &config)?;
 
 
 

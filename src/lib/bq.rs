@@ -34,8 +34,8 @@ impl BqTable {
         // create bq instance from config.artifacts.resources.yaml if names were provided, otherwise names dataset dynamically "beaver_{random_string}" and table "table1"
 
         // create dataset & store id
-        if self.dataset_id.is_empty() { self.dataset_id = create_dataset_named(&self.project_id)?;
-        } else  { create_dataset_named(&self.project_id)? }
+        if self.dataset_id.is_empty() { self.dataset_id = create_dataset_unnamed(&self.project_id)?;
+        } else  { create_dataset_named(&self.dataset_id, &self.project_id)? }
 
         // create table & store id
         if self.table_id.is_empty() {
@@ -50,7 +50,7 @@ impl BqTable {
 
 }
 
-pub fn create_dataset_named(project_id: &str) -> Result<String> {
+pub fn create_dataset_unnamed(project_id: &str) -> Result<String> {
     let mut random_string: String;
     let mut dataset_id_binding: String;
 
@@ -73,7 +73,7 @@ pub fn create_dataset_named(project_id: &str) -> Result<String> {
     Ok(dataset_id_binding)
 }
 
-pub fn create_dataset_unnamed(dataset_id: &str, project_id: &str) -> Result<()> {
+pub fn create_dataset_named(dataset_id: &str, project_id: &str) -> Result<()> {
     let id_binding = format!("{}:{}", project_id, dataset_id);
     let args: Vec<&str> = Vec::from(["mk", "--dataset", &id_binding, ]);
     Command::new("bq").args(args).spawn().unwrap().wait_with_output()?;
