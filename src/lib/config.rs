@@ -8,25 +8,30 @@ macro_rules! get {($config: ident,  $($b:literal,)*) => {
 pub struct Config {
     pub region: String,
     pub project: String,
+    pub schedule: String,
     pub service_account: Option<String>,
-    formatted_service_account: Option<String>
+    formatted_service_account: Option<String>,
 }
 
 impl Config {
     pub fn new(region: &str, project: &str, service_account: Option<&str>) -> Config {
+        let service_account_binding: Option<String>;
+        let formatted_service_account_binding: Option<String>;
+
         if service_account.is_none() {
-            Self {region: region.to_string(),
-                project: project.to_string(),
-                service_account: None,
-                formatted_service_account: None
-            }
+            service_account_binding = None;
+            formatted_service_account_binding = None;
         } else {
-            Self {
-                region: region.to_string(),
-                project: project.to_string(),
-                service_account: Some(service_account.unwrap().to_string()),
-                formatted_service_account: Some(format!("--impersonate-service-account={}", service_account.unwrap()))
-            }
+            service_account_binding = Some(service_account.unwrap().to_string());
+            formatted_service_account_binding = Some(format!("--impersonate-service-account={}", service_account.unwrap()));
+        }
+
+        Self {
+            region: region.to_string(),
+            project: project.to_string(),
+            schedule: "0 * * * *".to_string(),
+            service_account: service_account_binding,
+            formatted_service_account: formatted_service_account_binding,
         }
     }
 
@@ -39,22 +44,23 @@ impl Config {
 
         let region_binding = get!(beaver_config, "region",);
         let project_id_binding = get!(beaver_config, "project_id",);
+        let schedule_binding = get!(beaver_config, "schedule",);
 
         Config {
             region: region_binding,
             project: project_id_binding,
+            schedule: schedule_binding,
             service_account: None,
-            formatted_service_account: None
+            formatted_service_account: None,
         }
     }
 
     pub fn flatten(&self) -> Vec<&str> {
         if self.service_account.is_none() {
-            Vec::from(["--region", &self.region, "--project", &self.project,  ])
+            Vec::from(["--region", &self.region, "--project", &self.project, ])
         } else {
-            Vec::from(["--region", &self.region, "--project", &self.project,  self.formatted_service_account.as_ref().unwrap().as_ref()])
+            Vec::from(["--region", &self.region, "--project", &self.project, self.formatted_service_account.as_ref().unwrap().as_ref()])
         }
-
     }
     pub fn get_region(&self) -> Vec<&str> { Vec::from(["--region", &self.region]) }
     pub fn get_project(&self) -> Vec<&str> { Vec::from(["--project", &self.project]) }
