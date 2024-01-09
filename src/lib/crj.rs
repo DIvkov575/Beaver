@@ -19,12 +19,18 @@ pub fn create_vector(resources: &Resources, config: &Config) -> Result<()> {
 
 fn create_crj(job_name: &str, config: &Config) -> Result<()>{
     let image_url = "docker.io/timberio/vector:latest-alpine";
-    let mut args: Vec<&str> =  Vec::from(["run", "jobs", "create", job_name, "--image", image_url]);
-    args.extend(config.flatten());
-
-    Command::new("gcloud").args(args).status()?;
+    let args: Vec<&str> =  Vec::from(["run", "jobs", "create", job_name, "--image", image_url]);
+    Command::new("gcloud").args(args).args(config.flatten()).status()?;
     Ok(())
 }
+
+pub fn execute_crj(resources: &Resources, config: &Config) -> Result<()> {
+    let crj_instance = resources.crj_instance.clone().into_inner();
+    let args: Vec<&str> =  Vec::from(["run", "jobs", "execute", &crj_instance]);
+    Command::new("gcloud").args(args).args(config.flatten()).status()?;
+    Ok(())
+}
+
 
 #[inline(always)]
 fn describe_formatted_crj(job_name: &str, config: &Config) -> Result<Vec<u8>> {
