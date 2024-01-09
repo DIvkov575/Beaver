@@ -7,6 +7,7 @@ use std::path::PathBuf;
 use anyhow::Result;
 use inquire::{Select, Text};
 use spinoff::{Color, Spinner, spinners};
+use crate::lib::config::Config;
 use crate::lib::resources::Resources;
 
 pub fn init(force: bool) -> Result<()> {
@@ -47,9 +48,12 @@ pub fn create_config_dir(file_path: &str, region: &str, project: &str) -> Result
     File::create(path.join("artifacts/resources.yaml"))?;
     File::create(path.join("log/log1.log"))?;
 
-    let config = format!("\
-project_id: {project}
-region: {region}
+    let config: Config = Config::new(region, project, None);
+    let config_file = format!("\
+beaver:
+    project_id: {project}
+    region: {region}
+
 
 sources:
   pubsub_in:
@@ -65,12 +69,12 @@ transforms:
       - pubsub-in
 ");
 
-    let mut resources = Resources::empty();
+    let mut resources = Resources::empty(&config);
     resources.config_path = path.as_os_str().to_str().unwrap().to_string();
     resources.save();
 
     let mut beaver_conf_file = OpenOptions::new().write(true).create(true).open(path.join("beaver_config.yaml")).unwrap();
-    beaver_conf_file.write(config.as_bytes())?;
+    beaver_conf_file.write(config_file.as_bytes())?;
 
     let mut log_conf = OpenOptions::new().write(true).create(true).open(path.join("logging_config.yaml")).unwrap();
     log_conf.write(include_bytes!("../beaver_config/logging_config.yaml"))?;

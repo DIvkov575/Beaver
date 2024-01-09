@@ -1,14 +1,11 @@
 use std::fs::File;
 use std::path::Path;
 use serde_yaml::{Mapping, Value};
-macro_rules! get {($config: ident,  $($b:literal,)*) => {
-    $config$([&Value::String($b.into())])*.clone().as_str().unwrap().to_owned()
-};}
+use crate::get;
 
 pub struct Config {
     pub region: String,
     pub project: String,
-    pub schedule: String,
     pub service_account: Option<String>,
     formatted_service_account: Option<String>,
 }
@@ -29,7 +26,6 @@ impl Config {
         Self {
             region: region.to_string(),
             project: project.to_string(),
-            schedule: "0 * * * *".to_string(),
             service_account: service_account_binding,
             formatted_service_account: formatted_service_account_binding,
         }
@@ -42,14 +38,12 @@ impl Config {
             ).unwrap()
         ).unwrap();
 
-        let region_binding = get!(beaver_config, "region",);
-        let project_id_binding = get!(beaver_config, "project_id",);
-        let schedule_binding = get!(beaver_config, "schedule",);
+        let region_binding = get!(beaver_config, "beaver", "region",).as_str().unwrap().to_owned();
+        let project_id_binding = get!(beaver_config, "beaver", "project_id",).as_str().unwrap().to_owned();
 
         Config {
             region: region_binding,
             project: project_id_binding,
-            schedule: schedule_binding,
             service_account: None,
             formatted_service_account: None,
         }

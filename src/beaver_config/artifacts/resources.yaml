@@ -1,6 +1,6 @@
 config_path: src/beav
-biq_query: null
-output_pubsub: null
+biq_query: ''
+output_pubsub: ''
 cron_job: ''
 compute_sa:
   name: ''

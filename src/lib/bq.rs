@@ -17,6 +17,14 @@ pub struct BqTable {
 
 }
 impl BqTable {
+    pub fn empty(config: &Config) -> Self {
+        Self {
+            project_id: config.project.clone(),
+            dataset_id: String::new(),
+            table_id: String::new(),
+
+        }
+    }
     pub fn new (project_id: &str, dataset_id: &str, table_id: &str) -> Self {
         Self {
             project_id: project_id.to_string(),
@@ -30,17 +38,18 @@ impl BqTable {
     pub fn formatted_flatten(&self) -> String {
         format!("--bigquery-table={}:{}.{}", self.project_id, self.dataset_id, self.table_id)
     }
-    pub fn create(&mut self) -> Result<()>{
+    pub fn create(&mut self, config: &Config) -> Result<()>{
         // create bq instance from config.artifacts.resources.yaml if names were provided, otherwise names dataset dynamically "beaver_{random_string}" and table "table1"
 
         // create dataset & store id
-        if self.dataset_id.is_empty() { self.dataset_id = create_dataset_unnamed(&self.project_id)?;
+        if self.dataset_id == "" {
+            self.dataset_id = create_dataset_unnamed(&self.project_id)?;
         } else  { create_dataset_named(&self.dataset_id, &self.project_id)? }
 
         // create table & store id
-        if self.table_id.is_empty() {
-            create_table(&self.dataset_id, "table1", &self.project_id)?;
+        if self.table_id == "" {
             self.table_id = String::from("table1");
+            create_table(&self.dataset_id,&self.table_id, &self.project_id)?;
         } else {
             create_table(&self.dataset_id, &self.table_id, &self.project_id)?;
         }
@@ -57,12 +66,13 @@ pub fn create_dataset_unnamed(project_id: &str) -> Result<String> {
     loop {
         random_string = rand::thread_rng()
             .sample_iter(&Alphanumeric)
-            .take(9)
+            .take(4)
             .map(char::from)
             .map(|c| c.to_ascii_lowercase())
             .collect();
-        dataset_id_binding = format!("{}:beaver_datalake_{}", project_id, random_string);
-        let args: Vec<&str> = Vec::from(["mk", "--dataset", &dataset_id_binding, ]);
+        dataset_id_binding = format!("beaver_datalake_{}", random_string);
+        let dataset_formatted_binding = format!("{}:beaver_datalake_{}", project_id, random_string);
+        let args: Vec<&str> = Vec::from(["mk", "--dataset", &dataset_formatted_binding, ]);
         if Command::new("bq").args(args).status().unwrap().success() {
             break
         } else {
