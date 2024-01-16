@@ -38,24 +38,6 @@ impl BqTable {
     pub fn formatted_flatten(&self) -> String {
         format!("--bigquery-table={}:{}.{}", self.project_id, self.dataset_id, self.table_id)
     }
-    pub fn create(&mut self, config: &Config) -> Result<()>{
-        // create bq instance from config.artifacts.resources.yaml if names were provided, otherwise names dataset dynamically "beaver_{random_string}" and table "table1"
-
-        // create dataset & store id
-        if self.dataset_id == "" {
-            self.dataset_id = create_dataset_unnamed(&self.project_id)?;
-        } else  { create_dataset_named(&self.dataset_id, &self.project_id)? }
-
-        // create table & store id
-        if self.table_id == "" {
-            self.table_id = String::from("table1");
-            create_table(&self.dataset_id,&self.table_id, &self.project_id)?;
-        } else {
-            create_table(&self.dataset_id, &self.table_id, &self.project_id)?;
-        }
-
-        Ok(())
-    }
 
 }
 
@@ -104,15 +86,22 @@ pub fn create_table(dataset_id: &str, table_id: &str, project_id: &str) -> Resul
 
 
 
-pub fn check_for_gcloud() -> Result<()> {
-    match Command::new("gcloud").output() {
-        Ok(_) => return Ok(()),
-        Err(_) => panic!("Please ensure you have gcloud (google-cloud-sdk) installed"),
+pub fn create(resources: &Resources, config: &Config) -> Result<()>{
+    // create bq instance from config.artifacts.resources.yaml if names were provided, otherwise names dataset dynamically "beaver_{random_string}" and table "table1"
+    let bq = resources.biq_query.borrow_mut().as_mut().unwrap();
+
+    // create dataset & store id
+    if bq.dataset_id == "" {
+        bq.dataset_id = create_dataset_unnamed(&bq.project_id)?;
+    } else  { create_dataset_named(&bq.dataset_id, &bq.project_id)? }
+
+    // create table & store id
+    if bq.table_id == "" {
+        bq.table_id = String::from("table1");
+        create_table(&bq.dataset_id,&bq.table_id, &bq.project_id)?;
+    } else {
+        create_table(&bq.dataset_id, &bq.table_id, &bq.project_id)?;
     }
-}
-pub fn check_for_bq() -> Result<()> {
-    match Command::new("bq").output() {
-        Ok(_) => return Ok(()),
-        Err(_) => panic!("Please ensure you have bq (biqquery utility tool installed)"),
-    }
+
+    Ok(())
 }

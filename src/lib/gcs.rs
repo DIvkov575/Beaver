@@ -48,7 +48,7 @@ pub fn upload_to_bucket(local_location: &str, resources: &Resources, config: &Co
     ]);
 
 
-    Command::new("gcloud").args(args).spawn()?;
+    Command::new("gcloud").args(args).spawn().unwrap().wait_with_output()?;
 
     Ok(())
 }

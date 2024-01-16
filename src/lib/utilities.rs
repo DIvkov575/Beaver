@@ -1,5 +1,6 @@
 use std::fs::{File, OpenOptions};
 use std::path::Path;
+use std::process::Command;
 use serde_yaml::{Mapping, Value};
 use crate::lib::config::Config;
 use crate::lib::resources::Resources;
@@ -80,4 +81,16 @@ pub fn validate_config_path(path: &Path) -> anyhow::Result<()> {
         return Err(anyhow::anyhow!("config path does not exist or broken"));
     }
     Ok(())
+}
+pub fn check_for_gcloud() -> anyhow::Result<()> {
+    match Command::new("gcloud").output() {
+        Ok(_) => return Ok(()),
+        Err(_) => panic!("Please ensure you have gcloud (google-cloud-sdk) installed"),
+    }
+}
+pub fn check_for_bq() -> anyhow::Result<()> {
+    match Command::new("bq").output() {
+        Ok(_) => return Ok(()),
+        Err(_) => panic!("Please ensure you have bq (biqquery utility tool installed)"),
+    }
 }
