@@ -6,3 +6,4 @@ pub mod bq;
 pub mod service_accounts;
 pub mod resources;
 pub mod utilities;
+pub mod sigma;

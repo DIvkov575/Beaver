@@ -14,6 +14,7 @@ https://vector.dev/docs/reference/configuration/sinks/gcp_pubsub/
 
 -- logging
 -- minimize gcloud stdout + feature for verbose execution
+-- `thiserror` for errors
 
 **full list:** 
 - create bq !! needs testing

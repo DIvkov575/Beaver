@@ -1,6 +1,9 @@
 use anyhow::{anyhow, Result};
 use std::error::Error;
 use std::process::{Command, Output};
+use log::{info, log};
+use rand::distributions::Alphanumeric;
+use rand::Rng;
 use serde_yaml::Mapping;
 use crate::lib::config::Config;
 use crate::lib::resources::Resources;
@@ -10,16 +13,46 @@ use crate::lib::resources::Resources;
 macro_rules! gm {($a:ident, $($b:literal,)*) => {$a$(.get_mut(&serde_yaml::Value::String($b.to_owned().into())).unwrap())*};}
 
 pub fn create_vector(resources: &Resources, config: &Config) -> Result<()> {
-    let crj_instance_id = resources.crj_instance.borrow().clone();
+    let mut crj_instance_id = resources.crj_instance.borrow_mut();
     let bucket_name = resources.gcs_bucket.borrow().clone().unwrap();
-    create_crj(&crj_instance_id, &config)?;
+
+    if crj_instance_id.as_str() == "" {
+        *crj_instance_id = create_crj_unnamed(&config)?;
+    } else {
+        create_crj_named(&crj_instance_id, &config)?;
+    }
+
     mount_gcs_crj(&crj_instance_id, &bucket_name, &config)?;
     Ok(())
 }
+fn create_crj_unnamed(config: &Config) -> Result<String>{
+    let image_url = "docker.io/timberio/vector:latest-alpine";
+    let mut random_string: String;
+    let mut job_name_binding: String;
 
-fn create_crj(job_name: &str, config: &Config) -> Result<()>{
+    loop {
+        random_string = rand::thread_rng()
+            .sample_iter(&Alphanumeric)
+            .take(9)
+            .map(char::from)
+            .map(|c| c.to_ascii_lowercase())
+            .collect();
+        job_name_binding = format!("beaver-vectorinstance-{random_string}");
+
+        let args: Vec<&str> =  Vec::from(["run", "jobs", "create", &job_name_binding, "--image", image_url]);
+
+        if Command::new("gcloud").args(args).args(config.flatten()).status().unwrap().success() {
+            break
+        } else {
+            continue
+        }
+    }
+    Ok(job_name_binding)
+}
+fn create_crj_named(job_name: &str, config: &Config) -> Result<()>{
     let image_url = "docker.io/timberio/vector:latest-alpine";
     let args: Vec<&str> =  Vec::from(["run", "jobs", "create", job_name, "--image", image_url]);
+    print!("{:?}", args);
     Command::new("gcloud").args(args).args(config.flatten()).status()?;
     Ok(())
 }
