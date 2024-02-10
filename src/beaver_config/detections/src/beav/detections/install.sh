@@ -1,6 +1,6 @@
-#!/usr/bin/env bash
+#!/usr/bin/env zsh
 
-cd $0 || exit
 python3 -m venv venv
 source venv/bin/activate
+pip3 list
 pip3 install git+https://github.com/matanolabs/pySigma-backend-matano.git

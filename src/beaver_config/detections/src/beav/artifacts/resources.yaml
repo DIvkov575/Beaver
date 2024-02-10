@@ -1,0 +1,14 @@
+biq_query:
+  project_id: ''
+  dataset_id: ''
+  table_id: ''
+output_pubsub:
+  topic_id: ''
+  subscription_id: ''
+compute_sa:
+  name: ''
+  email: ''
+  roles: []
+  description: ''
+gcs_bucket: ''
+crj_instance: ''
