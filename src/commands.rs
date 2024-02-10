@@ -17,6 +17,8 @@ pub enum Command {
     Init {
         #[arg(short, long, action)]
         force: bool,
+        #[arg(short, long, action)]
+        dev: bool,
         #[arg(short, long)]
         path: Option<String>
     },
@@ -32,7 +34,7 @@ impl Command {
     pub fn run(self) -> Result<()> {
         use Command::*;
         match self {
-            Init{force, path} => init(force, path),
+            Init{force, dev, path} => init(force, dev, path),
             Deploy{path} => deploy(&path),
             Destroy => destroy(),
         }

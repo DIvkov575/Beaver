@@ -11,12 +11,14 @@ use crate::lib::resources::Resources;
 
 pub fn create_pysigma_converter(path_to_config_dir: &Path) -> Result<()> {
     /// Creates virtualenv, activates env, installs matano-pysigma-backend from "pip3 install git+https://github.com/matanolabs/pySigma-backend-matano.git"
-    let path = path_to_config_dir;
+    let path = path_to_config_dir.join("detections");
     let path_binding1 = path.join("venv");
+
+    Command::new("python3").args(["-m", "venv", path_binding1.to_str().unwrap()]).output()?;
     let path_binding2 = path.join("venv").join("bin").join("activate").canonicalize()?;
 
     let mut child = Command::new("sh").stdin(Stdio::piped()).spawn()?;
-    child.stdin.as_mut().unwrap().write_fmt(format_args!("python3 -m venv {} &&", path_binding1.to_str().unwrap()))?;
+    // child.stdin.as_mut().unwrap().write_fmt(format_args!("python3 -m venv {} &&", path_binding1.to_str().unwrap()))?;
     child.stdin.as_mut().unwrap().write_fmt(format_args!("source {} &&", path_binding2.to_str().unwrap()))?;
     child.stdin.as_mut().unwrap().write_fmt(format_args!("pip3 install git+https://github.com/matanolabs/pySigma-backend-matano.git"))?;
     child.kill()?;
