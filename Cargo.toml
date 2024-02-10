@@ -9,17 +9,19 @@ edition = "2021"
 anyhow = "1.0.75"
 clap_complete = "4.4.3"
 clap_mangen = "0.2.14"
-either = "1.9.0"
-exitcode = "1.1.2"
 inquire = "0.6.2"
-log4rs = "1.2.0"
 spinoff = "0.8.0"
+log4rs = "1.2.0"
 log = "0.4.20"
 serde_yaml = "0.9.30"
 rand = { version = "0.8.5", features = [] }
 tempfile = { version = "3.9.0", features = [] }
 serde = { version = "1.0.195", features = ["derive"] }
-ctrlc = "3.4.2"
+include-bytes-zstd = "0.1.0"
+
+[profile.release]
+
+
 
 [dependencies.clap]
 version = "4.4.6"

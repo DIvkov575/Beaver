@@ -1,3 +1,4 @@
+use anyhow::Result;
 use std::fs::{File, OpenOptions};
 use std::path::Path;
 use std::process::Command;
@@ -12,7 +13,7 @@ macro_rules! get {($config: ident,  $($b:literal,)*) => {
     $config$([&Value::String($b.into())])*.clone()
 };}
 
-pub fn generate_vector_config(path: &Path, resources: &Resources, config: &Config ) -> anyhow::Result<()> {
+pub fn generate_vector_config(path: &Path, resources: &Resources, config: &Config ) -> Result<()> {
     let beaver_config: Mapping = serde_yaml::from_reader(&File::open(path.join("../beaver_config/beaver_config.yaml"))?)?;
     let vector_config_file = OpenOptions::new().write(true).create(true).open(path.join("artifacts/vector.yaml"))?;
 
@@ -81,6 +82,12 @@ pub fn validate_config_path(path: &Path) -> anyhow::Result<()> {
         return Err(anyhow::anyhow!("config path does not exist or broken"));
     }
     Ok(())
+}
+pub fn check_for_python3() -> anyhow::Result<()> {
+    match Command::new("python3").arg("--version").output() {
+        Ok(_) => return Ok(()),
+        Err(_) => panic!("Please ensure you have gcloud (google-cloud-sdk) installed"),
+    }
 }
 pub fn check_for_gcloud() -> anyhow::Result<()> {
     match Command::new("gcloud").output() {
