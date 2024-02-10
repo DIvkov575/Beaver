@@ -43,9 +43,9 @@ pub fn init(force: bool, dev:bool, path: Option<String>) -> Result<()> {
             fs::remove_dir_all(path)?;
         }
 
-        let mut spinner = Spinner::new(spinners::Dots, "Creating Config Dir...", Color::Blue);
+        // let mut spinner = Spinner::new(spinners::Dots, "Creating Config Dir...", Color::Blue);
         create_config_dir(&config_path, region, &project)?;
-        spinner.success("Config Directory Created");
+        // spinner.success("Config Directory Created");
         break;
     }
 
@@ -102,6 +102,7 @@ transforms:
 
     let mut sigma_generate= OpenOptions::new().write(true).create(true).open(path.join("detections").join("sigma_generate.py")).unwrap();
     sigma_generate.write(&include_bytes_zstd!("src/beaver_config/detections/sigma_generate.py", 21))?;
+
     create_pysigma_converter(path)?;
 
 
