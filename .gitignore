@@ -2,4 +2,5 @@
 .DS_Store
 target/
 *.iml
-.idea/
+src/beav
+src/beaver_config/detections/venv/
