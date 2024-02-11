@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 
-cd $1 || echo "error when changing dir" && exit
+cd $1
 source venv/bin/activate
 
 files=( $(ls))
