@@ -4,14 +4,14 @@ import os
 from dotenv import load_dotenv
 
 
-def pub_slack_message():
-    load_dotenv()
+def pub_slack_message(message="test", token=None, channel="#general"):
+    client: WebClient
 
-    # print(os.getenv("SLACK_API_TOKEN"))
-    client = WebClient(token=os.getenv("SLACK_API_TOKEN"))
-
-    channel = "#general"
-    message = "Hello from Python using a Slack bot!"
+    if token is None:
+        load_dotenv()
+        client = WebClient(token=os.getenv("SLACK_API_TOKEN"))
+    else:
+        client = WebClient(token=token)
 
     try:
         response = client.chat_postMessage(channel=channel, text=message)
