@@ -103,12 +103,6 @@ transforms:
     let mut sigma_generate= OpenOptions::new().write(true).create(true).open(path.join("detections").join("sigma_generate.py")).unwrap();
     sigma_generate.write(&include_bytes_zstd!("src/beaver_config/detections/sigma_generate.py", 21))?;
 
-    let mut sigma_install_file = OpenOptions::new().write(true).create(true).open(path.join("detections").join("install.sh")).unwrap();
-    sigma_install_file.write(&include_bytes_zstd!("src/beaver_config/detections/install.sh", 21))?;
-
-    let mut sigma_install_file = OpenOptions::new().write(true).create(true).open(path.join("detections").join("generate.sh")).unwrap();
-    sigma_install_file.write(&include_bytes_zstd!("src/beaver_config/detections/generate.sh", 21))?;
-
     //TODO: testing purposes
     let mut test_sigma_files = OpenOptions::new().write(true).create(true).open(path.join("detections").join("se.yml")).unwrap();
     test_sigma_files.write(&include_bytes_zstd!("src/beaver_config/detections/se.yml", 21))?;

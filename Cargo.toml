@@ -18,6 +18,7 @@ rand = { version = "0.8.5", features = [] }
 tempfile = { version = "3.9.0", features = [] }
 serde = { version = "1.0.195", features = ["derive"] }
 include-bytes-zstd = "0.1.0"
+run_script = "0.10.1"
 
 [profile.release]
 
