@@ -1,0 +1,32 @@
+sources:
+  generate_syslog:
+    type:   "demo_logs"
+    format: "syslog"
+    count:  10
+  pubsub_in:
+    type: gcp_pubsub
+    project: "neon-circle-400322"
+    subscription: "topic-sub-1_beam_-1764434240952474843"
+    api_key: "AIzaSyD089gPDBLGna0w1AwChEQ23T8C6nTaFig"
+#    credentials_path: "./creds.json"
+    decoding:
+      codec: "json"
+
+
+
+transforms:
+  remap_syslog:
+    inputs:
+      - "generate_syslog"
+    type:   "remap"
+    source: |
+      structured = parse_syslog!(.message)
+      . = merge(., structured)            
+
+sinks:
+  emit_syslog:
+    inputs:
+      - "pubsub_in"
+    type: "console"
+    encoding:
+      codec: "text"
