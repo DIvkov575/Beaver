@@ -6,3 +6,4 @@ src/beav
 src/beaver_config/detections/venv/
 
 dataflow/venv/
+dataflow/.env
