@@ -1,3 +1,5 @@
+import logging
+
 import apache_beam as beam
 from apache_beam.options.pipeline_options import PipelineOptions
 
@@ -6,8 +8,8 @@ def process_batch(batch):
     processed_batch = []
     for element in batch:
         # Perform processing on each element
-        processed_element = element.upper()  # Example processing: converting to uppercase
-        processed_batch.append(processed_element)
+        logging.info("stuff")
+        processed_batch.append(element)
     return processed_batch
 
 
@@ -25,4 +27,5 @@ def run(argv=None):
 
 
 if __name__ == '__main__':
+    logging.getLogger().setLevel(logging.INFO)
     run()
