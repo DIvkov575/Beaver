@@ -1,13 +1,4 @@
-creds.json
-
-### IntelliJ IDEA ###
-.idea/modules.xml
-.idea/jarRepositories.xml
-.idea/compiler.xml
-.idea/libraries/
-*.iws
-*.iml
-*.ipr
-
-### Mac OS ###
+.idea/
 .DS_Store
+
+creds.json
