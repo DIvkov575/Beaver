@@ -1,15 +1,15 @@
 use std::fs::File;
 use std::io::read_to_string;
 use std::path::Path;
-use std::ptr::write;
-use std::sync::WaitTimeoutResult;
 use anyhow::Result;
-use log::debug;
-use python_parser::ast;
-use python_parser::ast::{CompoundStatement, Statement};
-use python_parser::ast::CompoundStatement::Funcdef;
-use python_parser::ast::Statement::Compound;
+use log::error;
 use thiserror::Error;
+
+use python_parser as pp;
+use python_parser::ast;
+use python_parser::ast::Statement::Compound;
+use python_parser::ast::CompoundStatement::Funcdef;
+use python_parser::ast::Statement;
 
 
 pub fn create_classic_template() -> Result<(), anyhow::Error> {
@@ -26,62 +26,144 @@ pub fn create_classic_template() -> Result<(), anyhow::Error> {
 }
 
 
-pub fn build_detection_file(config_path: &Path) -> Result<()> {
-    let path = config_path.join("detections");
+pub fn generate_detections_file(config_path: &Path) -> Result<()> {
+    let detections_path = config_path.join("detections");
+    let main_detections_file_path = detections_path.join("detections.py");
 
-    for dir in path.join("output").read_dir()?.map(|x| x.unwrap()).take(1) {
-        let file = dir.path().join("detect.py");
+    let main_file_ast = pp::file_input(pp::make_strspan(
+            &read_to_string(File::open(&main_detections_file_path)?)?
+        )).unwrap().1;
 
-        if !file.as_path().exists() {
-            return Err(DataflowError::MissingDetectFile(dir.path().to_str().unwrap().to_string()).into());
-        } else {
-            let input_ast = generate_ast(&file)?;
-            let output_ast = python_parser::visitors::printer::format_module(&input_ast);
+    let main_funcs = get_functions_from_ast(&main_file_ast)?;
+    let main_func_names = main_funcs.iter().map(|ast::Funcdef{name, ..}| name ).collect();
 
+    let detection_funcs: Vec<Funcdef> = get_detection_funcs(&config_path)?;
+    let new_func_names = detection_funcs.iter().map(|ast::Funcdef{name, ..}| name ).collect();
 
+    for n1 in main_func_names {
+        for n2 in new_func_names {
+            if n1 == n2 {
+                return Err("Function sharing a name w/ generated function \
+                already exists in detects.py template".into())
+            }
         }
     }
+
+    let run_function_index = get_func_index(&main_file_ast, "run")?;
+    // main_file_ast.
+    // TODO:
+    //  - insert all fetched functions into main ast
+    //  - insert function calls into batch function
+    //  - change location of detections.py
+    //  - create dataflow.rs + create ast.rs file
+    //  -
+
+
+
+
 
 
     Ok(())
 }
 
+fn get_func_index(ast: &[Statement], func_name: &str) -> Result<usize> {
+   Ok(ast.iter()
+        .position(|a|
+            if let Compound(b) = a {
+                if let Funcdef(c) = b {
+                    if let ast::Funcdef{name, ..} = c {
+                        name == func_name
+                    } else { false }
+                } else { false }
+            } else { false }
+        ).unwrap())
+}
 
-fn generate_ast(file_path: &Path) -> Result<Vec<Statement>> {
-    let name = file_path.file_name().unwrap().to_str().unwrap().to_string();
+fn get_detection_funcs(config_path: &Path) -> Result<Vec<Funcdef>> {
+    /// Gets all <config>/detections/output/<detection>/detect.py file
+    // Checks to make sure each detection folder contains detect.py file Check to ensure detect.py
+    // contains detect func
+    // // Check to ensure multiple detect dirs aren't named the same
+    // Check to ensure (renamed) func does not already exist within detections.py
+
+    let mut detections_funcs: Vec<Funcdef> = Vec::new();
+
+    // iterate through folders in <config>/detections/output/
+    // TODO: remove .take(1)
+    let dirs = config_path.join("detections").join("output")
+        .read_dir()?
+        .map(|x| x.unwrap())
+        .take(1);
+
+    for dir in dirs {
+        let detect_file = dir.path().join("detect.py");
+
+        if !detect_file.as_path().exists() {
+            // err if detection dir lacks detect.py file
+            return Err(DataflowError::MissingDetectFile(dir.path().to_str().unwrap().to_string()).into());
+        } else {
+            // extract detect function
+            detections_funcs.push( rename_detect_func(&detect_file)? );
+        }
+    }
+
+    // let output_ast = python_parser::visitors::printer::format_module(&renamed_func);
+
+    Ok(detections_funcs)
+}
+
+fn get_functions_from_ast(input_ast: &[Statement]) -> Result<Vec<ast::Funcdef>> {
+// fn get_functions_from_ast(file_path: &Path) -> Result<Vec<ast::Funcdef>> {
+    // let contents = read_to_string(File::open(&file_path)?)?;
+    // let mut input_ast = python_parser::file_input(python_parser::make_strspan(&contents)).unwrap().1;
+
+    input_ast
+        .iter()
+        .filter_map(|a|
+            if let Compound(b) = a {
+                if let Funcdef(c) = b {
+                    Some(c)
+                } else { None }
+            } else { None })
+        .collect()
+}
+
+
+fn rename_detect_func(file_path: &Path) -> Result<Funcdef> {
+    let input_file_name = file_path.file_name().unwrap().to_str().unwrap().to_string();
     let contents = read_to_string(File::open(&file_path)?)?;
     let mut input_ast = python_parser::file_input(python_parser::make_strspan(&contents)).unwrap().1;
+
+    println!("{:?}", input_file_name);
 
     for statement in input_ast {
         if let Compound(a) = statement {
             if let Funcdef(b) = *a {
-                if let ast::Funcdef {name, code, .. } = b {
-
+                if let ast::Funcdef { name, code, .. } = b {
                     if name != "detect" {
                         return Err(DataflowError::MissingDetectFunction(file_path.to_str().unwrap().to_string()).into());
                     } else {
-                        return Ok(Vec::from_iter([
+                        return Ok(
                             Compound(Box::new(
                                 Funcdef(
                                     ast::Funcdef {
                                         r#async: false,
                                         decorators: vec![],
-                                        name,
+                                        name: input_file_name,
                                         parameters: Default::default(),
                                         return_type: None,
                                         code,
                                     }
                                 )
                             ))
-                        ]));
+                        );
                     }
-
                 }
             }
         }
     }
 
-    return Err(DataflowError::MiscASTGen.into())
+    return Err(DataflowError::MiscASTGen.into());
 }
 
 
@@ -93,7 +175,6 @@ enum DataflowError {
     #[error("Detect.py file is missing a function named detect")]
     MissingDetectFunction(String),
     #[error("Error occurred while generating AST")]
-    MiscASTGen
-
+    MiscASTGen,
 }
 
