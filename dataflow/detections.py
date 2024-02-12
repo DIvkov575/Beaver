@@ -14,22 +14,20 @@ def process_batch(batch):
 
 
 def run(argv=None):
-
     project = "neon-circle-400322"
-    sub1 = "tmp"
-    sub2 = "tmp2"
-    sub_str_1 = f"projects/{project}/subscriptions/{sub1}"
-    sub_str_2 = f"projects/{project}/subscriptions/{sub2}"
+    subscription = "tmp"
+    subscription_str = f"projects/{project}/subscriptions/{subscription}"
+    topic = f"projects/{project}/topics/topic-out-sub"
 
     options = PipelineOptions(argv)
 
     with beam.Pipeline(options=options) as p:
         input_data = (
                 p
-                | 'ReadFromPubSub' >> beam.io.ReadFromPubSub(subscription=sub_str_1)
+                | 'ReadFromPubSub' >> beam.io.ReadFromPubSub(subscription=subscription_str)
                 | 'ProcessBatch' >> beam.ParDo(process_batch)
         )
-        input_data | 'WriteOutput' >> beam.io.WriteToPubSub(subscription=sub_str_2)
+        input_data | 'WriteOutput' >> beam.io.WriteToPubSub(topic=topic)
 
 
 if __name__ == '__main__':
