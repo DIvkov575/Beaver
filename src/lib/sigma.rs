@@ -5,7 +5,7 @@ use std::process::{ChildStdout, Command, Stdio};
 use run_script::ScriptOptions;
 
 
-pub fn create_pysigma_converter(path_to_config: &Path) -> Result<()> {
+pub fn setup_detections_venv(path_to_config: &Path) -> Result<()> {
     /// Creates virtualenv, activates env, installs matano-pysigma-backend from "pip3 install git+https://github.com/matanolabs/pySigma-backend-matano.git"
     let path = path_to_config.join("detections");
     let args = vec![path.to_str().unwrap().to_string()];
@@ -16,8 +16,8 @@ pub fn create_pysigma_converter(path_to_config: &Path) -> Result<()> {
         cd $1 || exit
         python3 -m venv venv
         source venv/bin/activate
-        pip3 install git+https://github.com/matanolabs/pySigma-backend-matano.git
-         "#,
+        pip3 install git+https://github.com/matanolabs/pySigma-backend-matano.git 'apache-beam[gcp]'
+        "#,
         &args,
         &options,
     ).unwrap();

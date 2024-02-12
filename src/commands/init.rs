@@ -10,7 +10,7 @@ use inquire::{Select, Text};
 use spinoff::{Color, Spinner, spinners};
 use crate::lib::config::Config;
 use crate::lib::resources::Resources;
-use crate::lib::sigma::create_pysigma_converter;
+use crate::lib::sigma::setup_detections_venv;
 
 pub fn init(force: bool, dev:bool, path: Option<String>) -> Result<()> {
     let regions: Vec<&str> = vec!["northamerica-northeast1", "us-west4", "southamerica-east1", "australia-southeast1", "asia-southeast2", "australia-southeast2", "asia-south1", "asia-northeast2", "australia-east", "asia-east2", "europe-north1", "asia-northeast1", "asia-east1", "europe-west2", "us-central1", "europe-west1", "us-east1", "us-east4", "southamerica-west1", "us-west2", "asia-south2", "europe-west6", "asia-southeast1", "europe-west4", "europe-north2", "europe-west3", "us-west1", "us-west3", "europe-west5", "australia-central2"];
@@ -66,11 +66,13 @@ pub fn create_config_dir(file_path: &str, region: &str, project: &str) -> Result
 
 
     let path = Path::new(file_path); // path to config dir
-    fs::create_dir_all(&path)?;
-    fs::create_dir_all(path.join("detections"))?;
-    fs::create_dir_all(path.join("artifacts"))?;
-    File::create(path.join("artifacts/vector.yaml"))?;
-    File::create(path.join("artifacts/resources.yaml"))?;
+
+
+    // fs::create_dir_all(&path)?;
+    // fs::create_dir_all(path.join("detections"))?;
+    // fs::create_dir_all(path.join("artifacts"))?;
+    // File::create(path.join("artifacts/vector.yaml"))?;
+    // File::create(path.join("artifacts/resources.yaml"))?;
 
     let config: Config = Config::new(region, project, None);
     let config_file = format!("\
@@ -93,21 +95,26 @@ transforms:
       - pubsub-in
 ");
 
-    let mut resources = Resources::empty(&config);
-    resources.config_path = path.as_os_str().to_str().unwrap().to_string();
-    resources.save();
+    // let mut resources = Resources::empty(&config);
+    // resources.config_path = path.as_os_str().to_str().unwrap().to_string();
+    // resources.save();
+    //
+    // let mut beaver_conf_file = OpenOptions::new().write(true).create(true).open(path.join("beaver_config.yaml")).unwrap();
+    // beaver_conf_file.write(config_file.as_bytes())?;
+    //
+    // let mut sigma_generate= OpenOptions::new().write(true).create(true).open(path.join("detections").join("sigma_generate.py")).unwrap();
+    // sigma_generate.write(&include_bytes_zstd!("src/beaver_config/detections/sigma_generate.py", 21))?;
+    //
+    // let mut test_sigma_files = OpenOptions::new().write(true).create(true).open(path.join("detections").join("detections.py")).unwrap();
+    // test_sigma_files.write(&include_bytes_zstd!("dataflow/detections.py", 21))?;
+    //
+    // //TODO: testing purposes
+    // let mut test_sigma_files = OpenOptions::new().write(true).create(true).open(path.join("detections").join("se.yml")).unwrap();
+    // test_sigma_files.write(&include_bytes_zstd!("src/beaver_config/detections/se.yml", 21))?;
 
-    let mut beaver_conf_file = OpenOptions::new().write(true).create(true).open(path.join("beaver_config.yaml")).unwrap();
-    beaver_conf_file.write(config_file.as_bytes())?;
 
-    let mut sigma_generate= OpenOptions::new().write(true).create(true).open(path.join("detections").join("sigma_generate.py")).unwrap();
-    sigma_generate.write(&include_bytes_zstd!("src/beaver_config/detections/sigma_generate.py", 21))?;
 
-    //TODO: testing purposes
-    let mut test_sigma_files = OpenOptions::new().write(true).create(true).open(path.join("detections").join("se.yml")).unwrap();
-    test_sigma_files.write(&include_bytes_zstd!("src/beaver_config/detections/se.yml", 21))?;
-
-    create_pysigma_converter(path)?;
+    setup_detections_venv(path)?;
 
 
     Ok(())
