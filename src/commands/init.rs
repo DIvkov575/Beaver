@@ -4,6 +4,7 @@ use std::io::Write;
 use std::path::Path;
 use std::path::PathBuf;
 
+use tar::Archive;
 use anyhow::Result;
 use include_bytes_zstd::include_bytes_zstd;
 use inquire::{Select, Text};
@@ -66,13 +67,13 @@ pub fn create_config_dir(file_path: &str, region: &str, project: &str) -> Result
 
 
     let path = Path::new(file_path); // path to config dir
-
-
-    // fs::create_dir_all(&path)?;
-    // fs::create_dir_all(path.join("detections"))?;
-    // fs::create_dir_all(path.join("artifacts"))?;
-    // File::create(path.join("artifacts/vector.yaml"))?;
-    // File::create(path.join("artifacts/resources.yaml"))?;
+    fs::create_dir_all(&path)?;
+    fs::create_dir_all(path.join("detections"))?;
+    fs::create_dir_all(path.join("detections").join("input"))?;
+    fs::create_dir_all(path.join("detections").join("output"))?;
+    fs::create_dir_all(path.join("artifacts"))?;
+    File::create(path.join("artifacts/vector.yaml"))?;
+    File::create(path.join("artifacts/resources.yaml"))?;
 
     let config: Config = Config::new(region, project, None);
     let config_file = format!("\
@@ -95,22 +96,22 @@ transforms:
       - pubsub-in
 ");
 
-    // let mut resources = Resources::empty(&config);
-    // resources.config_path = path.as_os_str().to_str().unwrap().to_string();
-    // resources.save();
-    //
-    // let mut beaver_conf_file = OpenOptions::new().write(true).create(true).open(path.join("beaver_config.yaml")).unwrap();
-    // beaver_conf_file.write(config_file.as_bytes())?;
-    //
-    // let mut sigma_generate= OpenOptions::new().write(true).create(true).open(path.join("detections").join("sigma_generate.py")).unwrap();
-    // sigma_generate.write(&include_bytes_zstd!("src/beaver_config/detections/sigma_generate.py", 21))?;
-    //
-    // let mut test_sigma_files = OpenOptions::new().write(true).create(true).open(path.join("detections").join("detections.py")).unwrap();
-    // test_sigma_files.write(&include_bytes_zstd!("dataflow/detections.py", 21))?;
-    //
-    // //TODO: testing purposes
-    // let mut test_sigma_files = OpenOptions::new().write(true).create(true).open(path.join("detections").join("se.yml")).unwrap();
-    // test_sigma_files.write(&include_bytes_zstd!("src/beaver_config/detections/se.yml", 21))?;
+    let mut resources = Resources::empty(&config);
+    resources.config_path = path.as_os_str().to_str().unwrap().to_string();
+    resources.save();
+
+    let mut beaver_conf_file = OpenOptions::new().write(true).create(true).open(path.join("beaver_config.yaml")).unwrap();
+    beaver_conf_file.write(config_file.as_bytes())?;
+
+    let mut sigma_generate= OpenOptions::new().write(true).create(true).open(path.join("detections").join("sigma_generate.py")).unwrap();
+    sigma_generate.write(&include_bytes_zstd!("src/beaver_config/detections/sigma_generate.py", 21))?;
+
+    let mut test_sigma_files = OpenOptions::new().write(true).create(true).open(path.join("detections").join("detections.py")).unwrap();
+    test_sigma_files.write(&include_bytes_zstd!("dataflow/detections.py", 21))?;
+
+    //TODO: testing purposes
+    let mut test_sigma_files = OpenOptions::new().write(true).create(true).open(path.join("detections").join("input").join("se.yml")).unwrap();
+    test_sigma_files.write(&include_bytes_zstd!("src/beaver_config/detections/input/se.yml", 21))?;
 
 
 

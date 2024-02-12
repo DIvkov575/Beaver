@@ -30,24 +30,24 @@ pub fn setup_detections_venv(path_to_config: &Path) -> Result<()> {
 
 pub fn generate_detections(path_to_config: &Path) -> Result<()> {
     let path = path_to_config.join("detections");
-    let args = vec![path.to_str().unwrap().to_string()];
+    let output_path = vec![path.join("output").to_str().unwrap().to_string()];
     let options = ScriptOptions::new();
 
     let (code, output, error) = run_script::run(
         r#"
         cd $1
-        source venv/bin/activate
+        source ../venv/bin/activate
 
-        files=( $(ls))
+        files=( $(ls ../input))
         for file in "${files[@]}"; do
           extension="${file##*.}"
           if [ "$extension" == "yml" ] || [ "$extension" == "yaml" ]; then
-            python3 sigma_generate.py "$file"
+            python3 ../sigma_generate.py ../input/"$file"
             echo "$file successfully parsed"
           fi
         done
         "#,
-        &args,
+        &output_path,
         &options,
     ).unwrap();
 

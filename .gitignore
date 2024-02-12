@@ -7,3 +7,7 @@ src/beaver_config/detections/venv/
 
 dataflow/venv/
 dataflow/.env
+dataflow/__pycache__/
+
+archive.tar
+archive.tar.gz

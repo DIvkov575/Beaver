@@ -6,14 +6,9 @@ use tar::Builder;
 use std::mem::drop;
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
-    let file = File::create("archive.tar.gz")?;
-    let mut encoder = GzEncoder::new(file, Compression::default());
-
-    let mut builder = Builder::new(&mut encoder);
+    let file = File::create("archive.tar")?;
+    let mut builder = Builder::new(file);
     builder.append_dir_all("archive", "src/beaver_config")?;
-    drop(builder);
-
-    encoder.finish()?;
 
     Ok(())
 }
