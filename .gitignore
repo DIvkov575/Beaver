@@ -11,3 +11,4 @@ dataflow/__pycache__/
 
 archive.tar
 archive.tar.gz
+*/*.tar
