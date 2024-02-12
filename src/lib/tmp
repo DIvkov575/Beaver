@@ -1,0 +1,14 @@
+[
+Import(Import { names: [(["re"], None), (["json"], None), (["functools"], None), (["ipaddress"], None)] }),
+Import(ImportFrom { leading_dots: 0, path: ["fnmatch"], names: [("fnmatch", None)] }),
+Compound(Funcdef(Funcdef {
+    async: false,
+    decorators: [],
+    name: "detect",
+    parameters: TypedArgsList { posonly_args: [], args: [("record", None, None)], star_args: No, keyword_args: [], star_kwargs: None },
+    return_type: None,
+    code: [Return(
+        [MultiBop(Bop(In, Call(Attribute(Call(Attribute(Call(Attribute(Call(Attribute(Name("record"), "get"), [Positional(String([PyString { prefix: "", content: "data" }])), Positional(DictLiteral([]))]), "get"), [Positional(String([PyString { prefix: "", content: "protoPayload" }])), Positional(DictLiteral([]))]), "get"), [Positional(String([PyString { prefix: "", content: "authorizationInfo" }])), Positional(DictLiteral([]))]), "get"), [Positional(String([PyString { prefix: "", content: "permission" }]))]), TupleLiteral([Unique(String([PyString { prefix: "", content: "accesscontextmanager.accessPolicies.delete" }])), Unique(String([PyString { prefix: "", content: "accesscontextmanager.accessPolicies.accessLevels.delete" }])), Unique(String([PyString { prefix: "", content: "accesscontextmanager.accessPolicies.accessZones.delete" }])), Unique(String([PyString { prefix: "", content: "accesscontextmanager.accessPolicies.authorizedOrgsDescs.delete" }]))])), [(And, Bop(Eq, Call(Attribute(Call(Attribute(Call(Attribute(Call(Attribute(Name("record"), "get"), [Positional(String([PyString { prefix: "", content: "data" }])), Positional(DictLiteral([]))]), "get"), [Positional(String([PyString { prefix: "", content: "protoPayload" }])), Positional(DictLiteral([]))]), "get"), [Positional(String([PyString { prefix: "", content: "authorizationInfo" }])), Positional(DictLiteral([]))]), "get"), [Positional(String([PyString { prefix: "", content: "granted" }]))]), String([PyString { prefix: "", content: "true" }]))), (And, Bop(Eq, Call(Attribute(Call(Attribute(Call(Attribute(Name("record"), "get"), [Positional(String([PyString { prefix: "", content: "data" }])), Positional(DictLiteral([]))]), "get"), [Positional(String([PyString { prefix: "", content: "protoPayload" }])), Positional(DictLiteral([]))]), "get"), [Positional(String([PyString { prefix: "", content: "serviceName" }]))]), String([PyString { prefix: "", content: "accesscontextmanager.googleapis.com" }])))])]
+        )]
+    })
+)
