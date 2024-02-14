@@ -1,15 +1,17 @@
-import re, json, functools, ipaddress
-from fnmatch import fnmatch
-
 import logging
 import apache_beam as beam
 from apache_beam.options.pipeline_options import PipelineOptions
 
 
-def process_batch(batch):
+def funcs(element):
+    logging.info(element)
+
+
+
+def process(batch):
     processed_batch = []
     for element in batch:
-        logging.info("stuff")
+        funcs(element)
         processed_batch.append(element)
 
     return processed_batch
@@ -27,7 +29,7 @@ def run(argv=None):
         input_data = (
                 p
                 | 'ReadFromPubSub' >> beam.io.ReadFromPubSub(subscription=subscription_str)
-                | 'ProcessBatch' >> beam.ParDo(process_batch)
+                | 'ProcessBatch' >> beam.ParDo(process)
         )
         input_data | 'WriteOutput' >> beam.io.WriteToPubSub(topic=topic)
 

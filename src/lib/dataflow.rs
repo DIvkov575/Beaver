@@ -1,5 +1,5 @@
 use std::fs::File;
-use std::io::read_to_string;
+use std::io::{read_to_string, Write};
 use std::path::Path;
 use anyhow::Result;
 use log::error;
@@ -11,8 +11,32 @@ use python_parser::ast::Statement::{Assignment, Compound};
 use python_parser::ast::CompoundStatement::Funcdef;
 use python_parser::ast::Expression::{Call, Name};
 use python_parser::ast::{Expression, Statement};
+use crate::lib::dataflow::DataflowError::DuplicateFunc;
 use crate::main;
 
+
+// struct ast1 {
+//     ast: Vec<Statement>
+// }
+// impl ast1 {
+//     pub fn new(statements: Vec<Statement>) -> Self {
+//         Self {ast: statements}
+//     }
+//     pub fn get_function_names(&self) -> Result<Vec<String>> {
+//         Ok(self.ast
+//             .iter()
+//             .filter_map(|a|
+//                 if let Compound(b) = a {
+//                     if let Funcdef(c) = b {
+//                         if let ast::Funcdef{name, ..} = c {
+//                             Some(name)
+//                         } else { None }
+//                     } else { None }
+//                 } else { None })
+//             .collect())
+//     }
+//
+// }
 
 pub fn create_classic_template() -> Result<(), anyhow::Error> {
 
@@ -32,81 +56,55 @@ pub fn generate_detections_file(config_path: &Path) -> Result<()> {
     let detections_path = config_path.join("detections");
     let main_detections_file_path = detections_path.join("detections.py");
 
-    let mut main_file_ast = pp::file_input(pp::make_strspan(
-            &read_to_string(File::open(&main_detections_file_path)?)?
-        )).unwrap().1;
+    let mut main_file_ast = pp::file_input(pp::make_strspan(&read_to_string(File::open(&main_detections_file_path)?)?)).unwrap().1;
+    let new_funcs_ast: Vec<Statement> = get_detection_funcs(&config_path)?;
 
-    println!("{:?}", main_file_ast);
+    let main_func_names = get_func_names(&main_file_ast)?;
+    let new_func_names: Vec<String> = get_func_names(&new_funcs_ast)?;
 
+    if overlap(&main_func_names, &new_func_names) { return Err(DataflowError::DuplicateFunc.into()) }
 
-    // let main_funcs = get_functions_from_ast(&main_file_ast)?;
-    // let main_func_names = main_funcs.iter().map(|ast::Funcdef{name, ..}| name ).collect();
-    //
-    let new_funcs: Vec<Statement> = get_detection_funcs(&config_path)?;
+    let function_calls_ast: Vec<Statement> = new_func_names.iter()
+        .map(|name|
+            Assignment(vec![Call(Box::new(Name(name.clone())), Vec::new())], vec![])
+        ).collect();
 
-    let new_func_names = new_funcs.iter().filter_map(|Compound(comp)| if let Funcdef(func) = comp.clone() {
-        Some(func)
-    } else { None })
+    let insert_index = get_func_index(&main_file_ast, "funcs")?;
+    main_file_ast.splice(insert_index..=insert_index, new_funcs_ast);
+    main_file_ast.splice(insert_index+1..=insert_index+1, function_calls_ast);
 
-
-    // let new_func_names = new_funcs.iter().filter_map(|Compound(Funcdef(func))| match func.as_ref() {
-    //     ast::Funcdef{name, ..} => Some(name),
-    //     _ => None                                    /// broken
-    // } ).collect();
-
-
-
-    //
-    // for n1 in main_func_names {
-    //     for n2 in new_func_names {
-    //         if n1 == n2 {
-    //             return Err("Function sharing a name w/ generated function \
-    //             already exists in detects.py template".into())
-    //         }
-    //     }
-    // }
-    //
-    // let run_function_index = get_func_index(&main_file_ast, "run")?;
-    // main_file_ast.splice(run_function_index..=run_function_index, new_funcs);
-
-    let function_calls: Vec<Expression> = Vec::new();
-    for name in new_func_names {
-        let func_call = Assignment(vec![Call(Box::new(Name(name)), Vec::new())], vec![]);
-
-    }
-
-
-    // main_file_ast.
-    // TODO:
-    //  - insert all fetched functions into main ast ✅
-    //  - insert function calls into batch function:
-    //      https://docs.rs/python-parser/latest/python_parser/ast/enum.Expression.html
-    //      Assignment([Call(Name("main"), [])], [])
-    //  - change location of detections.py
-    //  - create dataflow.rs + create ast.rs file
-    //  -
-
-
-
-
-
+    let output_ast_str = python_parser::visitors::printer::format_module(&main_file_ast);
+    let output_path = config_path.join("artifacts").join("detections_gen.py");
+    let mut output_file = std::fs::OpenOptions::new().write(true).create(true).open(output_path)?;
+    output_file.write_all(&output_ast_str.into_bytes())?;
 
     Ok(())
 }
 
-// fn get_func_index(ast: &[Statement], func_name: &str) -> Result<usize> {
-//    Ok(ast.iter()
-//         .position(|a|
-//             if let Compound(b) = a {
-//                 if let Funcdef(c) = *b.clone() {
-//                     if let ast::Funcdef{name, ..} = c {
-//                         name == func_name
-//                     } else { false }
-//                 } else { false }
-//             } else { false }
-//         ).unwrap())
-// }
-//
+fn overlap<T: Eq>(a: &[T], b:&[T]) -> bool {
+    for n1 in a{
+        for n2 in b{
+            if n1 == n2 {
+                return true
+            }
+        }
+    }
+    return false
+}
+
+fn get_func_index(ast: &[Statement], func_name: &str) -> Result<usize> {
+   Ok(ast.iter()
+        .position(|a|
+            if let Compound(b) = a {
+                if let Funcdef(c) = *b.clone() {
+                    if let ast::Funcdef{name, ..} = c {
+                        name == func_name
+                    } else { false }
+                } else { false }
+            } else { false }
+        ).unwrap())
+}
+
 fn get_detection_funcs(config_path: &Path) -> Result<Vec<Statement>> {
     /// Gets all <config>/detections/output/<detection>/detect.py file
     // Checks to make sure each detection folder contains detect.py file Check to ensure detect.py
@@ -135,28 +133,22 @@ fn get_detection_funcs(config_path: &Path) -> Result<Vec<Statement>> {
         }
     }
 
-    // let output_ast = python_parser::visitors::printer::format_module(&renamed_func);
-
     Ok(detections_funcs)
 }
-//
-// // fn get_functions_from_ast(input_ast: &[Statement]) -> Result<Vec<ast::Funcdef>> {
-// // // fn get_functions_from_ast(file_path: &Path) -> Result<Vec<ast::Funcdef>> {
-// //     // let contents = read_to_string(File::open(&file_path)?)?;
-// //     // let mut input_ast = python_parser::file_input(python_parser::make_strspan(&contents)).unwrap().1;
-// //
-// //     input_ast
-// //         .iter()
-// //         .filter_map(|a|
-// //             if let Compound(b) = a {
-// //                 if let Funcdef(c) = b {
-// //                     Some(c)
-// //                 } else { None }
-// //             } else { None })
-// //         .collect()
-// // }
-//
-//
+
+fn get_func_names(ast: &[Statement]) -> Result<Vec<String>> {
+    Ok(ast
+        .iter()
+        .filter_map(|a|
+            if let Compound(b) = a {
+                if let Funcdef(ast::Funcdef{name, ..}) = *b.clone() {
+                    Some(name)
+                } else { None }
+            } else { None })
+        .collect())
+}
+
+
 fn rename_detect_func(file_path: &Path) -> Result<Statement> {
     let input_file_name = file_path.file_name().unwrap().to_str().unwrap().to_string();
     let contents = read_to_string(File::open(&file_path)?)?;
@@ -204,5 +196,7 @@ enum DataflowError {
     MissingDetectFunction(String),
     #[error("Error occurred while generating AST")]
     MiscASTGen,
+    #[error("Function sharing a name w/ generated function already exists in detects.py template")]
+    DuplicateFunc
 }
 
