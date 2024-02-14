@@ -23,7 +23,7 @@ pub fn deploy(path_arg: &str) -> Result<()> {
     // let mut resources: Resources =  serde_yaml::from_reader(resources_file)?;
 
     // sigma::generate_detections(&path)?;
-    dataflow::get_detection_funcs(&path)?;
+    dataflow::generate_detections_file(&path)?;
 
 
     // bq::create(&resources, &config)?;
