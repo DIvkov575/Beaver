@@ -57,10 +57,11 @@ pub fn generate_detections_file(config_path: &Path) -> Result<()> {
     let main_detections_file_path = detections_path.join("detections.py");
 
     let mut main_file_ast = pp::file_input(pp::make_strspan(&read_to_string(File::open(&main_detections_file_path)?)?)).unwrap().1;
-    let new_funcs_ast: Vec<Statement> = get_detection_funcs(&config_path)?;
+    let new_funcs_ast: Vec<Statement> = get_new_detection_funcs(&config_path)?;
 
     let main_func_names = get_func_names(&main_file_ast)?;
     let new_func_names: Vec<String> = get_func_names(&new_funcs_ast)?;
+    println!("{:?}", new_func_names);
 
     if overlap(&main_func_names, &new_func_names) { return Err(DataflowError::DuplicateFunc.into()) }
 
@@ -69,7 +70,7 @@ pub fn generate_detections_file(config_path: &Path) -> Result<()> {
             Assignment(vec![Call(Box::new(Name(name.clone())), Vec::new())], vec![])
         ).collect();
 
-    let insert_index = get_func_index(&main_file_ast, "funcs")?;
+    let insert_index = index(&main_file_ast, "funcs")?;
     main_file_ast.splice(insert_index..=insert_index, new_funcs_ast);
     main_file_ast.splice(insert_index+1..=insert_index+1, function_calls_ast);
 
@@ -92,7 +93,8 @@ fn overlap<T: Eq>(a: &[T], b:&[T]) -> bool {
     return false
 }
 
-fn get_func_index(ast: &[Statement], func_name: &str) -> Result<usize> {
+fn index(ast: &[Statement], func_name: &str) -> Result<usize> {
+    // get index of specified function index within Vec<Statements>
    Ok(ast.iter()
         .position(|a|
             if let Compound(b) = a {
@@ -105,7 +107,7 @@ fn get_func_index(ast: &[Statement], func_name: &str) -> Result<usize> {
         ).unwrap())
 }
 
-fn get_detection_funcs(config_path: &Path) -> Result<Vec<Statement>> {
+fn get_new_detection_funcs(config_path: &Path) -> Result<Vec<Statement>> {
     /// Gets all <config>/detections/output/<detection>/detect.py file
     // Checks to make sure each detection folder contains detect.py file Check to ensure detect.py
     // contains detect func
@@ -122,14 +124,48 @@ fn get_detection_funcs(config_path: &Path) -> Result<Vec<Statement>> {
         .take(1);
 
     for dir in dirs {
-        let detect_file = dir.path().join("detect.py");
+        let file_path = dir.path().join("detect.py");
 
-        if !detect_file.as_path().exists() {
+        if !file_path.as_path().exists() {
             // err if detection dir lacks detect.py file
             return Err(DataflowError::MissingDetectFile(dir.path().to_str().unwrap().to_string()).into());
         } else {
             // extract detect function
-            detections_funcs.push( rename_detect_func(&detect_file)? );
+
+            let contents = read_to_string(File::open(&file_path)?)?;
+            let mut input_ast = python_parser::file_input(python_parser::make_strspan(&contents)).unwrap().1;
+
+
+            for statement in input_ast {
+                if let Compound(a) = statement {
+                    match *a {
+                        Funcdef(ast::Funcdef {name, code, ..}) => {
+                            if name != "detect" {
+                                return Err(DataflowError::MissingDetectFunction(file_path.to_str().unwrap().to_string()).into());
+                            } else {
+                                return Ok(
+                                    Compound(Box::new(
+                                        Funcdef(
+                                            ast::Funcdef {
+                                                r#async: false,
+                                                decorators: vec![],
+                                                name: input_file_name,
+                                                parameters: Default::default(),
+                                                return_type: None,
+                                                code,
+                                            }
+                                        )
+                                    ))
+                                );
+                            }
+
+                        },
+                        _ => None,
+                    }
+                    }
+                }
+
+            // detections_funcs.push( rename_detect_func(&file_path)? );
         }
     }
 
