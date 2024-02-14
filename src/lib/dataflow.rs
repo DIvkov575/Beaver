@@ -10,46 +10,10 @@ use python_parser::ast;
 use python_parser::ast::Statement::{Assignment, Compound};
 use python_parser::ast::CompoundStatement::Funcdef;
 use python_parser::ast::Expression::{Call, Name};
-use python_parser::ast::{Expression, Statement};
+use python_parser::ast::{Argument, Expression, Statement, TypedArgsList};
 use crate::lib::dataflow::DataflowError::DuplicateFunc;
+use crate::lib::utilities::overlap;
 use crate::main;
-
-
-// struct ast1 {
-//     ast: Vec<Statement>
-// }
-// impl ast1 {
-//     pub fn new(statements: Vec<Statement>) -> Self {
-//         Self {ast: statements}
-//     }
-//     pub fn get_function_names(&self) -> Result<Vec<String>> {
-//         Ok(self.ast
-//             .iter()
-//             .filter_map(|a|
-//                 if let Compound(b) = a {
-//                     if let Funcdef(c) = b {
-//                         if let ast::Funcdef{name, ..} = c {
-//                             Some(name)
-//                         } else { None }
-//                     } else { None }
-//                 } else { None })
-//             .collect())
-//     }
-//
-// }
-
-pub fn create_classic_template() -> Result<(), anyhow::Error> {
-
-
-// python -m examples.mymodule \
-// --runner DataflowRunner \
-// --project PROJECT_ID \
-// --staging_location gs://BUCKET_NAME/staging \
-// --template_location gs://BUCKET_NAME/templates/TEMPLATE_NAME \
-// --region REGION
-
-    Ok(())
-}
 
 
 pub fn generate_detections_file(config_path: &Path) -> Result<()> {
@@ -61,51 +25,55 @@ pub fn generate_detections_file(config_path: &Path) -> Result<()> {
 
     let main_func_names = get_func_names(&main_file_ast)?;
     let new_func_names: Vec<String> = get_func_names(&new_funcs_ast)?;
-    println!("{:?}", new_func_names);
 
-    if overlap(&main_func_names, &new_func_names) { return Err(DataflowError::DuplicateFunc.into()) }
+    if overlap(&main_func_names, &new_func_names) { return Err(DuplicateFunc.into()) }
 
     let function_calls_ast: Vec<Statement> = new_func_names.iter()
         .map(|name|
-            Assignment(vec![Call(Box::new(Name(name.clone())), Vec::new())], vec![])
+            Assignment(vec![Call(Box::new(Name(name.clone())), vec![Argument::Positional(Expression::Name("record".to_string()))])], vec![])
         ).collect();
 
-    let insert_index = index(&main_file_ast, "funcs")?;
-    main_file_ast.splice(insert_index..=insert_index, new_funcs_ast);
-    main_file_ast.splice(insert_index+1..=insert_index+1, function_calls_ast);
+    let funcs_func_ast =
+        vec![Compound(Box::new(Funcdef(
+            ast::Funcdef {
+                r#async: false,
+                decorators: vec![],
+                name: "funcs".to_string(),
+                parameters: TypedArgsList {
+                    posonly_args: vec![("record".to_string(), None, None)],
+                    args: vec![],
+                    star_args: Default::default(),
+                    keyword_args: vec![],
+                    star_kwargs: None,
+                },
+                return_type: None,
+                code: function_calls_ast,
+            }
+        )))];
 
-    let output_ast_str = python_parser::visitors::printer::format_module(&main_file_ast);
-    let output_path = config_path.join("artifacts").join("detections_gen.py");
-    let mut output_file = std::fs::OpenOptions::new().write(true).create(true).open(output_path)?;
-    output_file.write_all(&output_ast_str.into_bytes())?;
+
+    let insert_index = index(&main_file_ast, "process")?;
+    main_file_ast.splice((insert_index)..(insert_index), funcs_func_ast);
+    let insert_index = index(&main_file_ast, "funcs")?;
+    main_file_ast.splice((insert_index)..(insert_index), new_funcs_ast);
+
+    serialize(config_path, &main_file_ast)?;
 
     Ok(())
 }
 
-fn overlap<T: Eq>(a: &[T], b:&[T]) -> bool {
-    for n1 in a{
-        for n2 in b{
-            if n1 == n2 {
-                return true
-            }
-        }
-    }
-    return false
+fn serialize(config_path: &Path, main_file_ast: &Vec<Statement>) -> Result<()> {
+    // deletes  artifacts/detections_gen.py if it exists; otherwise serializes ast into it
+    let output_ast_str = python_parser::visitors::printer::format_module(&main_file_ast);
+    let output_path = config_path.join("artifacts").join("detections_gen.py");
+
+    if output_path.exists() { std::fs::remove_file(&output_path)?; }
+
+    let mut output_file = std::fs::OpenOptions::new().write(true).create(true).open(output_path)?;
+    output_file.write_all(&output_ast_str.into_bytes())?;
+    Ok(())
 }
 
-fn index(ast: &[Statement], func_name: &str) -> Result<usize> {
-    // get index of specified function index within Vec<Statements>
-   Ok(ast.iter()
-        .position(|a|
-            if let Compound(b) = a {
-                if let Funcdef(c) = *b.clone() {
-                    if let ast::Funcdef{name, ..} = c {
-                        name == func_name
-                    } else { false }
-                } else { false }
-            } else { false }
-        ).unwrap())
-}
 
 fn get_new_detection_funcs(config_path: &Path) -> Result<Vec<Statement>> {
     /// Gets all <config>/detections/output/<detection>/detect.py file
@@ -143,27 +111,30 @@ fn get_new_detection_funcs(config_path: &Path) -> Result<Vec<Statement>> {
                             if name != "detect" {
                                 return Err(DataflowError::MissingDetectFunction(file_path.to_str().unwrap().to_string()).into());
                             } else {
-                                return Ok(
-                                    Compound(Box::new(
-                                        Funcdef(
-                                            ast::Funcdef {
-                                                r#async: false,
-                                                decorators: vec![],
-                                                name: input_file_name,
-                                                parameters: Default::default(),
-                                                return_type: None,
-                                                code,
-                                            }
-                                        )
-                                    ))
-                                );
+                                detections_funcs.push(Compound(Box::new(
+                                    Funcdef(
+                                        ast::Funcdef {
+                                            r#async: false,
+                                            decorators: vec![],
+                                            name: dir.file_name().to_str().unwrap().to_string(),
+                                            parameters: TypedArgsList {
+                                                posonly_args: vec![("record".to_string(), None, None)],
+                                                args: vec![],
+                                                star_args: Default::default(),
+                                                keyword_args: vec![],
+                                                star_kwargs: None,
+                                            },
+                                            return_type: None,
+                                            code,
+                                        }
+                                    )
+                                )));
                             }
-
                         },
-                        _ => None,
-                    }
+                        _ => (),
                     }
                 }
+            }
 
             // detections_funcs.push( rename_detect_func(&file_path)? );
         }
@@ -223,6 +194,21 @@ fn rename_detect_func(file_path: &Path) -> Result<Statement> {
 }
 
 
+fn index(ast: &[Statement], func_name: &str) -> Result<usize> {
+    // get index of specified function index within Vec<Statements>
+    Ok(ast.iter()
+        .position(|a|
+            if let Compound(b) = a {
+                if let Funcdef(c) = *b.clone() {
+                    if let ast::Funcdef{name, ..} = c {
+                        name == func_name
+                    } else { false }
+                } else { false }
+            } else { false }
+        ).unwrap())
+}
+
+
 #[derive(Error, Debug)]
 #[error("Dataflow Error")]
 enum DataflowError {
@@ -235,4 +221,3 @@ enum DataflowError {
     #[error("Function sharing a name w/ generated function already exists in detects.py template")]
     DuplicateFunc
 }
-

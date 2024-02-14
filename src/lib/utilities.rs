@@ -101,3 +101,14 @@ pub fn check_for_bq() -> anyhow::Result<()> {
         Err(_) => panic!("Please ensure you have bq (biqquery utility tool installed)"),
     }
 }
+
+pub fn overlap<T: Eq>(a: &[T], b:&[T]) -> bool {
+    for n1 in a{
+        for n2 in b{
+            if n1 == n2 {
+                return true
+            }
+        }
+    }
+    return false
+}
