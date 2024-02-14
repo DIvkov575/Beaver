@@ -7,9 +7,10 @@ use thiserror::Error;
 
 use python_parser as pp;
 use python_parser::ast;
-use python_parser::ast::Statement::Compound;
+use python_parser::ast::Statement::{Assignment, Compound};
 use python_parser::ast::CompoundStatement::Funcdef;
-use python_parser::ast::Statement;
+use python_parser::ast::Expression::{Call, Name};
+use python_parser::ast::{Expression, Statement};
 use crate::main;
 
 
@@ -41,8 +42,20 @@ pub fn generate_detections_file(config_path: &Path) -> Result<()> {
     // let main_funcs = get_functions_from_ast(&main_file_ast)?;
     // let main_func_names = main_funcs.iter().map(|ast::Funcdef{name, ..}| name ).collect();
     //
-    // let new_funcs: Vec<Funcdef> = get_detection_funcs(&config_path)?;
-    // let new_func_names = new_funcs.iter().map(|ast::Funcdef{name, ..}| name ).collect();
+    let new_funcs: Vec<Statement> = get_detection_funcs(&config_path)?;
+
+    let new_func_names = new_funcs.iter().filter_map(|Compound(comp)| if let Funcdef(func) = comp.clone() {
+        Some(func)
+    } else { None })
+
+
+    // let new_func_names = new_funcs.iter().filter_map(|Compound(Funcdef(func))| match func.as_ref() {
+    //     ast::Funcdef{name, ..} => Some(name),
+    //     _ => None                                    /// broken
+    // } ).collect();
+
+
+
     //
     // for n1 in main_func_names {
     //     for n2 in new_func_names {
@@ -55,6 +68,12 @@ pub fn generate_detections_file(config_path: &Path) -> Result<()> {
     //
     // let run_function_index = get_func_index(&main_file_ast, "run")?;
     // main_file_ast.splice(run_function_index..=run_function_index, new_funcs);
+
+    let function_calls: Vec<Expression> = Vec::new();
+    for name in new_func_names {
+        let func_call = Assignment(vec![Call(Box::new(Name(name)), Vec::new())], vec![]);
+
+    }
 
 
     // main_file_ast.
@@ -88,38 +107,38 @@ pub fn generate_detections_file(config_path: &Path) -> Result<()> {
 //         ).unwrap())
 // }
 //
-// fn get_detection_funcs(config_path: &Path) -> Result<Vec<Funcdef>> {
-//     /// Gets all <config>/detections/output/<detection>/detect.py file
-//     // Checks to make sure each detection folder contains detect.py file Check to ensure detect.py
-//     // contains detect func
-//     // // Check to ensure multiple detect dirs aren't named the same
-//     // Check to ensure (renamed) func does not already exist within detections.py
-//
-//     let mut detections_funcs: Vec<Funcdef> = Vec::new();
-//
-//     // iterate through folders in <config>/detections/output/
-//     // TODO: remove .take(1)
-//     let dirs = config_path.join("detections").join("output")
-//         .read_dir()?
-//         .map(|x| x.unwrap())
-//         .take(1);
-//
-//     for dir in dirs {
-//         let detect_file = dir.path().join("detect.py");
-//
-//         if !detect_file.as_path().exists() {
-//             // err if detection dir lacks detect.py file
-//             return Err(DataflowError::MissingDetectFile(dir.path().to_str().unwrap().to_string()).into());
-//         } else {
-//             // extract detect function
-//             detections_funcs.push( rename_detect_func(&detect_file)? );
-//         }
-//     }
-//
-//     // let output_ast = python_parser::visitors::printer::format_module(&renamed_func);
-//
-//     Ok(detections_funcs)
-// }
+fn get_detection_funcs(config_path: &Path) -> Result<Vec<Statement>> {
+    /// Gets all <config>/detections/output/<detection>/detect.py file
+    // Checks to make sure each detection folder contains detect.py file Check to ensure detect.py
+    // contains detect func
+    // // Check to ensure multiple detect dirs aren't named the same
+    // Check to ensure (renamed) func does not already exist within detections.py
+
+    let mut detections_funcs: Vec<Statement> = Vec::new();
+
+    // iterate through folders in <config>/detections/output/
+    // TODO: remove .take(1)
+    let dirs = config_path.join("detections").join("output")
+        .read_dir()?
+        .map(|x| x.unwrap())
+        .take(1);
+
+    for dir in dirs {
+        let detect_file = dir.path().join("detect.py");
+
+        if !detect_file.as_path().exists() {
+            // err if detection dir lacks detect.py file
+            return Err(DataflowError::MissingDetectFile(dir.path().to_str().unwrap().to_string()).into());
+        } else {
+            // extract detect function
+            detections_funcs.push( rename_detect_func(&detect_file)? );
+        }
+    }
+
+    // let output_ast = python_parser::visitors::printer::format_module(&renamed_func);
+
+    Ok(detections_funcs)
+}
 //
 // // fn get_functions_from_ast(input_ast: &[Statement]) -> Result<Vec<ast::Funcdef>> {
 // // // fn get_functions_from_ast(file_path: &Path) -> Result<Vec<ast::Funcdef>> {
@@ -138,43 +157,43 @@ pub fn generate_detections_file(config_path: &Path) -> Result<()> {
 // // }
 //
 //
-// fn rename_detect_func(file_path: &Path) -> Result<Funcdef> {
-//     let input_file_name = file_path.file_name().unwrap().to_str().unwrap().to_string();
-//     let contents = read_to_string(File::open(&file_path)?)?;
-//     let mut input_ast = python_parser::file_input(python_parser::make_strspan(&contents)).unwrap().1;
-//
-//     println!("{:?}", input_file_name);
-//
-//     for statement in input_ast {
-//         if let Compound(a) = statement {
-//             if let Funcdef(b) = *a {
-//                 if let ast::Funcdef { name, code, .. } = b {
-//                     if name != "detect" {
-//                         return Err(DataflowError::MissingDetectFunction(file_path.to_str().unwrap().to_string()).into());
-//                     } else {
-//                         return Ok(
-//                             Compound(Box::new(
-//                                 Funcdef(
-//                                     ast::Funcdef {
-//                                         r#async: false,
-//                                         decorators: vec![],
-//                                         name: input_file_name,
-//                                         parameters: Default::default(),
-//                                         return_type: None,
-//                                         code,
-//                                     }
-//                                 )
-//                             ))
-//                         );
-//                     }
-//                 }
-//             }
-//         }
-//     }
-//
-//     return Err(DataflowError::MiscASTGen.into());
-// }
-//
+fn rename_detect_func(file_path: &Path) -> Result<Statement> {
+    let input_file_name = file_path.file_name().unwrap().to_str().unwrap().to_string();
+    let contents = read_to_string(File::open(&file_path)?)?;
+    let mut input_ast = python_parser::file_input(python_parser::make_strspan(&contents)).unwrap().1;
+
+    println!("{:?}", input_file_name);
+
+    for statement in input_ast {
+        if let Compound(a) = statement {
+            if let Funcdef(b) = *a {
+                if let ast::Funcdef { name, code, .. } = b {
+                    if name != "detect" {
+                        return Err(DataflowError::MissingDetectFunction(file_path.to_str().unwrap().to_string()).into());
+                    } else {
+                        return Ok(
+                            Compound(Box::new(
+                                Funcdef(
+                                    ast::Funcdef {
+                                        r#async: false,
+                                        decorators: vec![],
+                                        name: input_file_name,
+                                        parameters: Default::default(),
+                                        return_type: None,
+                                        code,
+                                    }
+                                )
+                            ))
+                        );
+                    }
+                }
+            }
+        }
+    }
+
+    return Err(DataflowError::MiscASTGen.into());
+}
+
 
 #[derive(Error, Debug)]
 #[error("Dataflow Error")]
