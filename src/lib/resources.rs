@@ -14,7 +14,7 @@ pub struct Resources {
     pub biq_query: RefCell<Option<BqTable>>,
     pub output_pubsub: RefCell<Option<PubSub>>,
     pub compute_sa: RefCell<SA>,
-    pub gcs_bucket: RefCell<Option<String>>,
+    pub bucket_name: RefCell<Option<String>>,
     pub crj_instance: RefCell<String>,
 }
 
@@ -31,7 +31,7 @@ impl Resources {
             compute_sa: RefCell::new(
                 SA::empty()
             ),
-            gcs_bucket: RefCell::new(
+            bucket_name: RefCell::new(
                 Some(String::new())
             ),
             crj_instance: RefCell::new(
