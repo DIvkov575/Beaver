@@ -14,7 +14,7 @@ macro_rules! gm {($a:ident, $($b:literal,)*) => {$a$(.get_mut(&serde_yaml::Value
 
 pub fn create_vector(resources: &Resources, config: &Config) -> Result<()> {
     let mut crj_instance_id = resources.crj_instance.borrow_mut();
-    let bucket_name = resources.gcs_bucket.borrow().clone().unwrap();
+    let bucket_name = resources.bucket_name.borrow().clone().unwrap();
 
     if crj_instance_id.as_str() == "" {
         *crj_instance_id = create_crj_unnamed(&config)?;

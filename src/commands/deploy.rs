@@ -3,7 +3,7 @@ use std::path::Path;
 use anyhow::{anyhow, Result};
 use crate::lib::{bq::{
     self
-}, config::Config, crj, dataflow, gcs, pubsub};
+}, config::Config, crj, dataflow, detections_gen, gcs, pubsub};
 use crate::lib::resources::Resources;
 use crate::lib::sigma;
 use crate::lib::utilities::{self, check_for_bq, check_for_gcloud, validate_config_path};
@@ -23,7 +23,8 @@ pub fn deploy(path_arg: &str) -> Result<()> {
     // let mut resources: Resources =  serde_yaml::from_reader(resources_file)?;
 
     // sigma::generate_detections(&path)?;
-    dataflow::generate_detections_file(&path)?;
+    detections_gen::generate_detections_file(&path)?;
+    // dataflow::create_template(&path, &)
 
 
     // bq::create(&resources, &config)?;
