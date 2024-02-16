@@ -5,7 +5,7 @@ use serde::{Deserialize, Serialize};
 use crate::lib::config::Config;
 use crate::lib::resources::Resources;
 
-#[derive(Deserialize, Serialize)]
+#[derive(Deserialize, Serialize, Debug, Default)]
 pub struct SA {
     pub name: String,
     pub email: String,

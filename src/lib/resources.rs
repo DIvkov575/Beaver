@@ -1,4 +1,5 @@
 use std::cell::{Cell, Ref, RefCell};
+use std::fmt;
 use std::path::{Path, PathBuf};
 use serde::{Deserialize, Serialize};
 use crate::lib::bq::BqTable;
@@ -7,14 +8,16 @@ use crate::lib::pubsub::PubSub;
 use crate::lib::service_accounts::SA;
 
 
-#[derive(Deserialize, Serialize)]
+#[derive(Deserialize, Serialize, Debug)]
 pub struct Resources {
     #[serde(skip)]
     pub config_path: String,
     pub biq_query: RefCell<Option<BqTable>>,
     pub output_pubsub: RefCell<Option<PubSub>>,
+    #[serde(skip)]
     pub compute_sa: RefCell<SA>,
     pub bucket_name: RefCell<Option<String>>,
+    #[serde(skip)]
     pub crj_instance: RefCell<String>,
 }
 
@@ -52,4 +55,5 @@ impl Resources {
         println!("Beaver: Resources graceful serialized");
 
     }
+
 }
