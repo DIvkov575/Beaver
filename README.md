@@ -17,24 +17,10 @@ https://vector.dev/docs/reference/configuration/sinks/gcp_pubsub/
 -- `thiserror` for errors
 
 **full list:** 
-- create bq !! needs testing
-  - create bq dataset
-  - create bq table w/ json col
-- create o_pubsub w/ auto-write to bq !! needs testing
-- generate intermediate files
-  - vector.yaml
-    - link to pubsub
-    - import from config
-- bucket
-  - create bucket
-  - upload vec.yaml to bucket
-- crj
-  - create crj
-  - link crj
-  - update crk
-- scheduler
-  - create scheduler
-  - run scheduler 
+- create template + upload dataflow 
+- execute template
+- liking vector to detections
+- update logger
 
-- 
-
+**bugs**
+- problem with reading from resources.yaml file

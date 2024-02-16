@@ -1,6 +1,9 @@
+use std::cell::RefCell;
 use std::fs::{File};
+use std::io::read_to_string;
 use std::path::Path;
 use anyhow::{anyhow, Result};
+use clap::builder::Resettable::Reset;
 use crate::lib::{bq::{
     self
 }, config::Config, crj, dataflow, detections_gen, gcs, pubsub};
@@ -15,16 +18,27 @@ pub fn deploy(path_arg: &str) -> Result<()> {
     check_for_gcloud()?;
 
     let path = Path::new(path_arg);
-    // let resources_file = File::open(path.join("artifacts/resources.yaml"))?;
+    let resources_file = File::open(path.join("artifacts").join("resources.yaml"))?;
+    let a = read_to_string(&resources_file)?;
+    println!("{:?}", a);
+    // let b =path.join("artifacts").join("resources.yaml").exists();
+
+
+
     // let vector_path_binding = path.join("artifacts/vector.yaml");
     // let vector_path = vector_path_binding.to_str().ok_or(anyhow!("path `<config>/artifacts/vector.yaml`"))?;
 
-    // let config: Config = Config::from_path(&path);
-    // let mut resources: Resources =  serde_yaml::from_reader(resources_file)?;
+    let config: Config = Config::from_path(&path);
+    let mut resources = Resources::empty(&config);
+    resources.bucket_name = RefCell::new(Some(String::from("templates_1")));
+
+
 
     // sigma::generate_detections(&path)?;
-    detections_gen::generate_detections_file(&path)?;
-    // dataflow::create_template(&path, &)
+    // detections_gen::generate_detections_file(&path)?;
+    // println!("{:?}", resources);
+    dataflow::create_template(&path, &resources, &config)?;
+    dataflow::execute_template(&path, &resources, &config)?;
 
 
     // bq::create(&resources, &config)?;
