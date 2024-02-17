@@ -156,6 +156,7 @@ fn get_func_names(ast: &[Statement]) -> Result<Vec<String>> {
 
 
 fn rename_detect_func(file_path: &Path) -> Result<Statement> {
+    // gets detect func from a detections/<dir>/detect.py file -> returns function contents but named $dir
     let input_file_name = file_path.file_name().unwrap().to_str().unwrap().to_string();
     let contents = read_to_string(File::open(&file_path)?)?;
     let mut input_ast = python_parser::file_input(python_parser::make_strspan(&contents)).unwrap().1;
