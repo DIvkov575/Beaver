@@ -88,7 +88,7 @@ sources:
     project: \"{project}\"
     subscription: \"input-sub-1\"
     decoding:
-      codec: \"json\"
+      codec: \"json\j
 transforms:
   transform1:
     type: remap
@@ -112,6 +112,10 @@ transforms:
     //TODO: testing purposes
     let mut test_sigma_files = OpenOptions::new().write(true).create(true).open(path.join("detections").join("input").join("se.yml")).unwrap();
     test_sigma_files.write(&include_bytes_zstd!("src/beaver_config/detections/input/se.yml", 21))?;
+
+    let mut requirements_file = OpenOptions::new().write(true).create(true).open(path.join("detections").join("gen_requirements.txt"))?;
+    requirements_file.write_all("slack-sdk==3.26.2".as_bytes())?;
+
 
 
 
