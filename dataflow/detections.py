@@ -6,32 +6,33 @@ from apache_beam.options.pipeline_options import PipelineOptions
 
 
 
+def process(element):
+    funcs(element)
+    logging.info(element)
+
+    return element
 
 
-def process(batch):
-    processed_batch = []
-    for element in batch:
-        funcs(element)
-        processed_batch.append(element)
-
-    return processed_batch
+class DetectionsOptions(PipelineOptions):
+    @classmethod
+    def _add_argparse_args(cls, parser):
+        parser.add_argument('project', help='Gcloud project ID')
+        parser.add_argument('subscription', help='input pubsub subscription id')
 
 
 def run(argv=None):
-    project = "neon-circle-400322"
-    subscription = "tmp"
-    subscription_str = f"projects/{project}/subscriptions/{subscription}"
-    topic = f"projects/{project}/topics/topic-out-sub"
-
-    options = PipelineOptions(argv)
+    options = PipelineOptions(argv, streaming=True)
+    my_options = options.view_as(DetectionsOptions)
 
     with beam.Pipeline(options=options) as p:
-        input_data = (
+        (
                 p
-                | 'ReadFromPubSub' >> beam.io.ReadFromPubSub(subscription=subscription_str)
-                | 'ProcessBatch' >> beam.ParDo(process)
+                | 'ReadFromPubSub' >> beam.io.ReadFromPubSub(
+                    subscription=f"projects/{my_options.project}/subscriptions/{my_options.subscription}",
+                    with_attributes=True
+                )
+                | 'ProcessBatch' >> beam.Map(process)
         )
-        input_data | 'WriteOutput' >> beam.io.WriteToPubSub(topic=topic)
 
 
 if __name__ == '__main__':

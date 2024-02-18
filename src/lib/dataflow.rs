@@ -1,15 +1,18 @@
 use std::path::Path;
+use std::process::Command;
 use anyhow::Result;
 use run_script::ScriptOptions;
 use crate::lib::config::Config;
 use crate::lib::resources::Resources;
+
+
 
 pub fn create_template(path_to_config: &Path, resources: &Resources, config: &Config) -> Result<()> {
     /// executes sh script which loads a venv from detections -> executes beam script to upload template
     let bucket = resources.bucket_name.borrow().clone().unwrap();
     let detections_path = path_to_config.join("detections");
     let staging = format!("gs://{}/staging", bucket);
-    let templates= format!("gs://{}/templates", bucket);
+    let templates= format!("gs://{}/templates/{}", bucket, "template1");
 
     let args = vec![
         detections_path.to_str().unwrap().to_string(),
@@ -39,6 +42,21 @@ pub fn create_template(path_to_config: &Path, resources: &Resources, config: &Co
     Ok(())
 }
 
-fn execute_template(config_path: &Path, resources: &Resources, config: &Config) -> Result<()> {
-    todo!()
+fn execute_template(resources: &Resources, config: &Config) -> Result<()> {
+    // dataflow.jobs.get
+    // dataflow.workItems.lease
+    // dataflow.workItems.update
+    // dataflow.workItems.sendMessage
+    // dataflow.streamingWorkItems.getWork
+    // dataflow.streamingWorkItems.commitWork
+    // dataflow.streamingWorkItems.getData
+    // dataflow.shuffle.read
+    // dataflow.shuffle.write
+
+    let bucket_name = resources.bucket_name.borrow().clone().unwrap();
+    let template_path = format!("gs://{}/templates/beaver-detections-template", bucket_name);
+    let args = vec!["dataflow", "jobs", "run", "beaver-detections", "--gcs-location", template_path, "--region", config.region, "--enable-streaming-engine"];
+    Command::new("gcloud").args(args).output()?;
+
+    Ok(())
 }
