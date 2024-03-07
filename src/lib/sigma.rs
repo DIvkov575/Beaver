@@ -1,7 +1,5 @@
 use anyhow::Result;
-use std::io::{Read, Stderr, stdout, Write};
 use std::path::{Path, PathBuf};
-use std::process::{ChildStdout, Command, Stdio};
 use run_script::ScriptOptions;
 
 
