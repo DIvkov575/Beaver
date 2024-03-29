@@ -20,7 +20,7 @@ pub fn deploy(path_arg: &str) -> Result<()> {
     let path = Path::new(path_arg);
     let resources_file = File::open(path.join("artifacts").join("resources.yaml"))?;
     let a = read_to_string(&resources_file)?;
-    println!("{:?}", a);
+    // println!("{:?}", a);
     // let b =path.join("artifacts").join("resources.yaml").exists();
 
 
@@ -32,13 +32,14 @@ pub fn deploy(path_arg: &str) -> Result<()> {
     let mut resources = Resources::empty(&config);
     resources.bucket_name = RefCell::new(Some(String::from("templates_1")));
 
+    // println!("{:?}", resources);
 
 
     // sigma::generate_detections(&path)?;
     // detections_gen::generate_detections_file(&path)?;
     // println!("{:?}", resources);
     dataflow::create_template(&path, &resources, &config)?;
-    dataflow::execute_template(&path, &resources, &config)?;
+    dataflow::execute_template(&resources, &config)?;
 
 
     // bq::create(&resources, &config)?;

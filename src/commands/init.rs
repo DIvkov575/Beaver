@@ -88,7 +88,7 @@ sources:
     project: \"{project}\"
     subscription: \"input-sub-1\"
     decoding:
-      codec: \"json\j
+      codec: \"json\
 transforms:
   transform1:
     type: remap

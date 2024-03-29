@@ -21,3 +21,8 @@ https://vector.dev/docs/reference/configuration/sinks/gcp_pubsub/
 **bugs**
 - problem with reading from resources.yaml file
 - limited loop w/ name creation
+
+
+
+**left off on**
+updating detections_gen.py file until it executes successfully within dataflwo

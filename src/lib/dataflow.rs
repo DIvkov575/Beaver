@@ -12,7 +12,8 @@ pub fn create_template(path_to_config: &Path, resources: &Resources, config: &Co
     let bucket = resources.bucket_name.borrow().clone().unwrap();
     let detections_path = path_to_config.join("detections");
     let staging = format!("gs://{}/staging", bucket);
-    let templates= format!("gs://{}/templates/{}", bucket, "template1");
+    let templates= format!("gs://{}/templates/{}", bucket, "beaver-detection-template");
+    let subscription = "projects/neon-circle-400322/subscriptions/tmp".to_string();
 
     let args = vec![
         detections_path.to_str().unwrap().to_string(),
@@ -20,6 +21,7 @@ pub fn create_template(path_to_config: &Path, resources: &Resources, config: &Co
         staging,
         templates,
         config.region.clone(),
+        subscription,
     ];
 
     let (code, output, error) = run_script::run(
@@ -27,22 +29,24 @@ pub fn create_template(path_to_config: &Path, resources: &Resources, config: &Co
         cd $1
         source venv/bin/activate
         python ../artifacts/detections_gen.py \
-            --runner DataflowRunner \
-            --project $2 \
+            --runner=DataflowRunner \
+            $2 \
+            $6 \
             --staging_location $3 \
             --template_location $4 \
-            --region $5
+            --region $5 \
         "#,
         &args,
         &ScriptOptions::new(),
     )?;
 
+    println!("code: {:?}", args);
     println!("output:{:?}, err:{}", output, error);
 
     Ok(())
 }
 
-fn execute_template(resources: &Resources, config: &Config) -> Result<()> {
+pub fn execute_template(resources: &Resources, config: &Config) -> Result<()> {
     // dataflow.jobs.get
     // dataflow.workItems.lease
     // dataflow.workItems.update
@@ -54,8 +58,9 @@ fn execute_template(resources: &Resources, config: &Config) -> Result<()> {
     // dataflow.shuffle.write
 
     let bucket_name = resources.bucket_name.borrow().clone().unwrap();
-    let template_path = format!("gs://{}/templates/beaver-detections-template", bucket_name);
-    let args = vec!["dataflow", "jobs", "run", "beaver-detections", "--gcs-location", template_path, "--region", config.region, "--enable-streaming-engine"];
+    let template_path = format!("gs://{}/templates/beaver-detection-template", bucket_name);
+    println!("{:?}", template_path);
+    let args = vec!["dataflow", "jobs", "run", "beaver-detections", "--gcs-location", &template_path, "--region", &config.region, "--enable-streaming-engine"];
     Command::new("gcloud").args(args).output()?;
 
     Ok(())
