@@ -13,7 +13,7 @@ pub fn create_template(path_to_config: &Path, resources: &Resources, config: &Co
     let detections_path = path_to_config.join("detections");
     let staging = format!("gs://{}/staging", bucket);
     let templates= format!("gs://{}/templates/{}", bucket, "beaver-detection-template");
-    let subscription = "projects/neon-circle-400322/subscriptions/tmp".to_string();
+    let subscription = "projects/neon-circle-400322/subscriptions/test1-sub".to_string();
 
     let args = vec![
         detections_path.to_str().unwrap().to_string(),

@@ -106,18 +106,15 @@ transforms:
     let mut sigma_generate= OpenOptions::new().write(true).create(true).open(path.join("detections").join("sigma_generate.py")).unwrap();
     sigma_generate.write(&include_bytes_zstd!("src/beaver_config/detections/sigma_generate.py", 21))?;
 
-    let mut test_sigma_files = OpenOptions::new().write(true).create(true).open(path.join("detections").join("detections.py")).unwrap();
-    test_sigma_files.write(&include_bytes_zstd!("dataflow/detections.py", 21))?;
+    let mut test_sigma_files = OpenOptions::new().write(true).create(true).open(path.join("detections").join("detections_template.py")).unwrap();
+    test_sigma_files.write(&include_bytes_zstd!("dataflow/detections_template.py", 21))?;
 
     //TODO: testing purposes
     let mut test_sigma_files = OpenOptions::new().write(true).create(true).open(path.join("detections").join("input").join("se.yml")).unwrap();
     test_sigma_files.write(&include_bytes_zstd!("src/beaver_config/detections/input/se.yml", 21))?;
 
-    let mut requirements_file = OpenOptions::new().write(true).create(true).open(path.join("detections").join("gen_requirements.txt"))?;
-    requirements_file.write_all("slack-sdk==3.26.2".as_bytes())?;
-
-
-
+    // let mut requirements_file = OpenOptions::new().write(true).create(true).open(path.join("detections").join("gen_requirements.txt"))?;
+    // requirements_file.write_all("slack-sdk==3.26.2".as_bytes())?;
 
     setup_detections_venv(path)?;
 
