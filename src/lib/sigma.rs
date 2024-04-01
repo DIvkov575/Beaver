@@ -5,6 +5,7 @@ use run_script::ScriptOptions;
 
 pub fn setup_detections_venv(path_to_config: &Path) -> Result<()> {
     /// Creates virtualenv, activates env, installs matano-pysigma-backend from "pip3 install git+https://github.com/matanolabs/pySigma-backend-matano.git"
+    // opted to use sh bc executing python w/ active virtual environment was problematic
     let path = path_to_config.join("detections");
     let args = vec![path.to_str().unwrap().to_string()];
     let options = ScriptOptions::new();
@@ -27,6 +28,7 @@ pub fn setup_detections_venv(path_to_config: &Path) -> Result<()> {
 }
 
 pub fn generate_detections(path_to_config: &Path) -> Result<()> {
+    // opted to use sh bc executing python w/ active virtual environment was problematic
     let path = path_to_config.join("detections");
     let output_path = vec![path.join("output").to_str().unwrap().to_string()];
     let options = ScriptOptions::new();

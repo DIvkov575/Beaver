@@ -1,3 +1,4 @@
+use std::arch::aarch64::veor_s8;
 use std::fs::File;
 use std::io::{read_to_string, Write};
 use std::path::Path;
@@ -10,34 +11,36 @@ use python_parser::ast;
 use python_parser::ast::Statement::{Assignment, Compound};
 use python_parser::ast::CompoundStatement::Funcdef;
 use python_parser::ast::Expression::{Call, Name};
-use python_parser::ast::{Argument, Expression, Statement, TypedArgsList};
-use crate::lib::detections_gen::ASTGenError::DuplicateFunc;
+use python_parser::ast::{Argument, Decorator, Expression, Statement, TypedArgsList};
+use crate::lib::detections_gen::ASTGenError::{DuplicateFunc, UnwrapAST};
 use crate::lib::utilities::overlap;
 
 
 pub fn generate_detections_file(config_path: &Path) -> Result<()> {
     let detections_path = config_path.join("detections");
-    let main_detections_file_path = detections_path.join("detections.py");
+    let main_detections_file_path = detections_path.join("detections_template.py");
 
-    let mut main_file_ast = pp::file_input(pp::make_strspan(&read_to_string(File::open(&main_detections_file_path)?)?)).unwrap().1;
-    let new_funcs_ast: Vec<Statement> = get_new_detection_funcs(&config_path)?;
+    let mut template_file_ast: Vec<Statement> = pp::file_input(pp::make_strspan(&read_to_string(File::open(&main_detections_file_path)?)?)).unwrap().1;
+    let detection_functions_definitions: Vec<Statement> = generate_detection_functions(&config_path)?;
 
-    let main_func_names = get_func_names(&main_file_ast)?;
-    let new_func_names: Vec<String> = get_func_names(&new_funcs_ast)?;
-
+    // compare (function names in template file) to (newly generated function's names) for overlap
+    let main_func_names = get_func_names(&template_file_ast)?;
+    let new_func_names: Vec<String> = get_func_names(&detection_functions_definitions)?;
     if overlap(&main_func_names, &new_func_names) { return Err(DuplicateFunc.into()) }
 
+    // generate calls for (newly generated functions)
     let function_calls_ast: Vec<Statement> = new_func_names.iter()
         .map(|name|
             Assignment(vec![Call(Box::new(Name(name.clone())), vec![Argument::Positional(Expression::Name("record".to_string()))])], vec![])
         ).collect();
 
-    let funcs_func_ast =
+    // "detections function" gen ast for function to call all (newly generated functions)
+    let detections_function =
         vec![Compound(Box::new(Funcdef(
             ast::Funcdef {
                 r#async: false,
                 decorators: vec![],
-                name: "funcs".to_string(),
+                name: "detections".to_string(),
                 parameters: TypedArgsList {
                     posonly_args: vec![("record".to_string(), None, None)],
                     args: vec![],
@@ -50,13 +53,25 @@ pub fn generate_detections_file(config_path: &Path) -> Result<()> {
             }
         )))];
 
+    // generate new 'run' function contents
+    let mut run_function;
+    match &template_file_ast[index(&template_file_ast, "run")?] {
+       Compound(a) => match *a.clone() {
+           Funcdef(function) => {
+               let mut function_mut = function.clone();
+               function_mut.code.splice(1..1, [detection_functions_definitions, detections_function].concat());
+               run_function = Compound(Box::new(Funcdef(function_mut)))
+           },
+           _ => return Err(UnwrapAST.into()),
+       }
+        _ => return Err(UnwrapAST.into()),
+    }
 
-    let insert_index = index(&main_file_ast, "process")?;
-    main_file_ast.splice((insert_index)..(insert_index), funcs_func_ast);
-    let insert_index = index(&main_file_ast, "funcs")?;
-    main_file_ast.splice((insert_index)..(insert_index), new_funcs_ast);
 
-    serialize(config_path, &main_file_ast)?;
+    let insert_index = index(&template_file_ast, "run")?;
+    template_file_ast.splice(insert_index..=insert_index, vec![run_function]);
+
+    serialize(config_path, &template_file_ast)?;
 
     Ok(())
 }
@@ -74,21 +89,22 @@ fn serialize(config_path: &Path, main_file_ast: &Vec<Statement>) -> Result<()> {
 }
 
 
-fn get_new_detection_funcs(config_path: &Path) -> Result<Vec<Statement>> {
+fn generate_detection_functions(config_path: &Path) -> Result<Vec<Statement>> {
     /// Gets all <config>/detections/output/<detection>/detect.py file
     // Checks to make sure each detection folder contains detect.py file Check to ensure detect.py
     // contains detect func
     // // Check to ensure multiple detect dirs aren't named the same
-    // Check to ensure (renamed) func does not already exist within detections.py
+    // Check to ensure (renamed) func does not already exist within detections_template.py
+
+    /// Returns:
+    ///     list of functions containing a detection (from detections dir) -> wraps each w/ Harness decorator
 
     let mut detections_funcs: Vec<Statement> = Vec::new();
 
     // iterate through folders in <config>/detections/output/
-    // TODO: remove .take(1)
-    let dirs = config_path.join("detections").join("output")
+    let dirs = config_path.join("detections_template").join("output")
         .read_dir()?
-        .map(|x| x.unwrap())
-        .take(1);
+        .map(|x| x.unwrap());
 
     for dir in dirs {
         let file_path = dir.path().join("detect.py");
@@ -114,7 +130,9 @@ fn get_new_detection_funcs(config_path: &Path) -> Result<Vec<Statement>> {
                                     Funcdef(
                                         ast::Funcdef {
                                             r#async: false,
-                                            decorators: vec![],
+                                            decorators: vec![
+                                                Decorator{ name: vec!["harness".into()], args: None}
+                                            ],
                                             name: dir.file_name().to_str().unwrap().to_string(),
                                             parameters: TypedArgsList {
                                                 posonly_args: vec![("record".to_string(), None, None)],
@@ -156,7 +174,7 @@ fn get_func_names(ast: &[Statement]) -> Result<Vec<String>> {
 
 
 fn rename_detect_func(file_path: &Path) -> Result<Statement> {
-    // gets detect func from a detections/<dir>/detect.py file -> returns function contents but named $dir
+    // gets detect func from a detections/<dir>/detect.py file -> returns function contents but named after its <dir>
     let input_file_name = file_path.file_name().unwrap().to_str().unwrap().to_string();
     let contents = read_to_string(File::open(&file_path)?)?;
     let mut input_ast = python_parser::file_input(python_parser::make_strspan(&contents)).unwrap().1;
@@ -219,5 +237,7 @@ enum ASTGenError {
     #[error("Error occurred while generating AST")]
     MiscASTGen,
     #[error("Function sharing a name w/ generated function already exists in detects.py template")]
-    DuplicateFunc
+    DuplicateFunc,
+    #[error("error occured while unwrapping template ast")]
+    UnwrapAST
 }

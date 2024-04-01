@@ -1,7 +1,7 @@
 # beaver
 
-SEIM (data security log analysis tool)
-inspired by matano, executes completely within gcp
+SIEM (data security log analysis tool)
+inspired by Matano, executes completely within gcp
 
 ----
 
@@ -25,4 +25,7 @@ https://vector.dev/docs/reference/configuration/sinks/gcp_pubsub/
 
 
 **left off on**
-updating detections_gen.py file until it executes successfully within dataflwo
+dataflow knows functions defition (gcp_acess_policy_deleted) only if defined in record ...
+how to ensure dataflwo knows hte defintion w/o needing to redefine it everytime
+
+record has no attribute get (gcp_acess_policy_deleted)

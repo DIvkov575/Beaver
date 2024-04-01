@@ -1,5 +1,0 @@
-sonly_args: Vec<(Name, Option<Expression>, Option<Expression>)>
-args: Vec<(Name, Option<Expression>, Option<Expression>)>
-star_args: StarParams<(Name, Option<Expression>)>
-keyword_args: Vec<(Name, Option<Expression>, Option<Expression>)>
-star_kwargs: Option<(Name, Option<Expression>)>

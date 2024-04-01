@@ -36,10 +36,10 @@ pub fn deploy(path_arg: &str) -> Result<()> {
 
 
     // sigma::generate_detections(&path)?;
-    // detections_gen::generate_detections_file(&path)?;
+    detections_gen::generate_detections_file(&path)?;
     // println!("{:?}", resources);
-    dataflow::create_template(&path, &resources, &config)?;
-    dataflow::execute_template(&resources, &config)?;
+    // // dataflow::create_template(&path, &resources, &config)?;
+    // dataflow::execute_template(&resources, &config)?;
 
 
     // bq::create(&resources, &config)?;
