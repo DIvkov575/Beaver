@@ -8,6 +8,7 @@ use rand::Rng;
 use serde::{Deserialize, Serialize};
 use crate::lib::bq::BqTable;
 use crate::lib::resources::Resources;
+use crate::MiscError;
 
 
 #[derive(Debug,Deserialize, Serialize)]
@@ -61,7 +62,11 @@ pub fn create_subscription(topic_id: &str, config: &Config) -> Result<String> {
     let mut random_string: String;
     let mut subscription_id;
 
+    let mut ctr = 0u8;
     loop {
+        if ctr >= 5 { return Err(MiscError::MaxResourceCreationRetries.into()) }
+        ctr += 1;
+
         random_string = rand::thread_rng()
             .sample_iter(&Alphanumeric)
             .take(9)
@@ -99,7 +104,11 @@ pub fn create_bq_subscription(topic_id: &str, bq_table: &BqTable, config: &Confi
     let mut random_string: String;
     let mut subscription_id;
 
+    let mut ctr = 0u8;
     loop {
+        if ctr >= 5 { return Err(MiscError::MaxResourceCreationRetries.into()) }
+        ctr += 1;
+
         random_string = rand::thread_rng()
             .sample_iter(&Alphanumeric)
             .take(9)
@@ -151,7 +160,12 @@ pub fn create_named_pubsub_topic(topic_id: &str, config: &Config) -> Result<()> 
 pub fn create_pubsub_topic(config: &Config) -> Result<String> {
     let mut random_string: String;
     let mut topic_binding: String;
+
+    let mut ctr = 0u8;
     loop {
+        if ctr >= 5 { return Err(MiscError::MaxResourceCreationRetries.into()) }
+        ctr += 1;
+
         random_string = rand::thread_rng()
             .sample_iter(&Alphanumeric)
             .take(9)

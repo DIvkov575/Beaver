@@ -1,20 +1,22 @@
-use std::error::Error;
-use std::fmt::format;
 use std::process::Command;
 use crate::lib::config::Config;
 use anyhow::Result;
 use log::{error, info};
-// use uuid
 
 use rand::{distributions::Alphanumeric, Rng};
-use crate::lib::resources::Resources; // 0.8
+use crate::lib::resources::Resources;
+use crate::MiscError;
 
 
 pub fn create_bucket(resources: &mut Resources, config: &Config) -> Result<String> {
     info!("creating bucket...");
     let mut random_string: String;
 
-    for i in 0..5 {
+    let mut ctr = 0u8;
+    loop {
+        if ctr >= 5 { return Err(MiscError::MaxResourceCreationRetries.into()) }
+        ctr += 1;
+
         random_string = rand::thread_rng()
             .sample_iter(&Alphanumeric)
             .take(9)
@@ -61,3 +63,4 @@ pub fn upload_to_bucket(local_location: &str, resources: &Resources, config: &Co
 
     Ok(())
 }
+

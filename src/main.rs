@@ -37,3 +37,9 @@ pub fn main() -> Result<()> {
     Ok(())
 }
 
+#[derive(thiserror::Error, Debug)]
+#[error("miscellaneous resource creation error")]
+enum MiscError {
+    #[error("too many resource creation attempts")]
+    MaxResourceCreationRetries,
+}

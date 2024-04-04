@@ -8,6 +8,7 @@ use rand::Rng;
 use serde::{Deserialize, Serialize};
 use crate::lib::config::Config;
 use crate::lib::resources::Resources;
+use crate::MiscError;
 
 
 #[derive(Deserialize, Serialize, Debug)]
@@ -47,7 +48,11 @@ pub fn create_dataset_unnamed(project_id: &str) -> Result<String> {
     let mut random_string: String;
     let mut dataset_id_binding: String;
 
+    let mut ctr = 0u8;
     loop {
+        if ctr >= 5 { return Err(MiscError::MaxResourceCreationRetries.into()) }
+        ctr += 1;
+
         random_string = rand::thread_rng()
             .sample_iter(&Alphanumeric)
             .take(4)
