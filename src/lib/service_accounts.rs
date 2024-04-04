@@ -21,14 +21,6 @@ impl SA {
             description: String::new()
         }
     }
-    // pub fn new(name: &str, roles: Vec<String>, description: &str) -> Self {
-    //     Self {
-    //         name: name.to_string(),
-    //         roles: roles.clone(),
-    //         description: description
-    //
-    //     }
-    // }
 }
 
 
@@ -88,10 +80,10 @@ pub fn create_creational_sa(user_email: &str, config: &Config) -> Result<()> {
     Ok(())
 }
 
-pub fn create_compute_sa(user_email: &str, resources: &Resources, config: &Config) -> Result<()> {
-    let mut compute_sa = resources.compute_sa.borrow_mut();
+pub fn create_compute_sa(user_email: &str, resources: &mut Resources, config: &Config) -> Result<()> {
+    let mut compute_sa = &mut resources.compute_sa;
     compute_sa.name = String::from("BeaverComputeSA");
-    compute_sa.email =format!("{}@{}.iam.gserviceaccount.com", compute_sa.name, config.project);
+    compute_sa.email = format!("{}@{}.iam.gserviceaccount.com", compute_sa.name, config.project);
 
     create_service_account(&compute_sa.name)?;
     allow_service_account_impersonation(&compute_sa.name, user_email, &config)?;

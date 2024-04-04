@@ -20,8 +20,7 @@ pub fn generate_vector_config(path: &Path, resources: &Resources, config: &Confi
     let beaver_config: Mapping = serde_yaml::from_reader(&File::open(path.join("beaver_config.yaml"))?)?;
     let vector_config_file = OpenOptions::new().write(true).create(true).open(path.join("artifacts/vector.yaml"))?;
 
-    let output_pubsub_binding = resources.output_pubsub.borrow();
-    let output_pubsub = output_pubsub_binding.as_ref().unwrap();
+    let output_pubsub= &resources.output_pubsub;
 
     let sources_yaml = get!(beaver_config, "sources",);
     let transforms_yaml = get!(beaver_config, "transforms",);

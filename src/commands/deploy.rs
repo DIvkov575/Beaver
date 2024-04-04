@@ -1,10 +1,5 @@
-use std::cell::RefCell;
-use std::fs::{File};
-use std::io::read_to_string;
 use std::path::Path;
 use anyhow::{anyhow, Result};
-use clap::builder::Resettable::Reset;
-use log4rs::init_file;
 use log::info;
 use crate::lib::{bq::{
     self
@@ -27,16 +22,16 @@ pub fn deploy(path_arg: &str) -> Result<()> {
     let mut resources = Resources::empty(&config, &path);
 
     sigma::generate_detections(&path)?;
-    // detections_gen::generate_detections_file(&path)?;
+    detections_gen::generate_detections_file(&path)?;
 
-    bq::create(&resources, &config)?;
-    pubsub::create(&resources, &config)?;
+    bq::create(&mut resources, &config)?;
+    pubsub::create(&mut resources, &config)?;
 
     utilities::generate_vector_config(&path, &resources, &config)?;
-    gcs::create_bucket(&resources, &config)?;
+    gcs::create_bucket(&mut resources, &config)?;
     gcs::upload_to_bucket(vector_path, &resources, &config)?;
 
-    crj::create_vector(&resources, &config)?;
+    crj::create_vector(&mut resources, &config)?;
     crj::execute_crj(&resources, &config)?;
 
     dataflow::create_template(&path, &resources, &config)?;
