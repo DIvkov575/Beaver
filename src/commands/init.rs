@@ -96,8 +96,7 @@ transforms:
       - pubsub-in
 ");
 
-    let mut resources = Resources::empty(&config);
-    resources.config_path = path.as_os_str().to_str().unwrap().to_string();
+    let mut resources = Resources::empty(&config, &path);
     resources.save();
 
     let mut beaver_conf_file = OpenOptions::new().write(true).create(true).open(path.join("beaver_config.yaml")).unwrap();

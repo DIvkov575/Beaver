@@ -3,7 +3,8 @@ use std::fs::File;
 use std::io::{read_to_string, Write};
 use std::path::Path;
 use anyhow::Result;
-use log::error;
+use log4rs::init_file;
+use log::{error, info};
 use thiserror::Error;
 
 use python_parser as pp;
@@ -14,13 +15,13 @@ use python_parser::ast::Expression::{Call, Name};
 use python_parser::ast::{Argument, Decorator, Expression, Statement, TypedArgsList};
 use crate::lib::detections_gen::ASTGenError::{DuplicateFunc, UnwrapAST};
 use crate::lib::utilities::overlap;
+// this code causes physical pain - sorry in advance
 
 
 pub fn generate_detections_file(config_path: &Path) -> Result<()> {
+    info!("generating aggregated detections...");
     let detections_path = config_path.join("detections");
-    let main_detections_file_path = detections_path.join("detections_template.py");
-
-    let mut template_file_ast: Vec<Statement> = pp::file_input(pp::make_strspan(&read_to_string(File::open(&main_detections_file_path)?)?)).unwrap().1;
+    let mut template_file_ast: Vec<Statement> = pp::file_input(pp::make_strspan(&read_to_string(File::open(&detections_path.join("detections_template.py"))?)?)).unwrap().1;
     let detection_functions_definitions: Vec<Statement> = generate_detection_functions(&config_path)?;
 
     // compare (function names in template file) to (newly generated function's names) for overlap
@@ -102,7 +103,7 @@ fn generate_detection_functions(config_path: &Path) -> Result<Vec<Statement>> {
     let mut detections_funcs: Vec<Statement> = Vec::new();
 
     // iterate through folders in <config>/detections/output/
-    let dirs = config_path.join("detections_template").join("output")
+    let dirs = config_path.join("detections").join("output")
         .read_dir()?
         .map(|x| x.unwrap());
 

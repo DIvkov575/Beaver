@@ -1,31 +1,30 @@
-# beaver
-
-SIEM (data security log analysis tool)
-inspired by Matano, executes completely within gcp
-
+Beaver SIEM (data security log analysis tool)
 ----
-
 **Todo:**
--- add batching to vector output - ?why?
-https://vector.dev/docs/reference/configuration/sinks/gcp_pubsub/
+- test real log
+- destructured log -> bq
 
--- logging
--- minimize gcloud stdout + feature for verbose execution
--- `thiserror` for errors
+- config Struct mutability
+- resource serialization
+- fix name creation (inf loop issue)
+- batching -> deduplication + writes
+- 
 
-**full list:** 
-- create template + upload dataflow 
-- execute template
-- linking vector to detections
-
-**bugs**
-- problem with reading from resources.yaml file
-- limited loop w/ name creation
-
-
+**Ideas**
+- disabling detections_gen.py regeneration
+- create input pubsub (to route log sink into)
 
 **left off on**
-dataflow knows functions defition (gcp_acess_policy_deleted) only if defined in record ...
-how to ensure dataflwo knows hte defintion w/o needing to redefine it everytime
+- need to run real log through linked pipeline
 
-record has no attribute get (gcp_acess_policy_deleted)
+---
+create bq
+create pubsub topic (1) + subscription (2) (bq) (general)
+create bucket
+
+create crj -> bucket & pubsub 
+create df -> bucket & pubsub
+
+---
+
+[gcp log sink logs not appearing in pubsub](https://stackoverflow.com/questions/68778305/gcp-log-router-sink-not-routing-logs-to-topic)

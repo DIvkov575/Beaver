@@ -2,16 +2,17 @@ beaver:
   project_id: neon-circle-400322
   region: northamerica-northeast1
 
+
 sources:
   pubsub_in:
     type: gcp_pubsub
-    project: ''
-    subscription: 'input-sub-1'
+    project: "neon-circle-400322"
+    subscription: "input1"
     decoding:
-      codec: 'json'
+      codec: "json"
 
 transforms:
   transform1:
     type: remap
     inputs:
-      - 'pubsub_in'
+      - pubsub-in

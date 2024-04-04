@@ -1,5 +1,6 @@
 use anyhow::Result;
 use std::path::{Path, PathBuf};
+use log::{error, info};
 use run_script::ScriptOptions;
 
 
@@ -28,6 +29,7 @@ pub fn setup_detections_venv(path_to_config: &Path) -> Result<()> {
 }
 
 pub fn generate_detections(path_to_config: &Path) -> Result<()> {
+    info!("converting sigma detections...");
     // opted to use sh bc executing python w/ active virtual environment was problematic
     let path = path_to_config.join("detections");
     let output_path = vec![path.join("output").to_str().unwrap().to_string()];
@@ -43,7 +45,6 @@ pub fn generate_detections(path_to_config: &Path) -> Result<()> {
           extension="${file##*.}"
           if [ "$extension" == "yml" ] || [ "$extension" == "yaml" ]; then
             python3 ../sigma_generate.py ../input/"$file"
-            echo "$file successfully parsed"
           fi
         done
         "#,
@@ -51,8 +52,12 @@ pub fn generate_detections(path_to_config: &Path) -> Result<()> {
         &options,
     ).unwrap();
 
-    println!("exit code {}: {}", code, output);
-    println!("{}", error);
+    if error != "" {
+        error!("{}", error);
+    } else {
+        output.lines().for_each(|line| info!("{}", line));
+    }
+
 
     Ok(())
 }
