@@ -7,6 +7,7 @@ use rand::Rng;
 use serde_yaml::Mapping;
 use crate::lib::config::Config;
 use crate::lib::resources::Resources;
+use crate::MiscError;
 
 
 #[macro_export]
@@ -31,7 +32,11 @@ fn create_crj_unnamed(config: &Config) -> Result<String>{
     let mut random_string: String;
     let mut job_name_binding: String;
 
+    let mut ctr = 0u8;
     loop {
+        if ctr >= 5 { return Err(MiscError::MaxResourceCreationRetries.into()) }
+        ctr += 1;
+
         random_string = rand::thread_rng()
             .sample_iter(&Alphanumeric)
             .take(9)

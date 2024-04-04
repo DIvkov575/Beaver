@@ -1,21 +1,15 @@
 Beaver SIEM (data security log analysis tool)
 ----
 **Todo:**
-- test real log
 - destructured log -> bq
-
-- config Struct mutability
-- resource serialization
-- fix name creation (inf loop issue)
 - batching -> deduplication + writes
-- 
+- logging
 
 **Ideas**
 - disabling detections_gen.py regeneration
 - create input pubsub (to route log sink into)
 
 **left off on**
-- need to run real log through linked pipeline
 
 ---
 create bq
