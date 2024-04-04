@@ -2,6 +2,7 @@ use anyhow::Result;
 use std::fs::{File, OpenOptions};
 use std::path::Path;
 use std::process::Command;
+use log::info;
 use serde_yaml::{Mapping, Value};
 use crate::lib::config::Config;
 use crate::lib::resources::Resources;
@@ -14,15 +15,19 @@ macro_rules! get {($config: ident,  $($b:literal,)*) => {
 };}
 
 pub fn generate_vector_config(path: &Path, resources: &Resources, config: &Config ) -> Result<()> {
-    let beaver_config: Mapping = serde_yaml::from_reader(&File::open(path.join("../beaver_config/beaver_config.yaml"))?)?;
+    info!("generating vector config...");
+
+    let beaver_config: Mapping = serde_yaml::from_reader(&File::open(path.join("beaver_config.yaml"))?)?;
     let vector_config_file = OpenOptions::new().write(true).create(true).open(path.join("artifacts/vector.yaml"))?;
 
     let output_pubsub_binding = resources.output_pubsub.borrow();
     let output_pubsub = output_pubsub_binding.as_ref().unwrap();
 
-    let sources_yaml = get!(beaver_config, "beaver", "sources",);
-    let transforms_yaml = get!(beaver_config, "beaver", "transforms",);
+    let sources_yaml = get!(beaver_config, "sources",);
+    let transforms_yaml = get!(beaver_config, "transforms",);
     let transforms = get_transforms(&transforms_yaml);
+
+
 
     // !! add condition for batch insert
     if let Some(batch) = get!(beaver_config, "beaver",).get("batch") {
@@ -30,7 +35,6 @@ pub fn generate_vector_config(path: &Path, resources: &Resources, config: &Confi
             println!("asdfklj");
         }
     }
-    //
     // let batch_window= get!(beaver_config, "beaver", "batch", "timeout_sec",);
     // let batch_size= get!(beaver_config, "beaver", "batch", "max_events",);
 

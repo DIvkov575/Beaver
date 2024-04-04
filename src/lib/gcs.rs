@@ -3,6 +3,7 @@ use std::fmt::format;
 use std::process::Command;
 use crate::lib::config::Config;
 use anyhow::Result;
+use log::info;
 // use uuid
 
 use rand::{distributions::Alphanumeric, Rng};
@@ -10,6 +11,7 @@ use crate::lib::resources::Resources; // 0.8
 
 
 pub fn create_bucket(resources: &Resources, config: &Config) -> Result<String> {
+    info!("creating bucket...");
     let mut random_string: String;
 
     loop {
@@ -37,6 +39,7 @@ pub fn create_bucket(resources: &Resources, config: &Config) -> Result<String> {
 }
 
 pub fn upload_to_bucket(local_location: &str, resources: &Resources, config: &Config) -> Result<()> {
+    info!("uploading to bucket...");
     // https://cloud.google.com/storage/docs/uploading-objects#permissions-cli
     // gcloud storage cp OBJECT_LOCATION gs://DESTINATION_BUCKET_NAME/
     let destination_bucket_binding = format!("gs://{}", resources.bucket_name.clone().into_inner().unwrap());
