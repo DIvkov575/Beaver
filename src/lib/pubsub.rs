@@ -36,13 +36,11 @@ impl PubSub {
 }
 
 
-pub fn create(resources: &Resources, config: &Config) -> Result<()> {
+pub fn create(resources: &mut Resources, config: &Config) -> Result<()> {
     info!("creating pubsub...");
     // creates pubsub topic and subscriptions -> writes to biq query table
-    let bq_table_binding = resources.biq_query.borrow();
-    let bq_table= bq_table_binding.as_ref().unwrap();
-    let mut pubsub_binding = resources.output_pubsub.borrow_mut();
-    let mut pubsub = pubsub_binding.as_mut().unwrap();
+    let bq_table= &resources.biq_query;
+    let mut pubsub= &mut resources.output_pubsub;
 
     let topic_id = create_pubsub_topic(&config)?;
     let bq_subscription_id = create_bq_subscription(&topic_id, &bq_table, &config)?;
@@ -189,12 +187,10 @@ pub fn create_pubsub_topic(config: &Config) -> Result<String> {
 
 
 
-pub fn create_pubsub_to_bq(resources: &Resources, config: &Config) -> Result<()> {
+pub fn create_pubsub_to_bq(resources: &mut Resources, config: &Config) -> Result<()> {
     // creates pubsub topic and subscriptions -> writes to biq query table
-    let bq_table_binding = resources.biq_query.borrow();
-    let bq_table= bq_table_binding.as_ref().unwrap();
-    let mut pubsub_binding = resources.output_pubsub.borrow_mut();
-    let mut pubsub = pubsub_binding.as_mut().unwrap();
+    let bq_table= &resources.biq_query;
+    let mut pubsub= &mut resources.output_pubsub;
 
     let topic_id = create_pubsub_topic(&config)?;
     let subscription_id = create_bq_subscription(&topic_id, &bq_table, &config)?;

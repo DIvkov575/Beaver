@@ -111,11 +111,12 @@ pub fn create_table(dataset_id: &str, table_id: &str, project_id: &str) -> Resul
 }
 
 
-pub fn create(resources: &Resources, config: &Config) -> Result<()> {
+pub fn create(resources: &mut Resources, config: &Config) -> Result<()> {
     info!("creating bq...");
     // create bq instance from config.artifacts.resources.yaml if names were provided, otherwise names dataset dynamically "beaver_{random_string}" and table "table1"
-    let mut bq_binding = resources.biq_query.borrow_mut();
-    let mut bq = bq_binding.as_mut().unwrap();
+    // let mut bq_binding = resources.biq_query.borrow_mut();
+    // let mut bq = bq_binding.as_mut().unwrap();
+    let mut bq = &mut resources.biq_query;
 
 
     // create dataset & store id

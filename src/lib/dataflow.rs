@@ -12,8 +12,8 @@ use crate::lib::resources::Resources;
 pub fn create_template(path_to_config: &Path, resources: &Resources, config: &Config) -> Result<()> {
     info!("creating template...");
     /// executes sh script which loads a venv from detections -> executes beam script to upload template
-    let bucket = resources.bucket_name.borrow().clone().unwrap();
-    let subscription_id = resources.output_pubsub.borrow().as_ref().unwrap().subscription_id_2.clone();
+    let bucket = resources.bucket_name.clone();
+    let subscription_id = resources.output_pubsub.subscription_id_2.clone();
 
     let detections_path = path_to_config.join("detections");
     let staging = format!("gs://{}/staging", bucket);
@@ -67,7 +67,7 @@ pub fn execute_template(resources: &Resources, config: &Config) -> Result<()> {
     // dataflow.shuffle.read
     // dataflow.shuffle.write
 
-    let bucket_name = resources.bucket_name.borrow().clone().unwrap();
+    let bucket_name = resources.bucket_name.clone();
     let template_path = format!("gs://{}/templates/beaver-detection-template", bucket_name);
     println!("{:?}", template_path);
     let args = vec!["dataflow", "jobs", "run", "beaver-detections", "--gcs-location", &template_path, "--region", &config.region, "--enable-streaming-engine"];
