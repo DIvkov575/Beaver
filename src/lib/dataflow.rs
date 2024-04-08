@@ -1,7 +1,6 @@
 use std::path::Path;
 use std::process::Command;
 use anyhow::Result;
-use log4rs::init_file;
 use log::{error, info, warn};
 use run_script::ScriptOptions;
 use crate::lib::config::Config;
@@ -18,7 +17,7 @@ pub fn create_template(path_to_config: &Path, resources: &Resources, config: &Co
     let detections_path = path_to_config.join("detections");
     let staging = format!("gs://{}/staging", bucket);
     let templates= format!("gs://{}/templates/{}", bucket, "beaver-detection-template");
-    let subscription = format!("projects/{}/subscriptions/{}", &config.project, &subscription_id);
+    // let subscription = format!("projects/{}/subscriptions/{}", &config.project, &subscription_id);
     let subscription = subscription_id;
 
     let args = vec![
@@ -29,8 +28,6 @@ pub fn create_template(path_to_config: &Path, resources: &Resources, config: &Co
         templates,
         config.region.clone(),
     ];
-
-    println!("{:?}", args);
 
     let (_, output, error) = run_script::run(
         r#"

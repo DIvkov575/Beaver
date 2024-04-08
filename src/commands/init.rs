@@ -4,11 +4,9 @@ use std::io::Write;
 use std::path::Path;
 use std::path::PathBuf;
 
-use tar::Archive;
 use anyhow::Result;
 use include_bytes_zstd::include_bytes_zstd;
 use inquire::{Select, Text};
-use spinoff::{Color, Spinner, spinners};
 use crate::lib::config::Config;
 use crate::lib::resources::Resources;
 use crate::lib::sigma::setup_detections_venv;

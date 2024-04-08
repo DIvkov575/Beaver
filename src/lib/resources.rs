@@ -16,7 +16,7 @@ pub struct Resources {
     pub output_pubsub: PubSub, // vector output pubsub?
     pub compute_sa: SA, // service_account for access delegation
     pub bucket_name: String, // staging area + compute template store
-    pub crj_instance: String, //cloud run job - vector
+    pub crs_instance: String, //cloud run job - vector
 }
 
 impl Resources {
@@ -27,7 +27,7 @@ impl Resources {
             output_pubsub: PubSub::empty(),
             compute_sa: SA::empty(),
             bucket_name: String::new(),
-            crj_instance: String::new(),
+            crs_instance: String::new(),
         }
     }
 

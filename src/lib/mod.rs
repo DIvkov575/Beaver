@@ -1,6 +1,6 @@
 pub mod pubsub;
 pub mod config;
-pub mod crj;
+pub mod crs;
 pub mod gcs;
 pub mod bq;
 pub mod service_accounts;

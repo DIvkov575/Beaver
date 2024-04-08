@@ -1,9 +1,7 @@
-use std::arch::aarch64::veor_s8;
 use std::fs::File;
 use std::io::{read_to_string, Write};
 use std::path::Path;
 use anyhow::Result;
-use log4rs::init_file;
 use log::{error, info};
 use thiserror::Error;
 

@@ -5,7 +5,9 @@ use log::{error, info};
 
 use rand::{distributions::Alphanumeric, Rng};
 use crate::lib::resources::Resources;
+use crate::lib::utilities::log_output;
 use crate::MiscError;
+
 
 
 pub fn create_bucket(resources: &mut Resources, config: &Config) -> Result<String> {
@@ -30,8 +32,7 @@ pub fn create_bucket(resources: &mut Resources, config: &Config) -> Result<Strin
         let output = Command::new("gcloud").args(args).args(flags).output()?;
 
         // TODO: Test in depth -> when does it have stderr
-        if output.stderr != [0u8; 0] {
-            error!("{:?}", String::from_utf8(output.stderr)?) }
+        if output.stderr != [0u8; 0] { error!("{:?}", String::from_utf8(output.stderr)?) }
 
         if output.status.success() {
             info!("{:?}", String::from_utf8(output.stdout)?);
@@ -59,7 +60,8 @@ pub fn upload_to_bucket(local_location: &str, resources: &Resources, config: &Co
     ]);
 
 
-    Command::new("gcloud").args(args).spawn().unwrap().wait_with_output()?;
+    let output = Command::new("gcloud").args(args).output()?;
+    log_output(&output)?;
 
     Ok(())
 }
