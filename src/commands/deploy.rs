@@ -1,9 +1,10 @@
 use std::path::Path;
 use anyhow::{anyhow, Result};
 use log::info;
+use spinoff::{Color, Spinner, spinners};
 use crate::lib::{bq::{
     self
-}, config::Config, crj, dataflow, detections_gen, gcs, pubsub};
+}, config::Config, crs, dataflow, detections_gen, gcs, pubsub};
 use crate::lib::resources::Resources;
 use crate::lib::sigma;
 use crate::lib::utilities::{self, check_for_bq, check_for_gcloud, validate_config_path};
@@ -11,6 +12,7 @@ use crate::lib::utilities::{self, check_for_bq, check_for_gcloud, validate_confi
 pub fn deploy(path_arg: &str) -> Result<()> {
     /// Command reads configration (generated with init) from a path from arg "path_arg" and creates resources within gcloud
     info!("=======New Deployment======");
+    let mut spinner: Spinner;
     let path = Path::new(path_arg);
     validate_config_path(&path)?;
     check_for_bq()?;
@@ -21,25 +23,34 @@ pub fn deploy(path_arg: &str) -> Result<()> {
     let config: Config = Config::from_path(&path);
     let mut resources = Resources::empty(&config, &path);
 
+
+
     sigma::generate_detections(&path)?;
     detections_gen::generate_detections_file(&path)?;
 
+
     bq::create(&mut resources, &config)?;
     pubsub::create(&mut resources, &config)?;
-
-    utilities::generate_vector_config(&path, &resources, &config)?;
     gcs::create_bucket(&mut resources, &config)?;
+
+
+    println!("deplying");
+    utilities::generate_vector_config(&path, &resources, &config)?;
     gcs::upload_to_bucket(vector_path, &resources, &config)?;
+    crs::create_vector(&mut resources, &config)?;
 
-    crj::create_vector(&mut resources, &config)?;
-    crj::execute_crj(&resources, &config)?;
 
-    dataflow::create_template(&path, &resources, &config)?;
-    dataflow::execute_template(&resources, &config)?;
-
-    resources.save();
+    // dataflow::create_template(&path, &resources, &config)?;
+    // dataflow::execute_template(&resources, &config)?;
+    //
+    // resources.save();
 
     Ok(())
 }
 
-
+    // spinner = Spinner::new(spinners::Dots, "generating detections...", Color::Blue);
+    // spinner.success("detections generated");
+    // spinner = Spinner::new(spinners::Dots, "creating gcp resources...", Color::Blue);
+    // spinner.success("gcp resources created");
+    // spinner = Spinner::new(spinners::Dots, "creating crs vector...", Color::Blue);
+    // spinner.success("CRS Vector Created");

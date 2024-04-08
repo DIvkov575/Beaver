@@ -14,24 +14,21 @@ flate2 = "1.0"
 
 [dependencies]
 anyhow = "1.0.75"
+thiserror = "1.0.49"
 clap_complete = "4.4.3"
-clap_mangen = "0.2.14"
-inquire = "0.6.2"
-spinoff = "0.8.0"
-log4rs = "1.2.0"
-log = "0.4.20"
+inquire = "0.6.2" # user input
+spinoff = "0.8.0" # spinners (progress bars)
+serde = { version = "1.0.195", features = ["derive"] }
 serde_yaml = "0.9.30"
 rand = { version = "0.8.5", features = [] }
 tempfile = { version = "3.9.0", features = [] }
-serde = { version = "1.0.195", features = ["derive"] }
 include-bytes-zstd = "0.1.0"
 run_script = "0.10.1"
-flate2 = "1.0"
-tar = { version = "0.4.40", features = [] }
-thiserror = "1.0.49"
 python-parser = "0.2.0"
 fern = "0.6.2"
 humantime = "2.1.0"
+log = "0.4.20"
+
 
 [dependencies.clap]
 version = "4.4.6"

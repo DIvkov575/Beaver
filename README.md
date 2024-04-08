@@ -1,15 +1,24 @@
 Beaver SIEM (data security log analysis tool)
 ----
 **Todo:**
+
+**l_0**
+- crj shutoff
+- missing '{}' as second arg in last .get() chain method call
+
+**l_1**
+- add sa delegation
 - destructured log -> bq
-- batching -> deduplication + writes
 - logging
+
+
 
 **Ideas**
 - disabling detections_gen.py regeneration
-- create input pubsub (to route log sink into)
+- batching -> deduplication + writes (after log destructuring) (increase bq write efficiency)
 
 **left off on**
+create crs
 
 ---
 create bq

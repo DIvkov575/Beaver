@@ -1,8 +1,8 @@
 use anyhow::Result;
 use std::fs::{File, OpenOptions};
 use std::path::Path;
-use std::process::Command;
-use log::info;
+use std::process::{Command, Output};
+use log::{error, info};
 use serde_yaml::{Mapping, Value};
 use crate::lib::config::Config;
 use crate::lib::resources::Resources;
@@ -14,11 +14,22 @@ macro_rules! get {($config: ident,  $($b:literal,)*) => {
     $config$([&Value::String($b.into())])*.clone()
 };}
 
+pub fn log_output(output: &Output) -> Result<()> {
+    if output.stderr != [0u8; 0] {
+        error!("{:?}", String::from_utf8(output.stderr.clone())?) }
+    else {
+        info!("{:?}", String::from_utf8(output.stdout.clone())?)
+    }
+    Ok(())
+}
+
+
 pub fn generate_vector_config(path: &Path, resources: &Resources, config: &Config ) -> Result<()> {
     info!("generating vector config...");
 
     let beaver_config: Mapping = serde_yaml::from_reader(&File::open(path.join("beaver_config.yaml"))?)?;
-    let vector_config_file = OpenOptions::new().write(true).create(true).open(path.join("artifacts/vector.yaml"))?;
+    std::fs::remove_file(path.join("artifacts").join("vector.yaml"))?;
+    let vector_config_file = OpenOptions::new().write(true).create(true).open(path.join("artifacts").join("vector.yaml"))?;
 
     let output_pubsub= &resources.output_pubsub;
 
@@ -60,6 +71,7 @@ pub fn generate_vector_config(path: &Path, resources: &Resources, config: &Confi
         ("transforms".into(), transforms_yaml),
         ("sinks".into(), sinks_yaml)
     ]);
+
 
     serde_yaml::to_writer(&vector_config_file, &vector_config).unwrap();
 
