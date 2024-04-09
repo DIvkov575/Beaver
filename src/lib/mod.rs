@@ -9,3 +9,4 @@ pub mod utilities;
 pub mod sigma;
 pub mod dataflow;
 pub mod detections_gen;
+pub mod vm;
