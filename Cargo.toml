@@ -8,9 +8,9 @@ edition = "2021"
 [build]
 incremental=true
 
-[build-dependencies]
-tar = "0.4.40"
-flate2 = "1.0"
+#[build-dependencies]
+#tar = "0.4.40"
+#flate2 = "1.0"
 
 [dependencies]
 anyhow = "1.0.75"

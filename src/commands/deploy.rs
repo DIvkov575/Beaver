@@ -24,7 +24,6 @@ pub fn deploy(path_arg: &str) -> Result<()> {
     let mut resources = Resources::empty(&config, &path);
 
 
-
     sigma::generate_detections(&path)?;
     detections_gen::generate_detections_file(&path)?;
 

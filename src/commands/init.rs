@@ -7,6 +7,7 @@ use std::path::PathBuf;
 use anyhow::Result;
 use include_bytes_zstd::include_bytes_zstd;
 use inquire::{Select, Text};
+use spinoff::{Color, Spinner, spinners};
 use crate::lib::config::Config;
 use crate::lib::resources::Resources;
 use crate::lib::sigma::setup_detections_venv;
@@ -86,7 +87,7 @@ sources:
     project: \"{project}\"
     subscription: \"input-sub-1\"
     decoding:
-      codec: \"json\
+      codec: \"json\"
 transforms:
   transform1:
     type: remap
@@ -113,8 +114,9 @@ transforms:
     // let mut requirements_file = OpenOptions::new().write(true).create(true).open(path.join("detections").join("gen_requirements.txt"))?;
     // requirements_file.write_all("slack-sdk==3.26.2".as_bytes())?;
 
+    let mut spinner = Spinner::new(spinners::Dots, "installing pysigma backend...", Color::Blue);
     setup_detections_venv(path)?;
-
+    spinner.success("Pysigma backend created");
 
     Ok(())
 }
