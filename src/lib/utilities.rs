@@ -33,21 +33,10 @@ pub fn generate_vector_config(path: &Path, resources: &Resources, config: &Confi
 
     let output_pubsub= &resources.output_pubsub;
 
+    // get various ASTs
     let sources_yaml = get!(beaver_config, "sources",);
     let transforms_yaml = get!(beaver_config, "transforms",);
     let transforms = get_transforms(&transforms_yaml);
-
-
-
-    // !! add condition for batch insert
-    if let Some(batch) = get!(beaver_config, "beaver",).get("batch") {
-        if let Some(timeout_sec) = batch.get("timeout_sec") {
-            println!("asdfklj");
-        }
-    }
-    // let batch_window= get!(beaver_config, "beaver", "batch", "timeout_sec",);
-    // let batch_size= get!(beaver_config, "beaver", "batch", "max_events",);
-
 
     let sinks_yaml: Value = Value::Mapping(Mapping::from_iter([
         (Value::String("bq_writing_pubsub".into()), Value::Mapping(Mapping::from_iter([
@@ -58,10 +47,6 @@ pub fn generate_vector_config(path: &Path, resources: &Resources, config: &Confi
             (Value::String("encoding".into()), Value::Mapping(Mapping::from_iter([
                 ("codec".into(), "json".into())
             ]))),
-            // (Value::String("batch".into()), Value::Mapping(Mapping::from_iter([
-            //     ("timeout_sec".into(), batch_window),
-            //     ("max_events".into(), batch_size),
-            // ]))),
 
         ])))
     ]));

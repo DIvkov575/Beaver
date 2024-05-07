@@ -24,7 +24,7 @@ pub fn exec_mig_template(config: &Config, resources: &Resources) -> Result<()> {
 
     let x = "vector-mig-1";
     let x1 = "beaver-vector-1";
-    let size = 1;
+    let size = "1";
     let args = vec!["compute", "instance-groups", "managed", "create", x,
                     "--base-instance-name", x1,
                     "--size", size,
