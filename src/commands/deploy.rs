@@ -28,12 +28,12 @@ pub fn deploy(path_arg: &str) -> Result<()> {
     detections_gen::generate_detections_file(&path)?;
 
 
-    bq::create(&mut resources, &config)?;
-    pubsub::create(&mut resources, &config)?;
-    gcs::create_bucket(&mut resources, &config)?;
+    // bq::create(&mut resources, &config)?;
+    // pubsub::create(&mut resources, &config)?;
+    // gcs::create_bucket(&mut resources, &config)?;
 
 
-    println!("deplying");
+    println!("deploying");
     utilities::generate_vector_config(&path, &resources, &config)?;
     gcs::upload_to_bucket(vector_path, &resources, &config)?;
     // crs::create_vector(&mut resources, &config)?;
