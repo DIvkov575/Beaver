@@ -36,6 +36,7 @@ pub fn deploy(path_arg: &str) -> Result<()> {
     println!("deploying");
     utilities::generate_vector_config(&path, &resources, &config)?;
     gcs::upload_to_bucket(vector_path, &resources, &config)?;
+
     // crs::create_vector(&mut resources, &config)?;
 
 
