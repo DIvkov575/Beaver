@@ -1,6 +1,5 @@
 # 🦫 Beaver SIEM
 
-![Beaver SIEM Logo](https://placeholder.com/200x100)  
 *Secure. Analyze. Monitor.*
 
 Beaver SIEM is a cutting-edge **data security log analysis tool** designed to protect your infrastructure by monitoring and analyzing logs in real-time. It ensures your system’s safety by helping identify potential security breaches and threats through advanced log parsing and analysis techniques.
@@ -15,8 +14,6 @@ Cargo install --release --path .
 ```
 ⚙️ *This step will build Beaver SIEM in release mode. Reload shell after install*
 
-![Build GIF](https://placeholder.com/300x200)
-
 ---
 
 ## 🛠️ **Setup**
@@ -27,7 +24,6 @@ Beaver init
 ```
 ⚙️ *Ensure that your system has the required permissions and environment variables configured.*
 
-![Setup GIF](https://placeholder.com/300x200)
 
 ---
 
@@ -59,32 +55,5 @@ Beaver init
 
 ---
 
-![Beaver Working GIF](https://placeholder.com/300x200)
-
----
-
-### 📖 **Documentation**
-
-For more detailed setup instructions, configuration options, and deployment guidelines, please refer to the official **[Beaver SIEM Documentation](https://placeholder.com)**.
-
----
-
-### 🖼️ **Visualization and Insights**
-
-Beaver SIEM offers powerful data visualizations and reporting options that help you gain actionable insights from your logs.
-
-![Data Visualization](https://placeholder.com/500x300)
-
----
-
-### 👷 **Contributing**
-
-Want to contribute? Check out our **[contribution guidelines](https://placeholder.com)** to get started! We welcome bug reports, feature requests, and community contributions.
-
----
-
-Thank you for using **Beaver SIEM**! 🚀
-
----
 
 > “Stay secure, stay informed.”
