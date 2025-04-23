@@ -1,7 +1,8 @@
 use std::fs::File;
 use std::io::{read_to_string, Write};
 use std::path::Path;
-use anyhow::Result;
+use std::process::exit;
+use anyhow::{Context, Result};
 use log::{error, info};
 use thiserror::Error;
 
@@ -17,10 +18,13 @@ use crate::lib::utilities::overlap;
 
 
 pub fn generate_detections_file(config_path: &Path) -> Result<()> {
+    // consolidates individual 'pythonized' sigma rules into a single executable file
+
     info!("generating aggregated detections...");
     let detections_path = config_path.join("detections");
     let mut template_file_ast: Vec<Statement> = pp::file_input(pp::make_strspan(&read_to_string(File::open(&detections_path.join("detections_template.py"))?)?)).unwrap().1;
-    let detection_functions_definitions: Vec<Statement> = generate_detection_functions(&config_path)?;
+    let detection_functions_definitions: Vec<Statement> = generate_detection_functions(&config_path)
+        .with_context(|| format!("Failed at {}:{}", file!(), line!()))?;
 
     // compare (function names in template file) to (newly generated function's names) for overlap
     let main_func_names = get_func_names(&template_file_ast)?;

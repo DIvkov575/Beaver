@@ -43,9 +43,13 @@ pub fn init(force: bool, dev:bool, path: Option<String>) -> Result<()> {
             fs::remove_dir_all(path)?;
         }
 
-        // let mut spinner = Spinner::new(spinners::Dots, "Creating Config Dir...", Color::Blue);
+        let mut spinner = Spinner::new(spinners::Dots, "Creating Config Dir...", Color::Blue);
         create_config_dir(&config_path, region, &project)?;
-        // spinner.success("Config Directory Created");
+        spinner.success("Config Directory Created");
+
+        let mut spinner = Spinner::new(spinners::Dots, "installing pysigma backend...", Color::Blue);
+        setup_detections_venv(Path::new(&config_path))?;
+        spinner.success("Pysigma backend created");
         break;
     }
 
@@ -114,9 +118,6 @@ transforms:
     // let mut requirements_file = OpenOptions::new().write(true).create(true).open(path.join("detections").join("gen_requirements.txt"))?;
     // requirements_file.write_all("slack-sdk==3.26.2".as_bytes())?;
 
-    let mut spinner = Spinner::new(spinners::Dots, "installing pysigma backend...", Color::Blue);
-    setup_detections_venv(path)?;
-    spinner.success("Pysigma backend created");
 
     Ok(())
 }
