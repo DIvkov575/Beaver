@@ -23,6 +23,12 @@ pub fn log_output(output: &Output) -> Result<()> {
     Ok(())
 }
 
+#[macro_export]
+macro_rules! log_func_call {() => {
+    info!("function {} called at {}:{}", std::any::type_name::<fn()>(), file!(), line!())
+    };
+}
+
 
 pub fn generate_vector_config(path: &Path, resources: &Resources, config: &Config ) -> Result<()> {
     info!("generating vector config...");
@@ -34,7 +40,20 @@ pub fn generate_vector_config(path: &Path, resources: &Resources, config: &Confi
     let output_pubsub= &resources.output_pubsub;
 
     // get various ASTs
-    let sources_yaml = get!(beaver_config, "sources",);
+    let mut raw_sources_yaml= get!(beaver_config, "sources",).clone();
+    let mut unaltered_sources_yaml = raw_sources_yaml.as_sequence_mut().unwrap();
+    unaltered_sources_yaml.push(
+        Value::Mapping(serde_yaml::Mapping::from_iter([(
+            Value::String("healthcheck_sink".into()),
+            Value::Mapping(Mapping::from_iter([
+                (Value::String("type".into()), Value::String("http".into())),
+                (Value::String("address".into()), Value::String("0.0.0.0:8080".into())),
+            ]))
+        )]))
+    );
+    let sources_yaml: Value = Value::Sequence(unaltered_sources_yaml.to_owned());
+
+
     let transforms_yaml = get!(beaver_config, "transforms",);
     let transforms = get_transforms(&transforms_yaml);
 
@@ -112,3 +131,4 @@ pub fn overlap<T: Eq>(a: &[T], b:&[T]) -> bool {
     }
     return false
 }
+

@@ -102,21 +102,21 @@ transforms:
     let mut resources = Resources::empty(&config, &path);
     resources.save();
 
-    let mut beaver_conf_file = OpenOptions::new().write(true).create(true).open(path.join("beaver_config.yaml")).unwrap();
+    let mut beaver_conf_file = OpenOptions::new().write(true).create(true).open(path.join("beaver_config.yaml"))?;
     beaver_conf_file.write(config_file.as_bytes())?;
 
-    let mut sigma_generate= OpenOptions::new().write(true).create(true).open(path.join("detections").join("sigma_generate.py")).unwrap();
+    let mut sigma_generate= OpenOptions::new().write(true).create(true).open(path.join("detections").join("sigma_generate.py"))?;
     sigma_generate.write(&include_bytes_zstd!("src/beaver_config/detections/sigma_generate.py", 21))?;
 
-    let mut test_sigma_files = OpenOptions::new().write(true).create(true).open(path.join("detections").join("detections_template.py")).unwrap();
+    let mut test_sigma_files = OpenOptions::new().write(true).create(true).open(path.join("detections").join("detections_template.py"))?;
     test_sigma_files.write(&include_bytes_zstd!("dataflow/detections_template.py", 21))?;
 
-    //TODO: testing purposes
-    let mut test_sigma_files = OpenOptions::new().write(true).create(true).open(path.join("detections").join("input").join("se.yml")).unwrap();
-    test_sigma_files.write(&include_bytes_zstd!("src/beaver_config/detections/input/se.yml", 21))?;
+    let mut docker_file= OpenOptions::new().write(true).create(true).open(path.join("artifacts").join("Dockerfile"))?;
+    docker_file.write(&include_bytes_zstd!("src/beaver_config/artifacts/Dockerfile", 21))?;
 
-    // let mut requirements_file = OpenOptions::new().write(true).create(true).open(path.join("detections").join("gen_requirements.txt"))?;
-    // requirements_file.write_all("slack-sdk==3.26.2".as_bytes())?;
+    //TODO: testing purposes
+    let mut test_sigma_files = OpenOptions::new().write(true).create(true).open(path.join("detections").join("input").join("se.yml"))?;
+    test_sigma_files.write(&include_bytes_zstd!("src/beaver_config/detections/input/se.yml", 21))?;
 
 
     Ok(())
