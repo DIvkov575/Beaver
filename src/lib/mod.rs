@@ -10,3 +10,4 @@ pub mod dataflow;
 pub mod detections_gen;
 pub mod vm;
 pub mod crs;
+pub mod cloud_build;

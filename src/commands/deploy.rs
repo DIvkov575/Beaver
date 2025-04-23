@@ -5,7 +5,7 @@ use log::info;
 use spinoff::{Color, Spinner, spinners};
 use crate::lib::{bq::{
     self
-}, config::Config, crs, dataflow, detections_gen, gcs, pubsub};
+}, config::Config, crs, dataflow, detections_gen, gcs, pubsub, cloud_build};
 use crate::lib::resources::Resources;
 use crate::lib::sigma;
 use crate::lib::utilities::{self, check_for_bq, check_for_gcloud, validate_config_path};
@@ -36,12 +36,14 @@ pub fn deploy(path_arg: &str) -> Result<()> {
 
     println!("deploying");
     utilities::generate_vector_config(&path, &resources, &config)?;
-    gcs::upload_to_bucket(vector_path, &resources, &config)?;
+    cloud_build::create_docker_image(&path, &mut resources, &config)?;
+
+    // gcs::upload_to_bucket(vector_path, &resources, &config)?;
 
     // crs::create_vector(&mut resources, &config)?;
 
-
     // dataflow::create_template(&path, &resources, &config)?;
+
     // dataflow::execute_template(&resources, &config)?;
     //
     // resources.save();

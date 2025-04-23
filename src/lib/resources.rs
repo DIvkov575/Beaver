@@ -17,6 +17,7 @@ pub struct Resources {
     pub compute_sa: SA, // service_account for access delegation
     pub bucket_name: String, // staging area + compute template store
     pub crs_instance: String, //cloud run job - vector
+    pub vector_artifact_url: String,
 }
 
 impl Resources {
@@ -28,6 +29,7 @@ impl Resources {
             compute_sa: SA::empty(),
             bucket_name: String::new(),
             crs_instance: String::new(),
+            vector_artifact_url: String::new(),
         }
     }
 

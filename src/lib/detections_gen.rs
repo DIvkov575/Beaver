@@ -14,7 +14,9 @@ use python_parser::ast::Expression::{Call, Name};
 use python_parser::ast::{Argument, Decorator, Expression, Statement, TypedArgsList};
 use crate::lib::detections_gen::ASTGenError::{DuplicateFunc, UnwrapAST};
 use crate::lib::utilities::overlap;
+
 // this code causes physical pain - sorry in advance
+// god help anyone who looks at this 4/23/25
 
 
 pub fn generate_detections_file(config_path: &Path) -> Result<()> {
