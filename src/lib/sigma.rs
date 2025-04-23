@@ -29,6 +29,8 @@ pub fn setup_detections_venv(path_to_config: &Path) -> Result<()> {
 }
 
 pub fn generate_detections(path_to_config: &Path) -> Result<()> {
+    // converts (yaml) sigma rules files into python executables
+
     info!("converting sigma detections...");
     // opted to use sh bc executing python w/ active virtual environment was problematic
     let path = path_to_config.join("detections");

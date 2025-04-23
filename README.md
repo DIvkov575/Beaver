@@ -57,3 +57,23 @@ Beaver init
 
 
 > “Stay secure, stay informed.”
+
+
+
+### **Common Issues **
+- Initialization failed 
+  ```        
+  ERROR: Failed building wheel for grpcio-tools
+      Failed to build grpcio-tools
+      ERROR: Failed to build installable wheels for some pyproject.toml based projects (grpcio-tools)
+      [end of output]
+  
+  note: This error originates from a subprocess, and is likely not a problem with pip.
+  error: subprocess-exited-with-error
+  ```
+  Source: Apache beam has limited python 3.x support
+  Solution: Check currently supported python versions (3.8, 3.9, 3.10, 3.11 as of 4/22/25)
+
+
+### **personal notes**
+ - Not CRS bc

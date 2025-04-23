@@ -3,6 +3,7 @@ target/
 .DS_Store
 
 src/beav
+src/conf
 src/beaver_config/detections/venv/
 
 dataflow/venv/

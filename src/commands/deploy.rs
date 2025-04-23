@@ -1,4 +1,5 @@
 use std::path::Path;
+use std::process::exit;
 use anyhow::{anyhow, Result};
 use log::info;
 use spinoff::{Color, Spinner, spinners};
@@ -28,9 +29,9 @@ pub fn deploy(path_arg: &str) -> Result<()> {
     detections_gen::generate_detections_file(&path)?;
 
 
-    // bq::create(&mut resources, &config)?;
-    // pubsub::create(&mut resources, &config)?;
-    // gcs::create_bucket(&mut resources, &config)?;
+    bq::create(&mut resources, &config)?;
+    pubsub::create(&mut resources, &config)?;
+    gcs::create_bucket(&mut resources, &config)?;
 
 
     println!("deploying");
