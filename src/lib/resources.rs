@@ -14,7 +14,7 @@ pub struct Resources {
     pub config_path: String,
     pub biq_query: BqTable, // output datalake
     pub output_pubsub: PubSub, // vector output pubsub?
-    pub compute_sa: SA, // service_account for access delegation
+    pub compute_service_account: SA, // service_account for access delegation
     pub bucket_name: String, // staging area + compute template store
     pub crs_instance: String, //cloud run job - vector
     pub vector_artifact_url: String,
@@ -26,7 +26,7 @@ impl Resources {
             config_path: path.as_os_str().to_str().unwrap().to_string(),
             biq_query: BqTable::empty(&config),
             output_pubsub: PubSub::empty(),
-            compute_sa: SA::empty(),
+            compute_service_account: SA::empty(),
             bucket_name: String::new(),
             crs_instance: String::new(),
             vector_artifact_url: String::new(),
