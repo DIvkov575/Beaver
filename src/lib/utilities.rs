@@ -3,6 +3,8 @@ use std::fs::{File, OpenOptions};
 use std::path::Path;
 use std::process::{Command, Output};
 use log::{error, info};
+use rand::distributions::Alphanumeric;
+use rand::{thread_rng, Rng};
 use serde_yaml::{Mapping, Value};
 use crate::lib::config::Config;
 use crate::lib::resources::Resources;
@@ -41,17 +43,15 @@ pub fn generate_vector_config(path: &Path, resources: &Resources, config: &Confi
 
     // get various ASTs
     let mut raw_sources_yaml= get!(beaver_config, "sources",).clone();
-    let mut unaltered_sources_yaml = raw_sources_yaml.as_sequence_mut().unwrap();
-    unaltered_sources_yaml.push(
-        Value::Mapping(serde_yaml::Mapping::from_iter([(
+    let mut unaltered_sources_yaml = raw_sources_yaml.as_mapping_mut().unwrap();
+    unaltered_sources_yaml.insert(
             Value::String("healthcheck_sink".into()),
             Value::Mapping(Mapping::from_iter([
                 (Value::String("type".into()), Value::String("http".into())),
                 (Value::String("address".into()), Value::String("0.0.0.0:8080".into())),
             ]))
-        )]))
     );
-    let sources_yaml: Value = Value::Sequence(unaltered_sources_yaml.to_owned());
+    let sources_yaml: Value = Value::Mapping(unaltered_sources_yaml.to_owned());
 
 
     let transforms_yaml = get!(beaver_config, "transforms",);
@@ -132,3 +132,11 @@ pub fn overlap<T: Eq>(a: &[T], b:&[T]) -> bool {
     return false
 }
 
+pub fn random_tag(count: usize) -> String {
+    thread_rng()
+        .sample_iter(&Alphanumeric)
+        .take(count)
+        .map(char::from)
+        .map(|c| c.to_ascii_lowercase())
+        .collect()
+}
