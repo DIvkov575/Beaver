@@ -14,7 +14,7 @@ pub fn create_vector(resources: &mut Resources, config: &Config) -> Result<()>{
     info!("creating vector...");
 
     let mut crs_instance_id = &mut resources.crs_instance;
-    let image_url = "docker.io/timberio/vector:latest-alpine";
+    let image_url = &resources.vector_artifact_url;
     let mut random_string: String;
     let mut service_name_binding: String;
 

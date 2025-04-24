@@ -81,7 +81,7 @@ pub fn create_creational_sa(user_email: &str, config: &Config) -> Result<()> {
 }
 
 pub fn create_compute_sa(user_email: &str, resources: &mut Resources, config: &Config) -> Result<()> {
-    let mut compute_sa = &mut resources.compute_sa;
+    let mut compute_sa = &mut resources.compute_service_account;
     compute_sa.name = String::from("BeaverComputeSA");
     compute_sa.email = format!("{}@{}.iam.gserviceaccount.com", compute_sa.name, config.project);
 

@@ -34,13 +34,14 @@ pub fn deploy(path_arg: &str) -> Result<()> {
     gcs::create_bucket(&mut resources, &config)?;
 
 
-    println!("deploying");
     utilities::generate_vector_config(&path, &resources, &config)?;
     cloud_build::create_docker_image(&path, &mut resources, &config)?;
 
+    print!("{}", serde_yaml::to_string(&resources)?);
+
     // gcs::upload_to_bucket(vector_path, &resources, &config)?;
 
-    // crs::create_vector(&mut resources, &config)?;
+    crs::create_vector(&mut resources, &config)?;
 
     // dataflow::create_template(&path, &resources, &config)?;
 
