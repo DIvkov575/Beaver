@@ -36,18 +36,13 @@ pub fn deploy(path_arg: &str) -> Result<()> {
 
     utilities::generate_vector_config(&path, &resources, &config)?;
     cloud_build::create_docker_image(&path, &mut resources, &config)?;
-
-    print!("{}", serde_yaml::to_string(&resources)?);
-
-    // gcs::upload_to_bucket(vector_path, &resources, &config)?;
-
     crs::create_vector(&mut resources, &config)?;
 
     // dataflow::create_template(&path, &resources, &config)?;
 
     // dataflow::execute_template(&resources, &config)?;
-    //
-    // resources.save();
+
+    resources.save();
 
     Ok(())
 }
