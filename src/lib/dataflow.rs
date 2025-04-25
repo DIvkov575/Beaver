@@ -5,12 +5,12 @@ use log::{error, info, warn};
 use run_script::ScriptOptions;
 use crate::lib::config::Config;
 use crate::lib::resources::Resources;
-
-
+use crate::log_func_call;
 
 pub fn create_template(path_to_config: &Path, resources: &Resources, config: &Config) -> Result<()> {
+    log_func_call!();
     info!("creating template...");
-    /// executes sh script which loads a venv from detections -> executes beam script to upload template
+
     let bucket = resources.bucket_name.clone();
     let subscription_id = resources.output_pubsub.subscription_id_2.clone();
 
@@ -48,27 +48,6 @@ pub fn create_template(path_to_config: &Path, resources: &Resources, config: &Co
     println!("output: {:?}", output);
     // println!("error: {:?}", error);
     warn!("{}", error);
-
-    Ok(())
-}
-
-pub fn execute_template(resources: &Resources, config: &Config) -> Result<()> {
-    info!("executing dataflow template...");
-    // dataflow.jobs.get
-    // dataflow.workItems.lease
-    // dataflow.workItems.update
-    // dataflow.workItems.sendMessage
-    // dataflow.streamingWorkItems.getWork
-    // dataflow.streamingWorkItems.commitWork
-    // dataflow.streamingWorkItems.getData
-    // dataflow.shuffle.read
-    // dataflow.shuffle.write
-
-    let bucket_name = resources.bucket_name.clone();
-    let template_path = format!("gs://{}/templates/beaver-detection-template", bucket_name);
-    println!("{:?}", template_path);
-    let args = vec!["dataflow", "jobs", "run", "beaver-detections", "--gcs-location", &template_path, "--region", &config.region, "--enable-streaming-engine"];
-    Command::new("gcloud").args(args).output()?;
 
     Ok(())
 }

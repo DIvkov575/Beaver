@@ -64,13 +64,15 @@ fn mount_gcs_crs(config: &Config, resources: &Resources) -> Result<()> {
     let crs_instance_name = resources.crs_instance.clone();
     let bucket_name = resources.bucket_name.clone();
 
-    let volume_name = "vector.yaml";
-    let mount_path = "/etc/vector";
-    let volume = format!("name={},bucket={}", volume_name, &bucket_name);
-    let volume_mount = format!("volume={},mount-path={}", volume_name, mount_path);
+    // let volume_name = "vector.yaml";
+    // let mount_path = "/etc/vector";
+    // let volume = format!("name={},bucket={}", volume_name, &bucket_name);
+    // let volume_mount = format!("volume={},mount-path={}", volume_name, mount_path);
     let args = vec!["beta", "run", "services", "update", &crs_instance_name,
-                    "--execution-environment", "gen2", "--add-volume", &volume,
-                    "--add-volume-mount", &volume_mount];
+                    "--execution-environment", "gen2",
+                    // "--add-volume", &volume,
+                    // "--add-volume-mount", &volume_mount
+    ];
 
     let output = Command::new("gcloud").args(args).output()?;
     log_output(&output)?;
