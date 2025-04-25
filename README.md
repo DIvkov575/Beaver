@@ -74,6 +74,11 @@ Beaver init
   Source: Apache beam has limited python 3.x support
   Solution: Check currently supported python versions (3.8, 3.9, 3.10, 3.11 as of 4/22/25)
 
+[//]: # (- `apitools` auth on dataflow creation)
+[//]: # (  Source: apache_beam[gcs] client library needs authentication)
+[//]: # (  Solution: gcloud auth application-default login)
+
+
 
 ### **personal notes**
  - Not CRS bc
