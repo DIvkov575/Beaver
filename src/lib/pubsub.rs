@@ -8,7 +8,7 @@ use rand::Rng;
 use serde::{Deserialize, Serialize};
 use crate::lib::bq::BqTable;
 use crate::lib::resources::Resources;
-use crate::MiscError;
+use crate::{log_func_call, MiscError};
 
 
 #[derive(Debug,Deserialize, Serialize)]
@@ -56,6 +56,8 @@ pub fn create(resources: &mut Resources, config: &Config) -> Result<()> {
 
 
 pub fn create_subscription(topic_id: &str, config: &Config) -> Result<String> {
+    log_func_call!();
+
     // tries random subscription names until accepted -> saves subscription
     // return subscription name as string
 
@@ -101,6 +103,8 @@ pub fn create_subscription(topic_id: &str, config: &Config) -> Result<String> {
     Ok(subscription_id)
 }
 pub fn create_bq_subscription(topic_id: &str, bq_table: &BqTable, config: &Config) -> Result<String> {
+    log_func_call!();
+
     let mut random_string: String;
     let mut subscription_id;
 
@@ -147,7 +151,8 @@ pub fn create_bq_subscription(topic_id: &str, bq_table: &BqTable, config: &Confi
 
 
 pub fn create_named_pubsub_topic(topic_id: &str, config: &Config) -> Result<()> {
-        let args: Vec<&str> = Vec::from([
+    log_func_call!();
+    let args: Vec<&str> = Vec::from([
             "pubsub",
             "topics",
             "create",
@@ -158,6 +163,8 @@ pub fn create_named_pubsub_topic(topic_id: &str, config: &Config) -> Result<()> 
     Ok(())
 }
 pub fn create_pubsub_topic(config: &Config) -> Result<String> {
+    log_func_call!();
+
     let mut random_string: String;
     let mut topic_binding: String;
 
@@ -202,6 +209,8 @@ pub fn create_pubsub_topic(config: &Config) -> Result<String> {
 
 
 pub fn create_pubsub_to_bq(resources: &mut Resources, config: &Config) -> Result<()> {
+    log_func_call!();
+
     // creates pubsub topic and subscriptions -> writes to biq query table
     let bq_table= &resources.biq_query;
     let mut pubsub= &mut resources.output_pubsub;

@@ -12,12 +12,14 @@ use crate::lib::service_accounts::SA;
 #[derive(Deserialize, Serialize, Debug)]
 pub struct Resources {
     pub config_path: String,
-    pub biq_query: BqTable, // output datalake
+    pub biq_query: BqTable, // datalake
     pub output_pubsub: PubSub, // vector output pubsub?
     pub compute_service_account: SA, // service_account for access delegation
     pub bucket_name: String, // staging area + compute template store
     pub crs_instance: String, //cloud run job - vector
     pub vector_artifact_url: String,
+    pub crs_schedule_job_id: String, // Cloud Scheduler job ID for CRS restart
+    pub dataflow_pipeline_name: String, // Name of the Dataflow pipeline
 }
 
 impl Resources {
@@ -30,6 +32,8 @@ impl Resources {
             bucket_name: String::new(),
             crs_instance: String::new(),
             vector_artifact_url: String::new(),
+            crs_schedule_job_id: String::new(),
+            dataflow_pipeline_name: String::new(),
         }
     }
 

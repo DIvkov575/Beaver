@@ -5,9 +5,8 @@ use clap::{self, Parser};
 mod deploy;
 use deploy::deploy;
 mod destroy;
-use destroy::destroy;
+// use destroy::destroy;
 mod init;
-
 use init::init;
 
 
@@ -28,7 +27,10 @@ pub enum Command {
         path: String
     },
     #[command(about="Destroy Beaver instance")]
-    Destroy,
+    Destroy {
+        #[arg(short, long)]
+        path: String
+    },
 }
 impl Command {
     pub fn run(self) -> Result<()> {
@@ -36,7 +38,7 @@ impl Command {
         match self {
             Init{force, dev, path} => init(force, dev, path),
             Deploy{path} => deploy(&path),
-            Destroy => destroy(),
+            Destroy{path} => Ok(()),
         }
     }
 }
