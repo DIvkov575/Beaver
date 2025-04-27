@@ -37,11 +37,11 @@ pub fn deploy(path_arg: &str) -> Result<()> {
     cloud_build::create_docker_image(&path, &mut resources, &config)?;
     crs::create_vector(&mut resources, &config)?;
 
-    // cron::create_crs_restart_schedule(&mut resources, &config)?;
+    cron::create_crs_restart_schedule(&mut resources, &config)?;
 
-    dataflow::create_template(&path, &resources, &config)?;
-    dataflow::execute_template(&resources,&config)?;
+    // dataflow::create_template(&path, &resources, &config)?;
     // dataflow::create_pipeline(&mut resources, &config)?;
+
     resources.save();
 
     Ok(())

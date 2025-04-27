@@ -136,8 +136,8 @@ pub fn restart_crs(resources: &mut Resources, config: &Config) -> Result<()> {
     
     info!("CRS instance successfully restarted: {}", resources.crs_instance);
     
-    // Save the updated resources
-    resources.save();
+    // Resources are updated in the create_vector function
+    // Resources will be saved by the caller
     
     Ok(())
 }
