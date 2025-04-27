@@ -20,6 +20,7 @@ pub struct Resources {
     pub vector_artifact_url: String,
     pub crs_schedule_job_id: String, // Cloud Scheduler job ID for CRS restart
     pub dataflow_pipeline_name: String, // Name of the Dataflow pipeline
+    pub scheduler_job_name: String
 }
 
 impl Resources {
@@ -34,6 +35,7 @@ impl Resources {
             vector_artifact_url: String::new(),
             crs_schedule_job_id: String::new(),
             dataflow_pipeline_name: String::new(),
+            scheduler_job_name: String::new(),
         }
     }
 

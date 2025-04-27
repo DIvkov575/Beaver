@@ -10,6 +10,7 @@ use crate::lib::resources::Resources;
 use crate::lib::utilities::log_output;
 use crate::{log_func_call, MiscError};
 
+/// Creates a Dataflow template for beaver detection pipeline
 pub fn create_template(path_to_config: &Path, resources: &Resources, config: &Config) -> Result<()> {
     log_func_call!();
     info!("creating template...");
@@ -19,7 +20,8 @@ pub fn create_template(path_to_config: &Path, resources: &Resources, config: &Co
 
     let detections_path = path_to_config.join("detections");
     let staging = format!("gs://{}/staging", bucket);
-    let templates= format!("gs://{}/templates/{}", bucket, "beaver-detection-template");
+    let template_name = "beaver-detection-template";
+    let templates = format!("gs://{}/templates/{}", bucket, template_name);
     // let subscription = format!("projects/{}/subscriptions/{}", &config.project, &subscription_id);
     let subscription = subscription_id;
 
@@ -57,7 +59,8 @@ pub fn create_template(path_to_config: &Path, resources: &Resources, config: &Co
 }
 
 
-pub fn execute_template(resources: &Resources, config: &Config) -> Result<()> {
+/// Executes a previously created Dataflow template
+pub fn execute_template(resources: &mut Resources, config: &Config) -> Result<()> {
     log_func_call!();
     info!("executing dataflow template...");
     // dataflow.jobs.get
@@ -75,7 +78,9 @@ pub fn execute_template(resources: &Resources, config: &Config) -> Result<()> {
     
     // Use the pipeline name from resources, or a default if not set
     let job_name = if resources.dataflow_pipeline_name.is_empty() {
-        "beaver-detections"
+        let default_name = "beaver-detections";
+        resources.dataflow_pipeline_name = default_name.to_string();
+        default_name
     } else {
         &resources.dataflow_pipeline_name
     };
@@ -87,6 +92,7 @@ pub fn execute_template(resources: &Resources, config: &Config) -> Result<()> {
     Ok(())
 }
 
+/// Creates and starts a Dataflow pipeline with a randomly generated name
 pub fn create_pipeline(resources: &mut Resources, config: &Config) -> Result<()> {
     log_func_call!();
     
