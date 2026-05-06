@@ -97,7 +97,7 @@ fn get_transforms(transforms_yaml: &Value) -> Vec<Value> {
 }
 
 pub fn validate_config_path(path: &Path) -> anyhow::Result<()> {
-    if !path.join("../beaver_config/beaver_config.yaml").exists() {
+    if !path.join("beaver_config.yaml").exists() {
         return Err(anyhow::anyhow!("config path does not exist or broken"));
     }
     Ok(())
