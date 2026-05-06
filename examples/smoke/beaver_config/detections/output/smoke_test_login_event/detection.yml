@@ -1,0 +1,14 @@
+# This file was generated from a Sigma rule
+
+date: None
+description: Trivial detection used by the smoke test fixture.
+id: 5b2a1f10-4abc-4cae-9d5e-6bc8a17e9999
+level: low
+references: []
+status: experimental
+
+
+name: smoke_test_login_event
+tables:
+- smoke_auth
+

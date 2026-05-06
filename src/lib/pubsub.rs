@@ -7,7 +7,7 @@ use rand::distributions::Alphanumeric;
 use rand::Rng;
 use serde::{Deserialize, Serialize};
 use crate::lib::bq::BqTable;
-use crate::lib::resources::Resources;
+use crate::lib::resources::{Resources, Tracker};
 use crate::{log_func_call, MiscError};
 
 
@@ -37,19 +37,18 @@ impl PubSub {
 }
 
 
-pub fn create(resources: &mut Resources, config: &Config) -> Result<()> {
+pub fn create(tracker: &mut Tracker, config: &Config) -> Result<()> {
     info!("creating pubsub...");
-    // creates pubsub topic and subscriptions -> writes to biq query table
-    let bq_table= &resources.biq_query;
-    let mut pubsub= &mut resources.output_pubsub;
 
-    let topic_id = create_pubsub_topic(&config)?;
-    let bq_subscription_id = create_bq_subscription(&topic_id, &bq_table, &config)?;
-    let subscription_id_2 = create_subscription(&topic_id, &config)?;
+    let topic_id = create_pubsub_topic(config)?;
+    tracker.record_pubsub_topic(topic_id.clone())?;
 
-    pubsub.topic_id = topic_id;
-    pubsub.bq_subscription_id = bq_subscription_id;
-    pubsub.subscription_id_2 = subscription_id_2;
+    let bq_table = tracker.resources().biq_query.clone();
+    let bq_subscription_id = create_bq_subscription(&topic_id, &bq_table, config)?;
+    tracker.record_pubsub_bq_subscription(bq_subscription_id)?;
+
+    let subscription_id_2 = create_subscription(&topic_id, config)?;
+    tracker.record_pubsub_subscription_2(subscription_id_2)?;
 
     Ok(())
 }
@@ -207,6 +206,64 @@ pub fn create_pubsub_topic(config: &Config) -> Result<String> {
 
 
 
+
+pub fn delete_subscription(id: &str, config: &Config) -> Result<()> {
+    info!("deleting pubsub subscription: {}", id);
+    let output = Command::new("gcloud")
+        .args(["pubsub", "subscriptions", "delete", id, "--quiet"])
+        .args(config.get_project())
+        .output()?;
+    if !output.status.success() {
+        let stderr = String::from_utf8_lossy(&output.stderr);
+        return Err(anyhow::anyhow!("subscription delete failed: {}", stderr));
+    }
+    Ok(())
+}
+
+pub fn delete_topic(id: &str, config: &Config) -> Result<()> {
+    info!("deleting pubsub topic: {}", id);
+    let output = Command::new("gcloud")
+        .args(["pubsub", "topics", "delete", id, "--quiet"])
+        .args(config.get_project())
+        .output()?;
+    if !output.status.success() {
+        let stderr = String::from_utf8_lossy(&output.stderr);
+        return Err(anyhow::anyhow!("topic delete failed: {}", stderr));
+    }
+    Ok(())
+}
+
+#[cfg(test)]
+mod integration_tests {
+    use super::*;
+    use crate::lib::test_helpers::{pubsub_subscription_exists, pubsub_topic_exists, test_config};
+
+    #[test]
+    #[ignore]
+    fn topic_create_then_delete() {
+        let config = test_config();
+        let topic_id = create_pubsub_topic(&config).expect("create topic");
+        assert!(pubsub_topic_exists(&topic_id, &config.project));
+
+        delete_topic(&topic_id, &config).expect("delete topic");
+        assert!(!pubsub_topic_exists(&topic_id, &config.project));
+    }
+
+    #[test]
+    #[ignore]
+    fn subscription_create_then_delete() {
+        let config = test_config();
+        let topic_id = create_pubsub_topic(&config).expect("create topic");
+        let sub_id = create_subscription(&topic_id, &config).expect("create sub");
+        assert!(pubsub_subscription_exists(&sub_id, &config.project));
+
+        delete_subscription(&sub_id, &config).expect("delete sub");
+        assert!(!pubsub_subscription_exists(&sub_id, &config.project));
+
+        // cleanup the topic too so the test is self-contained
+        delete_topic(&topic_id, &config).ok();
+    }
+}
 
 pub fn create_pubsub_to_bq(resources: &mut Resources, config: &Config) -> Result<()> {
     log_func_call!();

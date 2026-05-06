@@ -1,0 +1,21 @@
+config_path: examples/smoke/beaver_config
+biq_query:
+  project_id: neon-circle-400322
+  dataset_id: ''
+  table_id: ''
+output_pubsub:
+  topic_id: ''
+  bq_subscription_id: ''
+  subscription_id_2: ''
+compute_service_account:
+  name: ''
+  email: ''
+  roles: []
+  description: ''
+bucket_name: beaver_a7xucqkft
+artifact_registry_repo: beaver-images
+crs_instance: ''
+vector_artifact_url: ''
+crs_schedule_job_id: ''
+dataflow_pipeline_name: ''
+scheduler_job_name: ''
