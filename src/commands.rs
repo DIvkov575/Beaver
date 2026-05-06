@@ -5,7 +5,7 @@ use clap::{self, Parser};
 mod deploy;
 use deploy::deploy;
 mod destroy;
-// use destroy::destroy;
+use destroy::destroy;
 mod init;
 use init::init;
 
@@ -38,7 +38,7 @@ impl Command {
         match self {
             Init{force, dev, path} => init(force, dev, path),
             Deploy{path} => deploy(&path),
-            Destroy{path} => Ok(()),
+            Destroy{path} => destroy(&path),
         }
     }
 }

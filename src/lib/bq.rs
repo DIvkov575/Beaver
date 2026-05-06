@@ -7,11 +7,11 @@ use rand::distributions::Alphanumeric;
 use rand::Rng;
 use serde::{Deserialize, Serialize};
 use crate::lib::config::Config;
-use crate::lib::resources::Resources;
+use crate::lib::resources::{Resources, Tracker};
 use crate::MiscError;
 
 
-#[derive(Deserialize, Serialize, Debug)]
+#[derive(Deserialize, Serialize, Debug, Clone)]
 pub struct BqTable {
     pub project_id: String,
     pub dataset_id: String,
@@ -116,15 +116,60 @@ pub fn create_table(dataset_id: &str, table_id: &str, project_id: &str) -> Resul
 }
 
 
-pub fn create(resources: &mut Resources, config: &Config) -> Result<()> {
-    // create bq instance from config.artifacts.resources.yaml if names were provided, otherwise names dataset dynamically "beaver_{random_string}" and table "table1"
-    info!("creating bq...");
-    // bq from resources
-    let mut bq = &mut resources.biq_query;
+pub fn delete_dataset(dataset_id: &str, project_id: &str) -> Result<()> {
+    info!("deleting bq dataset: {}", dataset_id);
+    let target = format!("{}:{}", project_id, dataset_id);
+    let output = Command::new("bq")
+        .args(["rm", "-r", "-f", "-d", &target])
+        .output()?;
+    if !output.status.success() {
+        let stderr = String::from_utf8_lossy(&output.stderr);
+        return Err(anyhow::anyhow!("bq dataset delete failed: {}", stderr));
+    }
+    Ok(())
+}
 
-    bq.dataset_id = create_dataset_unnamed(&bq.project_id)?;
-    bq.table_id = String::from("table1");
-    create_table(&bq.dataset_id, &bq.table_id, &bq.project_id)?;
+pub fn create(tracker: &mut Tracker, config: &Config) -> Result<()> {
+    info!("creating bq...");
+    let project_id = tracker.resources().biq_query.project_id.clone();
+
+    let dataset_id = create_dataset_unnamed(&project_id)?;
+    tracker.record_bq_dataset(dataset_id.clone())?;
+
+    let table_id = String::from("table1");
+    create_table(&dataset_id, &table_id, &project_id)?;
+    tracker.record_bq_table(table_id)?;
 
     Ok(())
+}
+
+#[cfg(test)]
+mod integration_tests {
+    use super::*;
+    use crate::lib::resources::Tracker;
+    use crate::lib::test_helpers::{bq_dataset_exists, test_config, tempdir_resources};
+
+    #[test]
+    #[ignore]
+    fn create_then_delete_leaves_no_dataset() {
+        let config = test_config();
+        let (_dir, mut res) = tempdir_resources();
+        let mut tracker = Tracker::new(&mut res);
+
+        create(&mut tracker, &config).expect("bq create failed");
+        let dataset_id = tracker.resources().biq_query.dataset_id.clone();
+        assert!(!dataset_id.is_empty(), "create must record dataset_id");
+        assert!(
+            bq_dataset_exists(&dataset_id, &config.project),
+            "dataset {} should exist after create",
+            dataset_id
+        );
+
+        delete_dataset(&dataset_id, &config.project).expect("bq delete failed");
+        assert!(
+            !bq_dataset_exists(&dataset_id, &config.project),
+            "dataset {} should be gone after delete",
+            dataset_id
+        );
+    }
 }

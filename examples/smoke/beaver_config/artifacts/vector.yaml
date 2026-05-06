@@ -1,0 +1,26 @@
+sources:
+  pubsub_in:
+    type: gcp_pubsub
+    project: neon-circle-400322
+    subscription: beaver-smoke-input-sub
+    decoding:
+      codec: json
+  healthcheck_sink:
+    type: http
+    address: 0.0.0.0:8080
+transforms:
+  transform1:
+    type: remap
+    inputs:
+    - pubsub_in
+    source: |
+      . = .
+sinks:
+  bq_writing_pubsub:
+    type: gcp_pubsub
+    inputs:
+    - transform1
+    project: neon-circle-400322
+    topic: beaver_cjizefw11
+    encoding:
+      codec: json
