@@ -34,7 +34,7 @@ impl Config {
     pub fn from_path(path_to_config: &Path) -> Config {
         let beaver_config: Mapping = serde_yaml::from_reader(
             File::open(
-                path_to_config.join("../beaver_config/beaver_config.yaml")
+                path_to_config.join("beaver_config.yaml")
             ).unwrap()
         ).unwrap();
 
