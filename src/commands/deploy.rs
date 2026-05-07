@@ -34,15 +34,9 @@ pub fn deploy(path_arg: &str) -> Result<()> {
 
     cron::create_crs_restart_schedule(&mut tracker, &config)?;
 
+    // dataflow steps not wired yet:
     // dataflow::create_template(&path, &resources, &config)?;
     // dataflow::create_pipeline(&mut resources, &config)?;
 
     Ok(())
 }
-
-    // spinner = Spinner::new(spinners::Dots, "generating detections...", Color::Blue);
-    // spinner.success("detections generated");
-    // spinner = Spinner::new(spinners::Dots, "creating gcp resources...", Color::Blue);
-    // spinner.success("gcp resources created");
-    // spinner = Spinner::new(spinners::Dots, "creating crs vector...", Color::Blue);
-    // spinner.success("CRS Vector Created");

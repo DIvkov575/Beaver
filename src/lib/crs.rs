@@ -36,8 +36,7 @@ pub fn create_vector(tracker: &mut Tracker, config: &Config) -> Result<()>{
         log_output(&output)?;
         if output.status.success() { break }
 
-        // Failed deploys leave a non-serving service object behind. Tear it down
-        // before retrying so we don't accumulate orphans across attempts.
+        // Failed deploys leave a non-serving service behind; tear it down before retrying.
         if let Err(e) = delete_crs(&service_name_binding, config) {
             error!("inline cleanup of failed CRS '{}' errored: {}", service_name_binding, e);
         }
@@ -56,31 +55,16 @@ fn create_crs_named(service_name: &str, config: &Config) -> Result<()>{
     Ok(())
 }
 
+// Bumps the service to gen2 execution. The bucket-volume mount that should
+// happen here is still TODO; flags are scaffolded but commented out until the
+// mount path/bucket-name plumbing is wired through.
 fn mount_gcs_crs(config: &Config, resources: &Resources) -> Result<()> {
     log_func_call!();
-
-    // gcloud beta run services update SERVICE \
-    // --execution-environment gen2 \
-    // --add-volume name=VOLUME_NAME,type=cloud-storage,bucket=BUCKET_NAME \
-    // --add-volume-mount volume=VOLUME_NAME,mount-path=MOUNT_PATH}
-
-
     let crs_instance_name = resources.crs_instance.clone();
-    let bucket_name = resources.bucket_name.clone();
-
-    // let volume_name = "vector.yaml";
-    // let mount_path = "/etc/vector";
-    // let volume = format!("name={},bucket={}", volume_name, &bucket_name);
-    // let volume_mount = format!("volume={},mount-path={}", volume_name, mount_path);
     let args = vec!["beta", "run", "services", "update", &crs_instance_name,
-                    "--execution-environment", "gen2",
-                    // "--add-volume", &volume,
-                    // "--add-volume-mount", &volume_mount
-    ];
-
+                    "--execution-environment", "gen2"];
     let output = Command::new("gcloud").args(args).output()?;
     log_output(&output)?;
-
     Ok(())
 }
 
@@ -88,51 +72,31 @@ fn mount_gcs_crs(config: &Config, resources: &Resources) -> Result<()> {
 
 pub fn delete_crs(service_name: &str, config: &Config) -> Result<()> {
     log_func_call!();
-    info!("Deleting Cloud Run service: {}", service_name);
-    
+    info!("deleting Cloud Run service: {}", service_name);
+
     let args: Vec<&str> = Vec::from(["run", "services", "delete", service_name, "--quiet"]);
     let output = Command::new("gcloud").args(args).args(config.flatten()).output()?;
     log_output(&output)?;
-    
+
     if !output.status.success() {
-        return Err(anyhow!("Failed to delete Cloud Run service: {}", service_name));
+        return Err(anyhow!("failed to delete Cloud Run service: {}", service_name));
     }
-    
-    info!("Successfully deleted Cloud Run service: {}", service_name);
     Ok(())
 }
 
-/// Restarts a CRS instance by cleaning up the existing instance and launching a new one
-///
-/// # Arguments
-///
-/// * `resources` - Mutable reference to Resources struct that contains information about cloud resources
-/// * `config` - Reference to Config struct that contains configuration information
-///
-/// # Returns
-///
-/// * `Result<()>` - Result indicating success or failure
+/// Deletes the recorded CRS service (if any) and redeploys a fresh one.
 pub fn restart_crs(tracker: &mut Tracker, config: &Config) -> Result<()> {
     log_func_call!();
-    info!("Restarting Cloud Run service instance...");
+    info!("restarting Cloud Run service");
 
     let service_name = tracker.resources().crs_instance.clone();
     if !service_name.is_empty() {
-        info!("Found existing CRS instance '{}', cleaning up...", service_name);
-        match delete_crs(&service_name, config) {
-            Ok(_) => info!("Successfully cleaned up existing CRS instance"),
-            Err(e) => {
-                error!("Failed to delete existing CRS instance: {}", e);
-                info!("Proceeding with creating a new instance anyway...");
-            }
+        if let Err(e) = delete_crs(&service_name, config) {
+            error!("delete failed, redeploying anyway: {}", e);
         }
-    } else {
-        info!("No existing CRS instance found in resources");
     }
 
-    info!("Creating new CRS instance...");
     create_vector(tracker, config)?;
-    info!("CRS instance successfully restarted: {}", tracker.resources().crs_instance);
     Ok(())
 }
 

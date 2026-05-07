@@ -66,9 +66,9 @@ pub fn create_dataset_unnamed(project_id: &str) -> Result<String> {
 
         let output = Command::new("bq").args(args).output()?;
 
-        // TODO: Test in depth -> when does it have stderr
-        if output.stderr != [0u8; 0] {
-            error!("{:?}", String::from_utf8(output.stderr)?) }
+        if !output.stderr.is_empty() {
+            error!("{:?}", String::from_utf8(output.stderr)?)
+        }
 
         if output.status.success() {
             info!("{:?}", String::from_utf8(output.stdout)?);

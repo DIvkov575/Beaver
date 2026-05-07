@@ -13,9 +13,7 @@ use crate::lib::utilities::{log_output, random_tag};
 use crate::MiscError;
 
 
-// Required Google Cloud APIs:
-// gcloud services enable cloudbuild.googleapis.com \
-// artifactregistry.googleapis.com
+// Requires `cloudbuild.googleapis.com` and `artifactregistry.googleapis.com` enabled on the project.
 
 pub fn delete_image(full_url: &str, config: &Config) -> Result<()> {
     info!("deleting artifact image: {}", full_url);

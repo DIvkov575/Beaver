@@ -87,9 +87,9 @@ pub fn create_subscription(topic_id: &str, config: &Config) -> Result<String> {
 
         let output = Command::new("gcloud").args(args).args(config.get_project()).output()?;
 
-        // TODO: Test in depth -> when does it have stderr
-        if output.stderr != [0u8; 0] {
-            error!("{:?}", String::from_utf8(output.stderr)?) }
+        if !output.stderr.is_empty() {
+            error!("{:?}", String::from_utf8(output.stderr)?)
+        }
 
         if output.status.success() {
             info!("{:?}", String::from_utf8(output.stdout)?);
@@ -133,9 +133,9 @@ pub fn create_bq_subscription(topic_id: &str, bq_table: &BqTable, config: &Confi
 
         let output = Command::new("gcloud").args(args).args(config.get_project()).output()?;
 
-        // TODO: Test in depth -> when does it have stderr
-        if output.stderr != [0u8; 0] {
-            error!("{:?}", String::from_utf8(output.stderr)?) }
+        if !output.stderr.is_empty() {
+            error!("{:?}", String::from_utf8(output.stderr)?)
+        }
 
         if output.status.success() {
             info!("{:?}", String::from_utf8(output.stdout)?);
@@ -190,9 +190,9 @@ pub fn create_pubsub_topic(config: &Config) -> Result<String> {
 
         let output = Command::new("gcloud").args(args).args(config.get_project()).output()?;
 
-        // TODO: Test in depth -> when does it have stderr
-        if output.stderr != [0u8; 0] {
-            error!("{:?}", String::from_utf8(output.stderr)?) }
+        if !output.stderr.is_empty() {
+            error!("{:?}", String::from_utf8(output.stderr)?)
+        }
 
         if output.status.success() {
             info!("{:?}", String::from_utf8(output.stdout)?);

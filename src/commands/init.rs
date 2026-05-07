@@ -12,6 +12,8 @@ use crate::lib::config::Config;
 use crate::lib::resources::Resources;
 use crate::lib::sigma::setup_detections_venv;
 
+/// Bootstraps a local config dir from interactive prompts (or defaults in `--dev`).
+/// Wipes the dir if it exists when `--force` is set.
 pub fn init(force: bool, dev:bool, path: Option<String>) -> Result<()> {
     let regions: Vec<&str> = vec!["northamerica-northeast1", "us-west4", "southamerica-east1", "australia-southeast1", "asia-southeast2", "australia-southeast2", "asia-south1", "asia-northeast2", "australia-east", "asia-east2", "europe-north1", "asia-northeast1", "asia-east1", "europe-west2", "us-central1", "europe-west1", "us-east1", "us-east4", "southamerica-west1", "us-west2", "asia-south2", "europe-west6", "asia-southeast1", "europe-west4", "europe-north2", "europe-west3", "us-west1", "us-west3", "europe-west5", "australia-central2"];
     let region;
@@ -56,20 +58,10 @@ pub fn init(force: bool, dev:bool, path: Option<String>) -> Result<()> {
     Ok(())
 }
 
+/// Scaffolds the config dir: detections/{input,output}, artifacts/, plus
+/// `beaver_config.yaml` and the embedded sigma/Dockerfile/template assets.
 pub fn create_config_dir(file_path: &str, region: &str, project: &str) -> Result<()> {
-   /// creates all necessary files and subdirectories for config dir
-   /// Creates dirs (detections, artifacts, log)
-   /// Creates files(
-   /// - artifacts/vector.yaml -
-   /// - artifacts/resources.yaml - resource names/ids
-   /// )
-   /// log/log1.log - output file for beaver internal logs during startup
-   /// logging_config.yaml - log.rs config for beaver internal logs during startup
-   /// sigma_generate.py - python script for converting sigma rules into beaver compatible detections
-   /// beaver_config.yaml - general config file
-
-
-    let path = Path::new(file_path); // path to config dir
+    let path = Path::new(file_path);
     fs::create_dir_all(&path)?;
     fs::create_dir_all(path.join("detections"))?;
     fs::create_dir_all(path.join("detections").join("input"))?;
@@ -114,7 +106,6 @@ transforms:
     let mut docker_file= OpenOptions::new().write(true).create(true).open(path.join("artifacts").join("Dockerfile"))?;
     docker_file.write(&include_bytes_zstd!("src/beaver_config/artifacts/Dockerfile", 21))?;
 
-    //TODO: testing purposes
     let mut test_sigma_files = OpenOptions::new().write(true).create(true).open(path.join("detections").join("input").join("se.yml"))?;
     test_sigma_files.write(&include_bytes_zstd!("src/beaver_config/detections/input/se.yml", 21))?;
 

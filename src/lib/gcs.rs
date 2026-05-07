@@ -84,8 +84,6 @@ mod integration_tests {
 
 pub fn upload_to_bucket(local_location: &str, resources: &Resources, config: &Config) -> Result<()> {
     info!("uploading to bucket...");
-    // https://cloud.google.com/storage/docs/uploading-objects#permissions-cli
-    // gcloud storage cp OBJECT_LOCATION gs://DESTINATION_BUCKET_NAME/
     let destination_bucket_binding = format!("gs://{}", resources.bucket_name.clone());
     let args: Vec<&str> = Vec::from([
         "storage",

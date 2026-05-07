@@ -20,12 +20,9 @@ pub enum DeleteStep {
     GcsBucket(String),
 }
 
-/// Pure planning step: given the recorded state, produce the ordered list of
-/// deletions to attempt. Skips fields that were never recorded.
-///
-/// Order is the reverse of creation: scheduler → CRS → pubsub subs → topic →
-/// bq → image → repo → bucket. Bucket goes last because deploy may write
-/// debris into it that we don't want to lose access to mid-tear-down.
+/// Reverse of creation: scheduler → CRS → pubsub subs → topic → bq → image →
+/// repo → bucket. Bucket goes last because deploy may write debris into it
+/// that we don't want to lose access to mid-tear-down. Skips empty fields.
 pub fn plan(res: &Resources) -> Vec<DeleteStep> {
     let mut steps = Vec::new();
 
@@ -60,10 +57,9 @@ pub fn plan(res: &Resources) -> Vec<DeleteStep> {
     steps
 }
 
-/// Best-effort execution: each step that fails is logged and we continue.
-/// On successful delete we forget the corresponding field so a partial destroy
-/// still leaves an accurate `resources.yaml`. The delete dispatch is injected
-/// via `delete` so tests can run this loop without shelling out to GCP.
+/// Best-effort: failures are logged and the loop continues. Successful deletes
+/// trigger the matching `forget_*` so a partial destroy leaves an accurate
+/// `resources.yaml`. `delete` is injected so tests can swap in a fake.
 fn execute<F>(steps: Vec<DeleteStep>, tracker: &mut Tracker, mut delete: F)
 where
     F: FnMut(&DeleteStep) -> Result<()>,
@@ -152,7 +148,7 @@ mod tests {
     fn config() -> Config { Config::new("us-east1", "p", None) }
     fn empty_resources() -> Resources { Resources::empty(&config(), &PathBuf::from("/tmp/x")) }
 
-    /// Build a Resources rooted at a tempdir so persistence works.
+    /// Resources rooted at a tempdir so `Tracker::persist` writes somewhere harmless.
     fn resources_in_tempdir() -> (TempDir, Resources) {
         let dir = TempDir::new().unwrap();
         fs::create_dir_all(dir.path().join("artifacts")).unwrap();
@@ -290,9 +286,8 @@ mod tests {
         }
 
         assert_eq!(*calls.borrow(), 2, "both steps must be attempted even when one fails");
-        // Topic stayed because its delete failed; bucket was cleared on success.
-        assert_eq!(res.output_pubsub.topic_id, "t");
-        assert!(res.bucket_name.is_empty());
+        assert_eq!(res.output_pubsub.topic_id, "t", "failed delete should not clear field");
+        assert!(res.bucket_name.is_empty(), "successful delete should clear field");
     }
 
     #[test]
@@ -311,11 +306,9 @@ mod tests {
         assert!(plan(&res).is_empty(), "plan must be empty after successful destroy");
     }
 
-    /// Full create→destroy E2E against real GCP. Builds the simple half of the
-    /// deploy pipeline (bq, pubsub, gcs) — Cloud Run is omitted because the
-    /// Vector image config currently can't bind 8080. Each resource is
-    /// verified by exact-name describe (strongly consistent) before and after
-    /// destroy.
+    /// Full create→destroy E2E for the bq + pubsub + gcs subset (CRS and image
+    /// have their own pair tests). Verified by exact-name describe so the
+    /// assertions are strongly consistent.
     #[test]
     #[ignore]
     fn e2e_simple_resources_round_trip() {
@@ -338,35 +331,32 @@ mod tests {
             gcs::create_bucket(&mut tracker, &config).expect("gcs create");
         }
 
-        // Snapshot the names so we can re-check them after destroy clears the struct.
+        // Snapshot before destroy clears the struct.
         let dataset = res.biq_query.dataset_id.clone();
         let topic = res.output_pubsub.topic_id.clone();
         let sub_bq = res.output_pubsub.bq_subscription_id.clone();
         let sub_2 = res.output_pubsub.subscription_id_2.clone();
         let bucket = res.bucket_name.clone();
 
-        // Verify every resource exists on GCP by exact name (strongly consistent).
         assert!(bq_dataset_exists(&dataset, &config.project), "dataset {} missing", dataset);
         assert!(pubsub_topic_exists(&topic, &config.project), "topic {} missing", topic);
         assert!(pubsub_subscription_exists(&sub_bq, &config.project), "bq sub {} missing", sub_bq);
         assert!(pubsub_subscription_exists(&sub_2, &config.project), "sub2 {} missing", sub_2);
         assert!(bucket_exists(&bucket), "bucket {} missing", bucket);
 
-        // Tear it all down.
         let steps = plan(&res);
         {
             let mut tracker = Tracker::new(&mut res);
             execute(steps, &mut tracker, |s| dispatch_real(s, &config));
         }
 
-        // Every resource must be gone, looked up by the names we recorded earlier.
+
         assert!(!bq_dataset_exists(&dataset, &config.project), "dataset {} leaked", dataset);
         assert!(!pubsub_topic_exists(&topic, &config.project), "topic {} leaked", topic);
         assert!(!pubsub_subscription_exists(&sub_bq, &config.project), "bq sub {} leaked", sub_bq);
         assert!(!pubsub_subscription_exists(&sub_2, &config.project), "sub2 {} leaked", sub_2);
         assert!(!bucket_exists(&bucket), "bucket {} leaked", bucket);
 
-        // Resources struct must be fully cleared.
         assert!(plan(&res).is_empty(), "plan must be empty after destroy");
     }
 
