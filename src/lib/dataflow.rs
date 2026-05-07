@@ -38,11 +38,10 @@ pub fn create_template(path_to_config: &Path, resources: &Resources, config: &Co
         source venv/bin/activate
         python ../artifacts/detections_gen.py \
             --runner=DataflowRunner \
-            $2 \
-            $3 \
+            --project $2 \
+            --subscription $3 \
             --staging_location $4 \
             --template_location $5 \
-            --project $6 \
             --region $7 \
         "#,
         &args,
