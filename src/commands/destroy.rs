@@ -5,11 +5,10 @@ use std::path::Path;
 use crate::lib::config::Config;
 use crate::lib::resources::{Resources, Tracker};
 use crate::lib::utilities::{check_for_bq, check_for_gcloud, validate_config_path};
-use crate::lib::{bq, cloud_build, crs, gcs, pubsub, cron};
+use crate::lib::{bq, cloud_build, crs, gcs, pubsub};
 
 #[derive(Debug, PartialEq, Eq)]
 pub enum DeleteStep {
-    SchedulerJob(String),
     CrsService(String),
     PubsubBqSubscription(String),
     PubsubSubscription2(String),
@@ -20,15 +19,12 @@ pub enum DeleteStep {
     GcsBucket(String),
 }
 
-/// Reverse of creation: scheduler → CRS → pubsub subs → topic → bq → image →
-/// repo → bucket. Bucket goes last because deploy may write debris into it
-/// that we don't want to lose access to mid-tear-down. Skips empty fields.
+/// Reverse of creation: CRS → pubsub subs → topic → bq → image → repo → bucket.
+/// Bucket goes last because deploy may write debris into it that we don't want
+/// to lose access to mid-tear-down. Skips empty fields.
 pub fn plan(res: &Resources) -> Vec<DeleteStep> {
     let mut steps = Vec::new();
 
-    if !res.scheduler_job_name.is_empty() {
-        steps.push(DeleteStep::SchedulerJob(res.scheduler_job_name.clone()));
-    }
     if !res.crs_instance.is_empty() {
         steps.push(DeleteStep::CrsService(res.crs_instance.clone()));
     }
@@ -69,7 +65,6 @@ where
             Err(e) => error!("destroy step {:?} failed: {}", step, e),
             Ok(()) => {
                 let forget = match &step {
-                    DeleteStep::SchedulerJob(_) => tracker.forget_scheduler_job(),
                     DeleteStep::CrsService(_) => tracker.forget_crs_instance(),
                     DeleteStep::PubsubBqSubscription(_) => tracker.forget_pubsub_bq_subscription(),
                     DeleteStep::PubsubSubscription2(_) => tracker.forget_pubsub_subscription_2(),
@@ -89,7 +84,6 @@ where
 
 fn dispatch_real(step: &DeleteStep, config: &Config) -> Result<()> {
     match step {
-        DeleteStep::SchedulerJob(name) => cron::delete_scheduler_job(name, config),
         DeleteStep::CrsService(name) => crs::delete_crs(name, config),
         DeleteStep::PubsubBqSubscription(id) => pubsub::delete_subscription(id, config),
         DeleteStep::PubsubSubscription2(id) => pubsub::delete_subscription(id, config),
@@ -158,8 +152,6 @@ mod tests {
 
     fn fully_populated() -> Resources {
         let mut res = empty_resources();
-        res.scheduler_job_name = "sched".into();
-        res.crs_schedule_job_id = "sched".into();
         res.crs_instance = "crs".into();
         res.output_pubsub.bq_subscription_id = "s1".into();
         res.output_pubsub.subscription_id_2 = "s2".into();
@@ -375,11 +367,9 @@ mod tests {
         assert_eq!(*calls.borrow(), 0);
     }
 
-#[test]
+    #[test]
     fn plan_full_state_in_reverse_creation_order() {
         let mut res = empty_resources();
-        res.scheduler_job_name = "sched".into();
-        res.crs_schedule_job_id = "sched".into();
         res.crs_instance = "crs".into();
         res.output_pubsub.bq_subscription_id = "s1".into();
         res.output_pubsub.subscription_id_2 = "s2".into();
@@ -392,7 +382,6 @@ mod tests {
 
         let steps = plan(&res);
         assert_eq!(steps, vec![
-            DeleteStep::SchedulerJob("sched".into()),
             DeleteStep::CrsService("crs".into()),
             DeleteStep::PubsubBqSubscription("s1".into()),
             DeleteStep::PubsubSubscription2("s2".into()),

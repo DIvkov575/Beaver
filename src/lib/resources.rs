@@ -16,9 +16,7 @@ pub struct Resources {
     pub artifact_registry_repo: String,
     pub crs_instance: String,
     pub vector_artifact_url: String,
-    pub crs_schedule_job_id: String,
     pub dataflow_pipeline_name: String,
-    pub scheduler_job_name: String,
 }
 
 impl Resources {
@@ -31,9 +29,7 @@ impl Resources {
             artifact_registry_repo: String::new(),
             crs_instance: String::new(),
             vector_artifact_url: String::new(),
-            crs_schedule_job_id: String::new(),
             dataflow_pipeline_name: String::new(),
-            scheduler_job_name: String::new(),
         }
     }
 
@@ -113,12 +109,6 @@ impl<'a> Tracker<'a> {
         self.persist()
     }
 
-    pub fn record_scheduler_job(&mut self, name: String) -> Result<()> {
-        self.res.crs_schedule_job_id = name.clone();
-        self.res.scheduler_job_name = name;
-        self.persist()
-    }
-
     pub fn forget_bq(&mut self) -> Result<()> {
         self.res.biq_query.dataset_id.clear();
         self.res.biq_query.table_id.clear();
@@ -157,12 +147,6 @@ impl<'a> Tracker<'a> {
 
     pub fn forget_crs_instance(&mut self) -> Result<()> {
         self.res.crs_instance.clear();
-        self.persist()
-    }
-
-    pub fn forget_scheduler_job(&mut self) -> Result<()> {
-        self.res.scheduler_job_name.clear();
-        self.res.crs_schedule_job_id.clear();
         self.persist()
     }
 }
@@ -259,20 +243,7 @@ mod tests {
         assert_eq!(back.output_pubsub.topic_id, "topic_persisted");
     }
 
-    #[test]
-    fn record_scheduler_job_writes_both_fields() {
-        let (dir, config) = setup();
-        let mut res = Resources::empty(&config, dir.path());
-        let mut t = Tracker::new(&mut res);
-
-        t.record_scheduler_job("beaver-cron-zzz".into()).unwrap();
-
-        let back = read_back(dir.path());
-        assert_eq!(back.scheduler_job_name, "beaver-cron-zzz");
-        assert_eq!(back.crs_schedule_job_id, "beaver-cron-zzz");
-    }
-
-    #[test]
+#[test]
     fn forget_clears_field_and_persists() {
         let (dir, config) = setup();
         let mut res = Resources::empty(&config, dir.path());
@@ -285,21 +256,7 @@ mod tests {
         assert!(read_back(dir.path()).bucket_name.is_empty());
     }
 
-    #[test]
-    fn forget_scheduler_job_clears_both_fields() {
-        let (dir, config) = setup();
-        let mut res = Resources::empty(&config, dir.path());
-        let mut t = Tracker::new(&mut res);
-
-        t.record_scheduler_job("beaver-cron-zzz".into()).unwrap();
-        t.forget_scheduler_job().unwrap();
-
-        let back = read_back(dir.path());
-        assert!(back.scheduler_job_name.is_empty());
-        assert!(back.crs_schedule_job_id.is_empty());
-    }
-
-    #[test]
+#[test]
     fn forget_one_field_leaves_others_intact() {
         let (dir, config) = setup();
         let mut res = Resources::empty(&config, dir.path());
