@@ -109,6 +109,11 @@ impl<'a> Tracker<'a> {
         self.persist()
     }
 
+    pub fn record_dataflow_pipeline(&mut self, name: String) -> Result<()> {
+        self.res.dataflow_pipeline_name = name;
+        self.persist()
+    }
+
     pub fn forget_bq(&mut self) -> Result<()> {
         self.res.biq_query.dataset_id.clear();
         self.res.biq_query.table_id.clear();
@@ -147,6 +152,11 @@ impl<'a> Tracker<'a> {
 
     pub fn forget_crs_instance(&mut self) -> Result<()> {
         self.res.crs_instance.clear();
+        self.persist()
+    }
+
+    pub fn forget_dataflow_pipeline(&mut self) -> Result<()> {
+        self.res.dataflow_pipeline_name.clear();
         self.persist()
     }
 }

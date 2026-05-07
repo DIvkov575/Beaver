@@ -1,38 +1,42 @@
 use std::path::Path;
 use std::process::Command;
-use anyhow::Result;
+use anyhow::{anyhow, Result};
 use log::{error, info, warn};
 use rand::distributions::Alphanumeric;
 use rand::Rng;
 use run_script::ScriptOptions;
 use crate::lib::config::Config;
-use crate::lib::resources::Resources;
+use crate::lib::resources::Tracker;
 use crate::lib::utilities::log_output;
 use crate::{log_func_call, MiscError};
 
-pub fn create_template(path_to_config: &Path, resources: &Resources, config: &Config) -> Result<()> {
-    log_func_call!();
-    info!("creating template...");
+const TEMPLATE_NAME: &str = "beaver-detection-template";
 
-    let bucket = resources.bucket_name.clone();
-    let subscription = resources.output_pubsub.subscription_id_2.clone();
+/// Builds a classic Dataflow template from `detections_gen.py` and uploads it
+/// to `gs://<bucket>/templates/beaver-detection-template`. The subscription
+/// and project are baked into the template at build time (no ValueProvider).
+pub fn create_template(path_to_config: &Path, tracker: &mut Tracker, config: &Config) -> Result<()> {
+    log_func_call!();
+    info!("creating dataflow template...");
+
+    let res = tracker.resources();
+    let bucket = res.bucket_name.clone();
+    let subscription = res.output_pubsub.subscription_id_2.clone();
 
     let detections_path = path_to_config.join("detections");
     let staging = format!("gs://{}/staging", bucket);
-    let template_name = "beaver-detection-template";
-    let templates = format!("gs://{}/templates/{}", bucket, template_name);
+    let template_path = format!("gs://{}/templates/{}", bucket, TEMPLATE_NAME);
 
     let args = vec![
         detections_path.to_str().unwrap().to_string(),
         config.project.clone(),
         subscription,
         staging,
-        templates,
-        config.project.to_string(),
+        template_path,
         config.region.clone(),
     ];
 
-    let (_, output, error) = run_script::run(
+    let (code, output, error) = run_script::run(
         r#"
         cd $1
         source venv/bin/activate
@@ -42,48 +46,33 @@ pub fn create_template(path_to_config: &Path, resources: &Resources, config: &Co
             --subscription $3 \
             --staging_location $4 \
             --template_location $5 \
-            --region $7 \
+            --region $6
         "#,
         &args,
         &ScriptOptions::new(),
     )?;
 
-    println!("output: {:?}", output);
-    warn!("{}", error);
-
+    if code != 0 {
+        error!("template build stdout: {}", output);
+        error!("template build stderr: {}", error);
+        return Err(anyhow!("dataflow template build failed (exit {})", code));
+    }
+    if !error.is_empty() { warn!("{}", error); }
+    info!("template uploaded");
     Ok(())
 }
 
-
-pub fn execute_template(resources: &mut Resources, config: &Config) -> Result<()> {
+/// Launches the previously uploaded classic template as a streaming Dataflow
+/// job, records the job name, and returns. Retries with a fresh random suffix
+/// on transient launch failure.
+pub fn create_pipeline(tracker: &mut Tracker, config: &Config) -> Result<()> {
     log_func_call!();
-    info!("executing dataflow template...");
 
-    let bucket_name = resources.bucket_name.clone();
-    let template_path = format!("gs://{}/templates/beaver-detection-template", bucket_name);
-
-    let job_name = if resources.dataflow_pipeline_name.is_empty() {
-        let default_name = "beaver-detections";
-        resources.dataflow_pipeline_name = default_name.to_string();
-        default_name
-    } else {
-        &resources.dataflow_pipeline_name
-    };
-
-    let args = vec!["dataflow", "jobs", "run", job_name, "--gcs-location", &template_path, "--region", &config.region, "--enable-streaming-engine"];
-    let output = Command::new("gcloud").args(args).args(config.flatten()).output()?;
-    log_output(&output)?;
-
-    Ok(())
-}
-
-pub fn create_pipeline(resources: &mut Resources, config: &Config) -> Result<()> {
-    log_func_call!();
+    let bucket = tracker.resources().bucket_name.clone();
+    let template_path = format!("gs://{}/templates/{}", bucket, TEMPLATE_NAME);
 
     let mut random_string: String;
     let mut pipeline_name: String;
-    let bucket_name = resources.bucket_name.clone();
-    let template_path = format!("gs://{}/templates/beaver-detection-template", bucket_name);
 
     let mut ctr = 0usize;
     loop {
@@ -98,17 +87,25 @@ pub fn create_pipeline(resources: &mut Resources, config: &Config) -> Result<()>
             .collect();
         pipeline_name = format!("beaver-detections-{random_string}");
 
-        info!("creating dataflow pipeline: {}", pipeline_name);
+        info!("launching dataflow job: {}", pipeline_name);
+
+        // Pin worker zone away from `<region>-c` because Dataflow's auto-zone
+        // selector keeps picking it and us-east1-c has been stockout-prone.
+        // `<region>-b` is the next default; override via BEAVER_DATAFLOW_ZONE.
+        let zone = std::env::var("BEAVER_DATAFLOW_ZONE")
+            .unwrap_or_else(|_| format!("{}-b", config.region));
+        let worker_zone_flag = format!("--worker-zone={}", zone);
 
         let args = vec![
-            "dataflow", "flex-template", "run", &pipeline_name,
-            "--template-file-gcs-location", &template_path,
+            "dataflow", "jobs", "run", &pipeline_name,
+            "--gcs-location", &template_path,
             "--region", &config.region,
-            "--enable-streaming-engine"
+            "--project", &config.project,
+            "--enable-streaming-engine",
+            &worker_zone_flag,
         ];
-        let flags: Vec<&str> = Vec::from(["--project", &config.project]);
 
-        let output = Command::new("gcloud").args(args).args(flags).output()?;
+        let output = Command::new("gcloud").args(args).output()?;
 
         if !output.stderr.is_empty() {
             error!("{:?}", String::from_utf8(output.stderr.clone())?);
@@ -116,14 +113,47 @@ pub fn create_pipeline(resources: &mut Resources, config: &Config) -> Result<()>
 
         if output.status.success() {
             log_output(&output)?;
-            resources.dataflow_pipeline_name = pipeline_name.clone();
-            execute_template(resources, config)?;
+            tracker.record_dataflow_pipeline(pipeline_name.clone())?;
             break;
         } else {
-            warn!("failed to create pipeline {}, retrying", pipeline_name);
-            continue;
+            warn!("failed to launch pipeline {}, retrying", pipeline_name);
         }
     }
 
+    Ok(())
+}
+
+/// Cancels the running Dataflow job. Looks up the job by name in the region
+/// to get its actual ID (Dataflow `cancel` requires the ID, not the name).
+pub fn delete_job(name: &str, config: &Config) -> Result<()> {
+    info!("cancelling dataflow job: {}", name);
+
+    let lookup = Command::new("gcloud")
+        .args([
+            "dataflow", "jobs", "list",
+            "--region", &config.region,
+            "--project", &config.project,
+            "--filter", &format!("name={}", name),
+            "--format=value(JOB_ID)",
+            "--status=active",
+        ])
+        .output()?;
+    let job_id = String::from_utf8_lossy(&lookup.stdout).trim().to_string();
+    if job_id.is_empty() {
+        info!("no active dataflow job named {}; nothing to cancel", name);
+        return Ok(());
+    }
+
+    let cancel = Command::new("gcloud")
+        .args([
+            "dataflow", "jobs", "cancel", &job_id,
+            "--region", &config.region,
+            "--project", &config.project,
+        ])
+        .output()?;
+    if !cancel.status.success() {
+        let stderr = String::from_utf8_lossy(&cancel.stderr);
+        return Err(anyhow!("dataflow cancel failed: {}", stderr));
+    }
     Ok(())
 }

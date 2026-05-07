@@ -32,9 +32,8 @@ pub fn deploy(path_arg: &str) -> Result<()> {
     cloud_build::create_docker_image(&path, &mut tracker, &config)?;
     crs::create_vector(&mut tracker, &config)?;
 
-    // dataflow steps not wired yet:
-    // dataflow::create_template(&path, &resources, &config)?;
-    // dataflow::create_pipeline(&mut resources, &config)?;
+    dataflow::create_template(&path, &mut tracker, &config)?;
+    dataflow::create_pipeline(&mut tracker, &config)?;
 
     Ok(())
 }
