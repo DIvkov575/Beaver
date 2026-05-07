@@ -9,6 +9,7 @@ pub mod dataflow;
 pub mod detections_gen;
 pub mod crs;
 pub mod cloud_build;
+pub mod notifications;
 
 #[cfg(test)]
 pub mod test_helpers;
