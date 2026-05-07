@@ -51,9 +51,9 @@ impl Resources {
 }
 
 
-/// Persisting wrapper around `Resources`. Each `record_*` method mutates the
-/// underlying struct and writes it to disk before returning, so a crash or
-/// failed retry mid-deploy still leaves a complete record of what got created.
+/// Persisting wrapper around `Resources`. Each `record_*`/`forget_*` writes
+/// the struct to disk before returning, so a crash mid-deploy still leaves an
+/// accurate record of what's on GCP.
 pub struct Tracker<'a> {
     res: &'a mut Resources,
 }

@@ -1,9 +1,6 @@
-//! Helpers shared by `#[ignore]` integration tests that hit real GCP.
-//!
-//! These tests are opt-in: run with `cargo test -- --ignored`. They expect
-//! `gcloud` to be authenticated against a project where Beaver resources can
-//! be created and destroyed. Defaults match the project we've been testing
-//! against; override via env vars.
+//! Helpers for `#[ignore]` integration tests. Run with `cargo test -- --ignored`.
+//! Expect `gcloud` to be authenticated; override the test project/region via
+//! `BEAVER_TEST_PROJECT` and `BEAVER_TEST_REGION`.
 
 #![cfg(test)]
 #![allow(dead_code)]
@@ -14,12 +11,10 @@ use std::path::Path;
 use std::process::Command;
 use tempfile::TempDir;
 
-/// Project to run integration tests against. Override with `BEAVER_TEST_PROJECT`.
 pub fn test_project() -> String {
     std::env::var("BEAVER_TEST_PROJECT").unwrap_or_else(|_| "neon-circle-400322".to_string())
 }
 
-/// Region for integration tests. Override with `BEAVER_TEST_REGION`.
 pub fn test_region() -> String {
     std::env::var("BEAVER_TEST_REGION").unwrap_or_else(|_| "us-east1".to_string())
 }
@@ -28,8 +23,8 @@ pub fn test_config() -> Config {
     Config::new(&test_region(), &test_project(), None)
 }
 
-/// Build a `Resources` rooted at a fresh tempdir so `Tracker::persist` works.
-/// Returns the dir guard so it stays alive for the duration of the test.
+/// `Resources` rooted at a tempdir; the returned guard must outlive the test
+/// so `Tracker::persist` keeps writing to a valid path.
 pub fn tempdir_resources() -> (TempDir, Resources) {
     let dir = TempDir::new().unwrap();
     std::fs::create_dir_all(dir.path().join("artifacts")).unwrap();
@@ -99,53 +94,3 @@ pub fn scheduler_job_exists(name: &str, project: &str, region: &str) -> bool {
     ])
 }
 
-/// Count beaver-prefixed resources of a given kind currently in the project.
-/// Used by the E2E test to assert nothing is left over.
-pub fn count_with_prefix(kind: ResourceKind, prefix: &str, project: &str, region: &str) -> usize {
-    let args: Vec<String> = match kind {
-        ResourceKind::CrsService => vec![
-            "run".into(), "services".into(), "list".into(),
-            "--region".into(), region.into(),
-            "--project".into(), project.into(),
-            "--format=value(metadata.name)".into(),
-        ],
-        ResourceKind::PubsubTopic => vec![
-            "pubsub".into(), "topics".into(), "list".into(),
-            "--project".into(), project.into(),
-            "--format=value(name)".into(),
-        ],
-        ResourceKind::PubsubSubscription => vec![
-            "pubsub".into(), "subscriptions".into(), "list".into(),
-            "--project".into(), project.into(),
-            "--format=value(name)".into(),
-        ],
-        ResourceKind::Bucket => vec![
-            "storage".into(), "buckets".into(), "list".into(),
-            "--project".into(), project.into(),
-            "--format=value(name)".into(),
-        ],
-        ResourceKind::SchedulerJob => vec![
-            "scheduler".into(), "jobs".into(), "list".into(),
-            "--location".into(), region.into(),
-            "--project".into(), project.into(),
-            "--format=value(name)".into(),
-        ],
-    };
-    let out = Command::new("gcloud")
-        .args(args.iter().map(|s| s.as_str()))
-        .output()
-        .expect("gcloud failed");
-    String::from_utf8_lossy(&out.stdout)
-        .lines()
-        .filter(|line| line.contains(prefix))
-        .count()
-}
-
-#[derive(Copy, Clone)]
-pub enum ResourceKind {
-    CrsService,
-    PubsubTopic,
-    PubsubSubscription,
-    Bucket,
-    SchedulerJob,
-}

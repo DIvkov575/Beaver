@@ -21,6 +21,6 @@ sinks:
     inputs:
     - transform1
     project: neon-circle-400322
-    topic: beaver_cjizefw11
+    topic: beaver_zdcxp40s6
     encoding:
       codec: json

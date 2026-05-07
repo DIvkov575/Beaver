@@ -4,9 +4,9 @@ use log::{error, info};
 use run_script::ScriptOptions;
 
 
+/// Creates `<path>/detections/venv` and installs `pySigma-backend-matano` + `apache-beam[gcp]`.
+// Shells out to bash because activating a venv from inside Rust's process table is awkward.
 pub fn setup_detections_venv(path_to_config: &Path) -> Result<()> {
-    /// Creates virtualenv, activates env, installs matano-pysigma-backend from "pip3 install git+https://github.com/matanolabs/pySigma-backend-matano.git"
-    // opted to use sh bc executing python w/ active virtual environment was problematic
     let path = path_to_config.join("detections");
     let args = vec![path.to_str().unwrap().to_string()];
     let options = ScriptOptions::new();
@@ -28,11 +28,10 @@ pub fn setup_detections_venv(path_to_config: &Path) -> Result<()> {
     Ok(())
 }
 
+/// Compiles every `*.yml`/`*.yaml` under `<path>/detections/input/` into Python
+/// detection modules under `<path>/detections/output/` via `sigma_generate.py`.
 pub fn generate_detections(path_to_config: &Path) -> Result<()> {
-    // converts (yaml) sigma rules files into python executables
-
     info!("converting sigma detections...");
-    // opted to use sh bc executing python w/ active virtual environment was problematic
     let path = path_to_config.join("detections");
     let output_path = vec![path.join("output").to_str().unwrap().to_string()];
     let options = ScriptOptions::new();
