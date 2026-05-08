@@ -112,6 +112,7 @@ pub fn create_channels(
         };
 
         let mut args: Vec<String> = vec![
+            "beta".into(),
             "monitoring".into(),
             "channels".into(),
             "create".into(),
@@ -199,7 +200,7 @@ pub fn create_alert_policies(
 pub fn delete_channel(id: &str) -> Result<()> {
     info!("deleting notification channel {}", id);
     let output = Command::new("gcloud")
-        .args(["monitoring", "channels", "delete", id, "--quiet"])
+        .args(["beta", "monitoring", "channels", "delete", id, "--quiet"])
         .output()?;
     if !output.status.success() {
         let stderr = String::from_utf8_lossy(&output.stderr);
@@ -476,5 +477,94 @@ beaver:
 "#;
         let doc: serde_yaml::Mapping = serde_yaml::from_str(parent).unwrap();
         assert!(doc.get(serde_yaml::Value::String("notifications".into())).is_none());
+    }
+}
+
+
+#[cfg(test)]
+mod integration_tests {
+    use super::*;
+    use crate::lib::resources::Tracker;
+    use crate::lib::test_helpers::{
+        alert_policy_exists, notification_channel_exists, tempdir_resources, test_config,
+    };
+
+    fn email_only_cfg(addr: &str) -> NotificationsConfig {
+        let mut labels = BTreeMap::new();
+        labels.insert("email_address".to_string(), addr.to_string());
+        NotificationsConfig {
+            channels: vec![NotificationChannel {
+                name: "soc-email".into(),
+                channel_type: "email".into(),
+                labels,
+            }],
+            routes: vec![NotificationRoute {
+                match_keys: BTreeMap::from([("rule_name".into(), "suspicious_login".into())]),
+                channels: vec!["soc-email".into()],
+            }],
+        }
+    }
+
+    /// Create channel, describe it, delete, describe again.
+    #[test]
+    #[ignore]
+    fn channel_create_then_delete() {
+        let config = test_config();
+        let (_dir, mut res) = tempdir_resources();
+        let mut tracker = Tracker::new(&mut res);
+        let cfg = email_only_cfg("beaver-it-test@example.invalid");
+
+        let ids = create_channels(&mut tracker, &config, &cfg).expect("create channels");
+        let channel_id = ids.get("soc-email").expect("channel id recorded").clone();
+        assert!(
+            notification_channel_exists(&channel_id, &config.project),
+            "channel {} should exist",
+            channel_id
+        );
+        assert!(
+            tracker.resources().notification_channels.contains(&channel_id),
+            "channel must be on tracker"
+        );
+
+        delete_channel(&channel_id).expect("delete channel");
+        assert!(
+            !notification_channel_exists(&channel_id, &config.project),
+            "channel should be gone"
+        );
+    }
+
+    /// End-to-end: channels + policies + describe + destroy.
+    #[test]
+    #[ignore]
+    fn channels_and_policies_round_trip() {
+        let config = test_config();
+        let (_dir, mut res) = tempdir_resources();
+        let mut tracker = Tracker::new(&mut res);
+        let cfg = email_only_cfg("beaver-it-test@example.invalid");
+
+        let name_to_id =
+            create_channels(&mut tracker, &config, &cfg).expect("create channels");
+        create_alert_policies(&mut tracker, &config, &cfg, &name_to_id).expect("create policies");
+
+        let channels = tracker.resources().notification_channels.clone();
+        let policies = tracker.resources().alert_policies.clone();
+        assert_eq!(channels.len(), 1);
+        assert_eq!(policies.len(), 1);
+        for c in &channels {
+            assert!(notification_channel_exists(c, &config.project), "channel {} missing", c);
+        }
+        for p in &policies {
+            assert!(alert_policy_exists(p, &config.project), "policy {} missing", p);
+        }
+
+        // Tear down: policies first (they reference channels), then channels.
+        for p in &policies {
+            delete_policy(p).expect("delete policy");
+            assert!(!alert_policy_exists(p, &config.project), "policy {} leaked", p);
+        }
+        for c in &channels {
+            delete_channel(c).expect("delete channel");
+            assert!(!notification_channel_exists(c, &config.project), "channel {} leaked", c);
+        }
     }
 }

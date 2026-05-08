@@ -82,7 +82,7 @@ pub fn artifact_image_exists(full_url: &str, project: &str) -> bool {
 
 pub fn notification_channel_exists(id: &str, project: &str) -> bool {
     gcloud_describe_succeeds(&[
-        "monitoring", "channels", "describe", id, "--project", project,
+        "beta", "monitoring", "channels", "describe", id, "--project", project,
     ])
 }
 
