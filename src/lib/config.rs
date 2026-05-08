@@ -1,7 +1,9 @@
 use std::fs::File;
 use std::path::Path;
+use anyhow::Result;
 use serde_yaml::{Mapping, Value};
 use crate::get;
+use crate::lib::notifications::NotificationsConfig;
 
 pub struct Config {
     pub region: String,
@@ -46,6 +48,23 @@ impl Config {
             project: project_id_binding,
             service_account: None,
             formatted_service_account: None,
+        }
+    }
+
+    /// Reads the optional `notifications:` section from `beaver_config.yaml`
+    /// and validates it. Returns `None` when the section is missing.
+    pub fn load_notifications(path_to_config: &Path) -> Result<Option<NotificationsConfig>> {
+        let mapping: Mapping = serde_yaml::from_reader(
+            File::open(path_to_config.join("beaver_config.yaml"))?
+        )?;
+        let key = Value::String("notifications".into());
+        match mapping.get(&key) {
+            None => Ok(None),
+            Some(v) => {
+                let cfg: NotificationsConfig = serde_yaml::from_value(v.clone())?;
+                cfg.validate()?;
+                Ok(Some(cfg))
+            }
         }
     }
 

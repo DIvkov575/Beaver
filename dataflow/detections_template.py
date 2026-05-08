@@ -19,9 +19,14 @@ def run(argv=None):
     def harness(test):
         def detection(record, /):
             if test(record):
-                logging.warning(
-                    f"BEAVER SIEM: rule {test.__name__!r} matched record: {record!r}"
-                )
+                # Structured payload — Cloud Logging parses this into
+                # jsonPayload.rule_name etc, which alert policies match on.
+                logging.warning(json.dumps({
+                    "event": "BEAVER_SIEM_MATCH",
+                    "rule_name": test.__name__,
+                    "record": record,
+                    "message": f"rule {test.__name__!r} matched",
+                }))
 
         return detection
 
@@ -31,7 +36,11 @@ def run(argv=None):
         try:
             record = json.loads(raw)
         except json.JSONDecodeError:
-            logging.warning(f"BEAVER SIEM: dropping non-JSON message: {raw!r}")
+            logging.warning(json.dumps({
+                "event": "BEAVER_SIEM_DROP",
+                "reason": "non-JSON",
+                "message": "dropping non-JSON message",
+            }))
             return element
         detections(record)
         return element

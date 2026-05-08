@@ -17,6 +17,10 @@ pub struct Resources {
     pub crs_instance: String,
     pub vector_artifact_url: String,
     pub dataflow_pipeline_name: String,
+    #[serde(default)]
+    pub notification_channels: Vec<String>,
+    #[serde(default)]
+    pub alert_policies: Vec<String>,
 }
 
 impl Resources {
@@ -30,6 +34,8 @@ impl Resources {
             crs_instance: String::new(),
             vector_artifact_url: String::new(),
             dataflow_pipeline_name: String::new(),
+            notification_channels: Vec::new(),
+            alert_policies: Vec::new(),
         }
     }
 
@@ -114,6 +120,16 @@ impl<'a> Tracker<'a> {
         self.persist()
     }
 
+    pub fn record_notification_channel(&mut self, id: String) -> Result<()> {
+        self.res.notification_channels.push(id);
+        self.persist()
+    }
+
+    pub fn record_alert_policy(&mut self, id: String) -> Result<()> {
+        self.res.alert_policies.push(id);
+        self.persist()
+    }
+
     pub fn forget_bq(&mut self) -> Result<()> {
         self.res.biq_query.dataset_id.clear();
         self.res.biq_query.table_id.clear();
@@ -157,6 +173,16 @@ impl<'a> Tracker<'a> {
 
     pub fn forget_dataflow_pipeline(&mut self) -> Result<()> {
         self.res.dataflow_pipeline_name.clear();
+        self.persist()
+    }
+
+    pub fn forget_notification_channel(&mut self, id: &str) -> Result<()> {
+        self.res.notification_channels.retain(|x| x != id);
+        self.persist()
+    }
+
+    pub fn forget_alert_policy(&mut self, id: &str) -> Result<()> {
+        self.res.alert_policies.retain(|x| x != id);
         self.persist()
     }
 }

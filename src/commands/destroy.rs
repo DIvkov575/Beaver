@@ -5,10 +5,12 @@ use std::path::Path;
 use crate::lib::config::Config;
 use crate::lib::resources::{Resources, Tracker};
 use crate::lib::utilities::{check_for_bq, check_for_gcloud, validate_config_path};
-use crate::lib::{bq, cloud_build, crs, dataflow, gcs, pubsub};
+use crate::lib::{bq, cloud_build, crs, dataflow, gcs, notifications, pubsub};
 
 #[derive(Debug, PartialEq, Eq)]
 pub enum DeleteStep {
+    AlertPolicy(String),
+    NotificationChannel(String),
     DataflowJob(String),
     CrsService(String),
     PubsubBqSubscription(String),
@@ -20,13 +22,20 @@ pub enum DeleteStep {
     GcsBucket(String),
 }
 
-/// Reverse of creation: dataflow → CRS → pubsub subs → topic → bq → image →
-/// repo → bucket. Dataflow first so it stops reading from the output topic
-/// before we tear that topic down. Bucket last because deploy writes debris
-/// (template, staging) into it that we don't want to lose access to mid-tear-down.
+/// Reverse of creation: alert policies → notification channels → dataflow →
+/// CRS → pubsub subs → topic → bq → image → repo → bucket. Policies before
+/// channels because policies reference channel IDs. Dataflow before pubsub
+/// so it stops reading from the output topic before we delete the topic.
+/// Bucket last because deploy writes debris (template, staging) into it.
 pub fn plan(res: &Resources) -> Vec<DeleteStep> {
     let mut steps = Vec::new();
 
+    for policy in &res.alert_policies {
+        steps.push(DeleteStep::AlertPolicy(policy.clone()));
+    }
+    for channel in &res.notification_channels {
+        steps.push(DeleteStep::NotificationChannel(channel.clone()));
+    }
     if !res.dataflow_pipeline_name.is_empty() {
         steps.push(DeleteStep::DataflowJob(res.dataflow_pipeline_name.clone()));
     }
@@ -70,6 +79,8 @@ where
             Err(e) => error!("destroy step {:?} failed: {}", step, e),
             Ok(()) => {
                 let forget = match &step {
+                    DeleteStep::AlertPolicy(id) => tracker.forget_alert_policy(id),
+                    DeleteStep::NotificationChannel(id) => tracker.forget_notification_channel(id),
                     DeleteStep::DataflowJob(_) => tracker.forget_dataflow_pipeline(),
                     DeleteStep::CrsService(_) => tracker.forget_crs_instance(),
                     DeleteStep::PubsubBqSubscription(_) => tracker.forget_pubsub_bq_subscription(),
@@ -90,6 +101,8 @@ where
 
 fn dispatch_real(step: &DeleteStep, config: &Config) -> Result<()> {
     match step {
+        DeleteStep::AlertPolicy(id) => notifications::delete_policy(id),
+        DeleteStep::NotificationChannel(id) => notifications::delete_channel(id),
         DeleteStep::DataflowJob(name) => dataflow::delete_job(name, config),
         DeleteStep::CrsService(name) => crs::delete_crs(name, config),
         DeleteStep::PubsubBqSubscription(id) => pubsub::delete_subscription(id, config),

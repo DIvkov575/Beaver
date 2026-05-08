@@ -80,6 +80,18 @@ pub fn artifact_image_exists(full_url: &str, project: &str) -> bool {
     out.status.success()
 }
 
+pub fn notification_channel_exists(id: &str, project: &str) -> bool {
+    gcloud_describe_succeeds(&[
+        "monitoring", "channels", "describe", id, "--project", project,
+    ])
+}
+
+pub fn alert_policy_exists(id: &str, project: &str) -> bool {
+    gcloud_describe_succeeds(&[
+        "alpha", "monitoring", "policies", "describe", id, "--project", project,
+    ])
+}
+
 pub fn crs_service_exists(name: &str, project: &str, region: &str) -> bool {
     gcloud_describe_succeeds(&[
         "run", "services", "describe", name,

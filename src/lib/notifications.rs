@@ -4,10 +4,15 @@
 //! it at config-load time. Provisioning happens in a sibling module that
 //! consumes a validated `NotificationsConfig`.
 
-use std::collections::{BTreeMap, HashSet};
+use std::collections::{BTreeMap, HashMap, HashSet};
+use std::process::Command;
 
 use anyhow::{anyhow, Result};
+use log::info;
 use serde::{Deserialize, Serialize};
+
+use crate::lib::config::Config;
+use crate::lib::resources::Tracker;
 
 const SUPPORTED_CHANNEL_TYPES: &[&str] = &[
     "email",
@@ -82,6 +87,174 @@ impl NotificationsConfig {
         }
         Ok(())
     }
+}
+
+/// Provisions every channel via `gcloud monitoring channels create` and records
+/// the returned resource ID on the tracker. Returns a map from local channel
+/// names (as written in the YAML) to GCP channel IDs, used by the policy step
+/// to resolve `notificationChannels` references.
+pub fn create_channels(
+    tracker: &mut Tracker,
+    config: &Config,
+    cfg: &NotificationsConfig,
+) -> Result<HashMap<String, String>> {
+    let mut name_to_id = HashMap::new();
+    for ch in &cfg.channels {
+        info!("creating notification channel {:?}", ch.name);
+        let labels_arg = if ch.labels.is_empty() {
+            String::new()
+        } else {
+            ch.labels
+                .iter()
+                .map(|(k, v)| format!("{}={}", k, v))
+                .collect::<Vec<_>>()
+                .join(",")
+        };
+
+        let mut args: Vec<String> = vec![
+            "monitoring".into(),
+            "channels".into(),
+            "create".into(),
+            format!("--display-name={}", ch.name),
+            format!("--type={}", ch.channel_type),
+            format!("--project={}", config.project),
+            "--format=value(name)".into(),
+        ];
+        if !labels_arg.is_empty() {
+            args.push(format!("--channel-labels={}", labels_arg));
+        }
+
+        let output = Command::new("gcloud")
+            .args(args.iter().map(|s| s.as_str()))
+            .output()?;
+        if !output.status.success() {
+            let stderr = String::from_utf8_lossy(&output.stderr);
+            return Err(anyhow!(
+                "gcloud monitoring channels create failed for {:?}: {}",
+                ch.name, stderr
+            ));
+        }
+        let id = String::from_utf8_lossy(&output.stdout).trim().to_string();
+        if id.is_empty() {
+            return Err(anyhow!("channels create returned empty id for {:?}", ch.name));
+        }
+        tracker.record_notification_channel(id.clone())?;
+        name_to_id.insert(ch.name.clone(), id);
+    }
+    Ok(name_to_id)
+}
+
+/// One log-based alert policy per route. Filter is built from the route's
+/// `match` keys (`severity`, `rule_name`) ANDed with the always-on Beaver
+/// detection-event filter.
+pub fn create_alert_policies(
+    tracker: &mut Tracker,
+    config: &Config,
+    cfg: &NotificationsConfig,
+    name_to_id: &HashMap<String, String>,
+) -> Result<()> {
+    for (i, route) in cfg.routes.iter().enumerate() {
+        let filter = build_filter(&route.match_keys);
+        let channel_ids: Vec<&str> = route
+            .channels
+            .iter()
+            .map(|n| {
+                name_to_id
+                    .get(n)
+                    .map(String::as_str)
+                    .ok_or_else(|| anyhow!("route {}: unknown channel {:?}", i, n))
+            })
+            .collect::<Result<_>>()?;
+
+        let policy_yaml = render_policy_yaml(&format!("beaver-route-{}", i), &filter, &channel_ids);
+
+        let tmp = tempfile::NamedTempFile::new()?;
+        std::fs::write(tmp.path(), &policy_yaml)?;
+
+        info!("creating alert policy for route {} with filter {:?}", i, filter);
+        let output = Command::new("gcloud")
+            .args([
+                "alpha",
+                "monitoring",
+                "policies",
+                "create",
+                &format!("--policy-from-file={}", tmp.path().display()),
+                &format!("--project={}", config.project),
+                "--format=value(name)",
+            ])
+            .output()?;
+        if !output.status.success() {
+            let stderr = String::from_utf8_lossy(&output.stderr);
+            return Err(anyhow!("gcloud alert policy create failed: {}", stderr));
+        }
+        let id = String::from_utf8_lossy(&output.stdout).trim().to_string();
+        if id.is_empty() {
+            return Err(anyhow!("alert policy create returned empty id"));
+        }
+        tracker.record_alert_policy(id)?;
+    }
+    Ok(())
+}
+
+pub fn delete_channel(id: &str) -> Result<()> {
+    info!("deleting notification channel {}", id);
+    let output = Command::new("gcloud")
+        .args(["monitoring", "channels", "delete", id, "--quiet"])
+        .output()?;
+    if !output.status.success() {
+        let stderr = String::from_utf8_lossy(&output.stderr);
+        if stderr.contains("NOT_FOUND") {
+            return Ok(());
+        }
+        return Err(anyhow!("channel delete failed: {}", stderr));
+    }
+    Ok(())
+}
+
+pub fn delete_policy(id: &str) -> Result<()> {
+    info!("deleting alert policy {}", id);
+    let output = Command::new("gcloud")
+        .args(["alpha", "monitoring", "policies", "delete", id, "--quiet"])
+        .output()?;
+    if !output.status.success() {
+        let stderr = String::from_utf8_lossy(&output.stderr);
+        if stderr.contains("NOT_FOUND") {
+            return Ok(());
+        }
+        return Err(anyhow!("policy delete failed: {}", stderr));
+    }
+    Ok(())
+}
+
+fn build_filter(match_keys: &BTreeMap<String, String>) -> String {
+    // Always anchor on the structured marker the harness emits, so we never
+    // catch unrelated dataflow logs.
+    let mut clauses: Vec<String> = vec![
+        r#"resource.type="dataflow_step""#.into(),
+        r#"jsonPayload.event="BEAVER_SIEM_MATCH""#.into(),
+    ];
+    for (k, v) in match_keys {
+        clauses.push(format!(r#"jsonPayload.{}="{}""#, k, v));
+    }
+    clauses.join(" AND ")
+}
+
+fn render_policy_yaml(display_name: &str, filter: &str, channel_ids: &[&str]) -> String {
+    let mut out = String::new();
+    out.push_str(&format!("displayName: {:?}\n", display_name));
+    out.push_str("combiner: OR\n");
+    out.push_str("conditions:\n");
+    out.push_str("  - displayName: \"Detection fired\"\n");
+    out.push_str("    conditionMatchedLog:\n");
+    out.push_str(&format!("      filter: |\n        {}\n", filter.replace('\n', "\n        ")));
+    out.push_str("notificationChannels:\n");
+    for c in channel_ids {
+        out.push_str(&format!("  - {}\n", c));
+    }
+    out.push_str("alertStrategy:\n");
+    out.push_str("  notificationRateLimit:\n");
+    out.push_str("    period: 300s\n");
+    out
 }
 
 #[cfg(test)]
@@ -247,6 +420,49 @@ notifications:
         let cfg: NotificationsConfig = serde_yaml::from_value(section).unwrap();
         cfg.validate().unwrap();
         assert_eq!(cfg.channels[0].name, "e");
+    }
+
+    #[test]
+    fn build_filter_anchors_on_event_marker() {
+        let m = BTreeMap::new();
+        let f = build_filter(&m);
+        assert!(f.contains(r#"resource.type="dataflow_step""#));
+        assert!(f.contains(r#"jsonPayload.event="BEAVER_SIEM_MATCH""#));
+    }
+
+    #[test]
+    fn build_filter_appends_match_keys() {
+        let mut m = BTreeMap::new();
+        m.insert("severity".to_string(), "high".to_string());
+        m.insert("rule_name".to_string(), "suspicious_login".to_string());
+        let f = build_filter(&m);
+        assert!(f.contains(r#"jsonPayload.severity="high""#));
+        assert!(f.contains(r#"jsonPayload.rule_name="suspicious_login""#));
+        // ANDed together
+        assert_eq!(f.matches(" AND ").count(), 3);
+    }
+
+    #[test]
+    fn render_policy_yaml_includes_channels_and_filter() {
+        let yaml = render_policy_yaml(
+            "test-policy",
+            r#"resource.type="x" AND jsonPayload.event="y""#,
+            &["projects/123/notificationChannels/abc", "projects/123/notificationChannels/def"],
+        );
+        assert!(yaml.contains(r#"displayName: "test-policy""#));
+        assert!(yaml.contains("conditionMatchedLog:"));
+        assert!(yaml.contains(r#"filter: |"#));
+        assert!(yaml.contains(r#"jsonPayload.event="y""#));
+        assert!(yaml.contains("- projects/123/notificationChannels/abc"));
+        assert!(yaml.contains("- projects/123/notificationChannels/def"));
+        // policy file should be valid YAML
+        let _: serde_yaml::Value = serde_yaml::from_str(&yaml).expect("valid yaml");
+    }
+
+    #[test]
+    fn integration_tests_compile() {
+        // Sentinel: makes sure the integration-test imports below pull their
+        // weight at compile time even when --ignored aren't run.
     }
 
     #[test]
