@@ -51,22 +51,26 @@ def test_detection_dispatcher_calls_each_rule(compiled_detections):
 
 
 def test_matching_record_emits_warning(compiled_detections, caplog):
+    import json as _json
     ns = _extract_inner_runtime(compiled_detections)
     record = {"event": "login", "severity": "high", "user": "alice"}
     with caplog.at_level(logging.WARNING):
         ns["detections"](record)
-    assert any("suspicious_login" in r.message for r in caplog.records), \
-        f"expected suspicious_login match in {[r.message for r in caplog.records]}"
+    matches = [_json.loads(r.message) for r in caplog.records if r.message.startswith("{")]
+    rule_names = [m.get("rule_name") for m in matches]
+    assert any("suspicious_login" in n for n in rule_names if n), \
+        f"expected suspicious_login match in {rule_names}"
 
 
 def test_filtered_record_does_not_emit_warning(compiled_detections, caplog):
+    import json as _json
     ns = _extract_inner_runtime(compiled_detections)
-    # service- prefix is filtered out by the rule's `not filter` clause.
     record = {"event": "login", "severity": "high", "user": "service-bot"}
     with caplog.at_level(logging.WARNING):
         ns["detections"](record)
-    matched = [r for r in caplog.records if "suspicious_login" in r.message]
-    assert not matched, f"service- user should not match: {matched}"
+    matches = [_json.loads(r.message) for r in caplog.records if r.message.startswith("{")]
+    triggered = [m for m in matches if m.get("rule_name") == "suspicious_login"]
+    assert not triggered, f"service- user should not match: {triggered}"
 
 
 def test_non_matching_record_silent(compiled_detections, caplog):
@@ -96,6 +100,7 @@ def _direct_pipeline():
 
 
 def test_beam_directrunner_processes_each_message(compiled_detections, caplog):
+    import json as _json
     process = _build_process_only(compiled_detections)
     messages = [
         PubsubMessage(data=b'{"event":"login","severity":"high","user":"alice"}', attributes={}),
@@ -108,17 +113,19 @@ def test_beam_directrunner_processes_each_message(compiled_detections, caplog):
              | "Inject" >> beam.Create(messages)
              | "RunDetections" >> beam.Map(process))
 
-    matches = [r.message for r in caplog.records if "matched record" in r.message]
-    # Expect: alice triggers suspicious_login; service-bot is filtered; logout no-op.
+    payloads = [_json.loads(r.message) for r in caplog.records if r.message.startswith("{")]
+    matches = [p for p in payloads if p.get("event") == "BEAVER_SIEM_MATCH"]
     assert len(matches) == 1, f"expected 1 match, got {matches}"
-    assert "suspicious_login" in matches[0]
+    assert matches[0]["rule_name"] == "suspicious_login"
 
 
 def test_beam_directrunner_skips_non_json(compiled_detections, caplog):
+    import json as _json
     process = _build_process_only(compiled_detections)
     messages = [PubsubMessage(data=b"not json at all", attributes={})]
     with caplog.at_level(logging.WARNING):
         with _direct_pipeline() as p:
             p | beam.Create(messages) | beam.Map(process)
-    drops = [r.message for r in caplog.records if "non-JSON" in r.message]
-    assert len(drops) == 1, f"expected 1 drop warning, got {drops}"
+    payloads = [_json.loads(r.message) for r in caplog.records if r.message.startswith("{")]
+    drops = [p for p in payloads if p.get("event") == "BEAVER_SIEM_DROP"]
+    assert len(drops) == 1, f"expected 1 drop event, got {drops}"

@@ -5,7 +5,7 @@ use log::info;
 use spinoff::{Color, Spinner, spinners};
 use crate::lib::{bq::{
     self
-}, config::Config, crs, dataflow, detections_gen, gcs, pubsub, cloud_build};
+}, config::Config, crs, dataflow, detections_gen, gcs, pubsub, cloud_build, notifications};
 use crate::lib::resources::{Resources, Tracker};
 use crate::lib::sigma;
 use crate::lib::utilities::{self, check_for_bq, check_for_gcloud, validate_config_path};
@@ -34,6 +34,11 @@ pub fn deploy(path_arg: &str) -> Result<()> {
 
     dataflow::create_template(&path, &mut tracker, &config)?;
     dataflow::create_pipeline(&mut tracker, &config)?;
+
+    if let Some(notifications_cfg) = Config::load_notifications(&path)? {
+        let name_to_id = notifications::create_channels(&mut tracker, &config, &notifications_cfg)?;
+        notifications::create_alert_policies(&mut tracker, &config, &notifications_cfg, &name_to_id)?;
+    }
 
     Ok(())
 }
