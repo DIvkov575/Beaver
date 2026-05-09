@@ -5,8 +5,8 @@ function and confirm the firing rules match `payloads/expected.yaml`.
 Usage:
     /tmp/beaver-test/detections/venv/bin/python examples/test-pipeline/verify.py
 
-Assumes `cargo run -- compile --path examples/test-pipeline/beaver_config`
-has already been run so `artifacts/detections_gen.py` exists.
+Loads the `detections_gen.py` that `cargo run -- deploy` produces. Run a
+deploy (or `./scripts/e2e_test_pipeline.sh`) once to populate it.
 """
 from __future__ import annotations
 
@@ -82,7 +82,7 @@ def replay_payload(ns: dict, raw: bytes) -> tuple[set[str], bool]:
 
 def main() -> int:
     if not GENERATED.exists():
-        sys.exit(f"missing {GENERATED}; run `cargo run -- compile --path {CONFIG}` first")
+        sys.exit(f"missing {GENERATED}; run `cargo run -- deploy --path {CONFIG}` (or ./scripts/e2e_test_pipeline.sh) once")
 
     expected = yaml.safe_load(EXPECTED.read_text())
     ns = _build_detections_namespace()
