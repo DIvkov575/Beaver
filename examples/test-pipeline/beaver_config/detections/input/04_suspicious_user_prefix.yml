@@ -1,0 +1,15 @@
+title: suspicious_user_prefix
+id: a1f1f100-0001-4000-9000-000000000004
+status: experimental
+description: |
+  Activity from any user whose name starts with "temp_". Exercises the
+  `startswith` modifier. Pairs naturally with iam/data events but the rule
+  itself doesn't restrict event type.
+logsource:
+  product: app
+  service: audit
+detection:
+  selection:
+    user|startswith: 'temp_'
+  condition: selection
+level: high

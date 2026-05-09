@@ -1,0 +1,16 @@
+# This file was generated from a Sigma rule
+
+date: None
+description: "Bulk-export operations on the data plane. Exercises a list-of-values\n\
+  selection on a specific field \u2014 fires for `export` or `download_bulk`\nbut\
+  \ not for routine `read`.\n"
+id: a1f1f100-0001-4000-9000-000000000005
+level: medium
+references: []
+status: experimental
+
+
+name: bulk_data_export
+tables:
+- app_data
+

@@ -1,0 +1,44 @@
+# Expected detection outcomes per payload, indexed by relative path under
+# `payloads/`. Each entry is either:
+#   matches: [rule_name, ...]         — list of rule names expected to fire
+#   drop: true                         — payload is malformed JSON, harness
+#                                        emits a DROP event instead
+#
+# Rule names are the sluggified sigma titles produced by sigma_generate.py.
+
+benign/01_successful_login.json:
+  matches: []
+benign/02_routine_read.json:
+  matches: []
+benign/03_internal_viewer_grant.json:
+  matches: []
+benign/04_heartbeat.json:
+  matches: []
+
+single_match/01_failed_login.json:
+  matches: [failed_login]
+single_match/02_owner_grant_to_internal.json:
+  matches: [privileged_role_grant]
+single_match/03_viewer_grant_to_external.json:
+  matches: [external_iam_grant]
+single_match/04_temp_user_routine.json:
+  matches: [suspicious_user_prefix]
+single_match/05_data_export.json:
+  matches: [bulk_data_export]
+
+multi_match/01_owner_to_external_by_temp.json:
+  matches: [privileged_role_grant, external_iam_grant, suspicious_user_prefix]
+multi_match/02_temp_user_bulk_export.json:
+  matches: [suspicious_user_prefix, bulk_data_export]
+
+edge/01_malformed.txt:
+  matches: []
+  drop: true
+edge/02_empty_object.json:
+  matches: []
+edge/03_partial_login.json:
+  matches: []
+edge/04_null_status.json:
+  matches: []
+edge/05_unicode_user.json:
+  matches: [failed_login]

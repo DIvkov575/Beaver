@@ -1,0 +1,20 @@
+# This file was generated from a Sigma rule
+
+date: None
+description: 'Activity from any user whose name starts with "temp_". Exercises the
+
+  `startswith` modifier. Pairs naturally with iam/data events but the rule
+
+  itself doesn''t restrict event type.
+
+  '
+id: a1f1f100-0001-4000-9000-000000000004
+level: high
+references: []
+status: experimental
+
+
+name: suspicious_user_prefix
+tables:
+- app_audit
+

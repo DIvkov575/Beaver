@@ -1,0 +1,18 @@
+title: external_iam_grant
+id: a1f1f100-0001-4000-9000-000000000003
+status: experimental
+description: |
+  IAM grant to a user outside our company domain. Exercises the
+  `selection AND NOT filter` pattern with the `endswith` modifier. Internal
+  users (anything @neon-circle.io) are filtered out.
+logsource:
+  product: gcp
+  service: iam
+detection:
+  selection:
+    event: iam_change
+    action: grant
+  internal_user:
+    granted_to|endswith: '@neon-circle.io'
+  condition: selection and not internal_user
+level: medium

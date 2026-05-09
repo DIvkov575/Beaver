@@ -36,8 +36,9 @@ pub fn generate_vector_config(path: &Path, resources: &Resources, config: &Confi
     info!("generating vector config...");
 
     let beaver_config: Mapping = serde_yaml::from_reader(&File::open(path.join("beaver_config.yaml"))?)?;
-    std::fs::remove_file(path.join("artifacts").join("vector.yaml"))?;
-    let vector_config_file = OpenOptions::new().write(true).create(true).open(path.join("artifacts").join("vector.yaml"))?;
+    let vector_path = path.join("artifacts").join("vector.yaml");
+    let _ = std::fs::remove_file(&vector_path); // idempotent: file may not exist yet on a fresh fixture
+    let vector_config_file = OpenOptions::new().write(true).create(true).truncate(true).open(&vector_path)?;
 
     let output_pubsub= &resources.output_pubsub;
 
