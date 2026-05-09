@@ -1,0 +1,21 @@
+# This file was generated from a Sigma rule
+
+date: None
+description: 'IAM grant of a privileged role. Exercises sigma list-value matching
+  (any
+
+  of). Should fire on roles/owner, roles/editor, or roles/iam.securityAdmin
+
+  but NOT on roles/viewer.
+
+  '
+id: a1f1f100-0001-4000-9000-000000000002
+level: high
+references: []
+status: experimental
+
+
+name: privileged_role_grant
+tables:
+- gcp_iam
+

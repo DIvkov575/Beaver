@@ -1,0 +1,20 @@
+# This file was generated from a Sigma rule
+
+date: None
+description: 'IAM grant to a user outside our company domain. Exercises the
+
+  `selection AND NOT filter` pattern with the `endswith` modifier. Internal
+
+  users (anything @neon-circle.io) are filtered out.
+
+  '
+id: a1f1f100-0001-4000-9000-000000000003
+level: medium
+references: []
+status: experimental
+
+
+name: external_iam_grant
+tables:
+- gcp_iam
+

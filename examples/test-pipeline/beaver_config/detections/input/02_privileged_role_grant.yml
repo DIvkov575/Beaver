@@ -1,0 +1,20 @@
+title: privileged_role_grant
+id: a1f1f100-0001-4000-9000-000000000002
+status: experimental
+description: |
+  IAM grant of a privileged role. Exercises sigma list-value matching (any
+  of). Should fire on roles/owner, roles/editor, or roles/iam.securityAdmin
+  but NOT on roles/viewer.
+logsource:
+  product: gcp
+  service: iam
+detection:
+  selection:
+    event: iam_change
+    action: grant
+    role:
+      - roles/owner
+      - roles/editor
+      - roles/iam.securityAdmin
+  condition: selection
+level: high

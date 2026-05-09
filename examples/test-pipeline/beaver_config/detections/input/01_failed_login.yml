@@ -1,0 +1,16 @@
+title: failed_login
+id: a1f1f100-0001-4000-9000-000000000001
+status: experimental
+description: |
+  Single failed-authentication event. The simplest possible detection — exact
+  equality on two top-level fields. Used to verify that flat events with
+  matching values trigger.
+logsource:
+  product: app
+  service: auth
+detection:
+  selection:
+    event: login
+    status: failed
+  condition: selection
+level: low

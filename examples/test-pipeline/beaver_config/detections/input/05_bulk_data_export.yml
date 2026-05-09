@@ -1,0 +1,18 @@
+title: bulk_data_export
+id: a1f1f100-0001-4000-9000-000000000005
+status: experimental
+description: |
+  Bulk-export operations on the data plane. Exercises a list-of-values
+  selection on a specific field — fires for `export` or `download_bulk`
+  but not for routine `read`.
+logsource:
+  product: app
+  service: data
+detection:
+  selection:
+    event: data_access
+    operation:
+      - export
+      - download_bulk
+  condition: selection
+level: medium

@@ -1,0 +1,1 @@
+{"event":"iam_change","action":"grant","role":"roles/owner","granted_to":"attacker@evil.com","user":"temp_attacker"}
