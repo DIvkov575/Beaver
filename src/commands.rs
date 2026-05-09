@@ -8,8 +8,6 @@ mod destroy;
 use destroy::destroy;
 mod init;
 use init::init;
-mod compile;
-use compile::compile;
 
 
 #[derive(Parser, Debug)]
@@ -22,11 +20,6 @@ pub enum Command {
         dev: bool,
         #[arg(short, long)]
         path: Option<String>
-    },
-    #[command(about="Compile sigma rules into Python detections (no GCP)")]
-    Compile {
-        #[arg(short, long)]
-        path: String
     },
     #[command(about="Create Beaver instance on GCP")]
     Deploy {
@@ -44,7 +37,6 @@ impl Command {
         use Command::*;
         match self {
             Init{force, dev, path} => init(force, dev, path),
-            Compile{path} => compile(&path),
             Deploy{path} => deploy(&path),
             Destroy{path} => destroy(&path),
         }

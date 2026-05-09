@@ -35,23 +35,11 @@ payloads/
 | 4 | `suspicious_user_prefix` | `\|startswith: temp_` | high |
 | 5 | `bulk_data_export` | `operation` is one of [export, download_bulk, query_bulk] | medium |
 
-## Running locally (no GCP)
-
-```
-# Compile rules to detections_gen.py
-cargo run -- compile --path examples/test-pipeline/beaver_config
-
-# Inspect the merged Beam pipeline
-cat examples/test-pipeline/beaver_config/artifacts/detections_gen.py
-```
-
 ## Verifying detection logic against the manifest
 
-```
-# Compile rules first
-cargo run -- compile --path examples/test-pipeline/beaver_config
+After a deploy populates `artifacts/detections_gen.py`:
 
-# Replay every payload through detections() and assert against expected.yaml
+```
 /tmp/beaver-test/detections/venv/bin/python examples/test-pipeline/verify.py
 ```
 
@@ -59,23 +47,13 @@ The verifier loads each payload, runs it through the compiled `detections()`
 function, captures emitted warnings, and compares the firing rule names
 to `payloads/expected.yaml`.
 
-## Running against real GCP
+## Running end-to-end against real GCP
 
 ```
-gcloud pubsub topics create beaver-test-pipeline-input
-gcloud pubsub subscriptions create beaver-test-pipeline-input-sub \
-  --topic=beaver-test-pipeline-input
-
-cargo run -- deploy --path examples/test-pipeline/beaver_config
-
-# Publish all payloads
-for f in examples/test-pipeline/payloads/{benign,single_match,multi_match,edge}/*; do
-  gcloud pubsub topics publish beaver-test-pipeline-input \
-    --message="$(cat "$f")"
-done
-
-# Tear down
-cargo run -- destroy --path examples/test-pipeline/beaver_config
-gcloud pubsub subscriptions delete beaver-test-pipeline-input-sub --quiet
-gcloud pubsub topics delete beaver-test-pipeline-input --quiet
+./scripts/e2e_test_pipeline.sh
 ```
+
+The script provisions the input topic, runs `cargo run -- deploy`, publishes
+every payload, waits for processing, asserts Dataflow detections match
+`expected.yaml`, then `cargo run -- destroy` and removes the input topic.
+Trap-based cleanup runs on any exit.

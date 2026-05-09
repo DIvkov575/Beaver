@@ -53,24 +53,26 @@ def test_detection_dispatcher_calls_each_rule(compiled_detections):
 def test_matching_record_emits_warning(compiled_detections, caplog):
     import json as _json
     ns = _extract_inner_runtime(compiled_detections)
-    record = {"event": "login", "severity": "high", "user": "alice"}
+    record = {"event": "login", "status": "failed", "user": "alice@neon-circle.io"}
     with caplog.at_level(logging.WARNING):
         ns["detections"](record)
     matches = [_json.loads(r.message) for r in caplog.records if r.message.startswith("{")]
     rule_names = [m.get("rule_name") for m in matches]
-    assert any("suspicious_login" in n for n in rule_names if n), \
-        f"expected suspicious_login match in {rule_names}"
+    assert "failed_login" in rule_names, f"expected failed_login match in {rule_names}"
 
 
 def test_filtered_record_does_not_emit_warning(compiled_detections, caplog):
+    """external_iam_grant has `selection AND NOT internal_user` — internal
+    grantees should be filtered out and not emit a warning."""
     import json as _json
     ns = _extract_inner_runtime(compiled_detections)
-    record = {"event": "login", "severity": "high", "user": "service-bot"}
+    record = {"event": "iam_change", "action": "grant",
+              "role": "roles/viewer", "granted_to": "new@neon-circle.io"}
     with caplog.at_level(logging.WARNING):
         ns["detections"](record)
     matches = [_json.loads(r.message) for r in caplog.records if r.message.startswith("{")]
-    triggered = [m for m in matches if m.get("rule_name") == "suspicious_login"]
-    assert not triggered, f"service- user should not match: {triggered}"
+    triggered = [m for m in matches if m.get("rule_name") == "external_iam_grant"]
+    assert not triggered, f"internal grant should not match external_iam_grant: {triggered}"
 
 
 def test_non_matching_record_silent(compiled_detections, caplog):
@@ -100,12 +102,14 @@ def _direct_pipeline():
 
 
 def test_beam_directrunner_processes_each_message(compiled_detections, caplog):
+    """Real Beam DirectRunner pipeline: 3 messages, exactly one should match.
+    Uses the test-pipeline rule set's `failed_login`."""
     import json as _json
     process = _build_process_only(compiled_detections)
     messages = [
-        PubsubMessage(data=b'{"event":"login","severity":"high","user":"alice"}', attributes={}),
-        PubsubMessage(data=b'{"event":"login","severity":"high","user":"service-bot"}', attributes={}),
-        PubsubMessage(data=b'{"event":"logout"}', attributes={}),
+        PubsubMessage(data=b'{"event":"login","status":"failed","user":"alice@neon-circle.io"}', attributes={}),
+        PubsubMessage(data=b'{"event":"login","status":"success","user":"alice@neon-circle.io"}', attributes={}),
+        PubsubMessage(data=b'{"event":"data_access","operation":"read","user":"bob@neon-circle.io"}', attributes={}),
     ]
     with caplog.at_level(logging.WARNING):
         with _direct_pipeline() as p:
@@ -116,7 +120,7 @@ def test_beam_directrunner_processes_each_message(compiled_detections, caplog):
     payloads = [_json.loads(r.message) for r in caplog.records if r.message.startswith("{")]
     matches = [p for p in payloads if p.get("event") == "BEAVER_SIEM_MATCH"]
     assert len(matches) == 1, f"expected 1 match, got {matches}"
-    assert matches[0]["rule_name"] == "suspicious_login"
+    assert matches[0]["rule_name"] == "failed_login"
 
 
 def test_beam_directrunner_skips_non_json(compiled_detections, caplog):
