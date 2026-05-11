@@ -18,3 +18,9 @@ transforms:
       - pubsub_in
     source: |
       . = .
+
+# SOC triage dashboard provisioned in Cloud Monitoring. Opt-in.
+# Toggle off by setting `enabled: false` (or removing the section entirely).
+dashboard:
+  enabled: true
+  name: "Beaver test-pipeline"

@@ -29,6 +29,10 @@ pub struct Resources {
     pub dataflow_sa_email: String,
     #[serde(default)]
     pub dataflow_sa_managed: bool,
+    #[serde(default)]
+    pub dashboard_id: String,
+    #[serde(default)]
+    pub log_metric_name: String,
 }
 
 impl Resources {
@@ -48,6 +52,8 @@ impl Resources {
             vector_sa_managed: false,
             dataflow_sa_email: String::new(),
             dataflow_sa_managed: false,
+            dashboard_id: String::new(),
+            log_metric_name: String::new(),
         }
     }
 
@@ -154,6 +160,16 @@ impl<'a> Tracker<'a> {
         self.persist()
     }
 
+    pub fn record_dashboard(&mut self, id: String) -> Result<()> {
+        self.res.dashboard_id = id;
+        self.persist()
+    }
+
+    pub fn record_log_metric(&mut self, name: String) -> Result<()> {
+        self.res.log_metric_name = name;
+        self.persist()
+    }
+
     pub fn forget_bq(&mut self) -> Result<()> {
         self.res.biq_query.dataset_id.clear();
         self.res.biq_query.table_id.clear();
@@ -219,6 +235,16 @@ impl<'a> Tracker<'a> {
     pub fn forget_dataflow_sa(&mut self) -> Result<()> {
         self.res.dataflow_sa_email.clear();
         self.res.dataflow_sa_managed = false;
+        self.persist()
+    }
+
+    pub fn forget_dashboard(&mut self) -> Result<()> {
+        self.res.dashboard_id.clear();
+        self.persist()
+    }
+
+    pub fn forget_log_metric(&mut self) -> Result<()> {
+        self.res.log_metric_name.clear();
         self.persist()
     }
 }

@@ -3,6 +3,7 @@ use std::path::Path;
 use anyhow::Result;
 use serde_yaml::{Mapping, Value};
 use crate::get;
+use crate::lib::dashboard::DashboardConfig;
 use crate::lib::notifications::NotificationsConfig;
 
 pub struct Config {
@@ -73,6 +74,26 @@ impl Config {
             .and_then(|v| v.as_str())
             .ok_or_else(|| anyhow::anyhow!("missing sources.pubsub_in.subscription"))?;
         Ok(sub.to_string())
+    }
+
+    /// Reads optional `dashboard:` section and validates. Returns `None` if
+    /// absent (whole feature is opt-in).
+    pub fn load_dashboard(path_to_config: &Path) -> Result<Option<DashboardConfig>> {
+        let mapping: Mapping = serde_yaml::from_reader(
+            File::open(path_to_config.join("beaver_config.yaml"))?
+        )?;
+        let key = Value::String("dashboard".into());
+        match mapping.get(&key) {
+            None => Ok(None),
+            Some(v) => {
+                let cfg: DashboardConfig = serde_yaml::from_value(v.clone())?;
+                cfg.validate()?;
+                if !cfg.enabled {
+                    return Ok(None);
+                }
+                Ok(Some(cfg))
+            }
+        }
     }
 
     /// Reads the optional `notifications:` section from `beaver_config.yaml`

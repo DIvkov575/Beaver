@@ -5,10 +5,12 @@ use std::path::Path;
 use crate::lib::config::Config;
 use crate::lib::resources::{Resources, Tracker};
 use crate::lib::utilities::{check_for_bq, check_for_gcloud, validate_config_path};
-use crate::lib::{bq, cloud_build, crs, dataflow, gcs, notifications, pubsub, service_accounts};
+use crate::lib::{bq, cloud_build, crs, dashboard, dataflow, gcs, notifications, pubsub, service_accounts};
 
 #[derive(Debug, PartialEq, Eq)]
 pub enum DeleteStep {
+    Dashboard(String),
+    LogMetric(String),
     AlertPolicy(String),
     NotificationChannel(String),
     DataflowJob(String),
@@ -32,6 +34,13 @@ pub enum DeleteStep {
 pub fn plan(res: &Resources) -> Vec<DeleteStep> {
     let mut steps = Vec::new();
 
+    // Dashboard references the log metric, so the dashboard must go first.
+    if !res.dashboard_id.is_empty() {
+        steps.push(DeleteStep::Dashboard(res.dashboard_id.clone()));
+    }
+    if !res.log_metric_name.is_empty() {
+        steps.push(DeleteStep::LogMetric(res.log_metric_name.clone()));
+    }
     for policy in &res.alert_policies {
         steps.push(DeleteStep::AlertPolicy(policy.clone()));
     }
@@ -91,6 +100,8 @@ where
             Err(e) => error!("destroy step {:?} failed: {}", step, e),
             Ok(()) => {
                 let forget = match &step {
+                    DeleteStep::Dashboard(_) => tracker.forget_dashboard(),
+                    DeleteStep::LogMetric(_) => tracker.forget_log_metric(),
                     DeleteStep::AlertPolicy(id) => tracker.forget_alert_policy(id),
                     DeleteStep::NotificationChannel(id) => tracker.forget_notification_channel(id),
                     DeleteStep::DataflowJob(_) => tracker.forget_dataflow_pipeline(),
@@ -115,6 +126,8 @@ where
 
 fn dispatch_real(step: &DeleteStep, config: &Config) -> Result<()> {
     match step {
+        DeleteStep::Dashboard(id) => dashboard::delete_dashboard(id, &config.project),
+        DeleteStep::LogMetric(name) => dashboard::delete_log_metric(name, &config.project),
         DeleteStep::AlertPolicy(id) => notifications::delete_policy(id),
         DeleteStep::NotificationChannel(id) => notifications::delete_channel(id),
         DeleteStep::DataflowJob(name) => dataflow::delete_job(name, config),
