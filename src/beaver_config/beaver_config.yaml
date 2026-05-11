@@ -16,3 +16,8 @@ transforms:
     type: remap
     inputs:
       - pubsub-in
+
+# Optional SOC triage dashboard (Cloud Monitoring). Uncomment to provision.
+# dashboard:
+#   enabled: true
+#   name: "Beaver"

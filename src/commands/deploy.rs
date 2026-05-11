@@ -5,7 +5,7 @@ use log::info;
 use spinoff::{Color, Spinner, spinners};
 use crate::lib::{bq::{
     self
-}, config::Config, crs, dataflow, detections_gen, gcs, pubsub, cloud_build, notifications, precheck, service_accounts};
+}, config::Config, crs, dashboard, dataflow, detections_gen, gcs, pubsub, cloud_build, notifications, precheck, service_accounts};
 use crate::lib::resources::{Resources, Tracker};
 use crate::lib::sigma;
 use crate::lib::utilities::{self, check_for_bq, check_for_gcloud, random_tag, validate_config_path};
@@ -76,6 +76,16 @@ pub fn deploy(path_arg: &str) -> Result<()> {
     if let Some(notifications_cfg) = Config::load_notifications(&path)? {
         let name_to_id = notifications::create_channels(&mut tracker, &config, &notifications_cfg)?;
         notifications::create_alert_policies(&mut tracker, &config, &notifications_cfg, &name_to_id)?;
+    }
+
+    if let Some(dashboard_cfg) = Config::load_dashboard(&path)? {
+        let metric_name = dashboard::create_log_metric(&mut tracker, &config)?;
+        let id = dashboard::create_dashboard(&mut tracker, &config, &dashboard_cfg, &metric_name)?;
+        let raw_id = id.rsplit('/').next().unwrap_or(&id);
+        info!(
+            "Dashboard: https://console.cloud.google.com/monitoring/dashboards/builder/{}?project={}",
+            raw_id, config.project
+        );
     }
 
     Ok(())
