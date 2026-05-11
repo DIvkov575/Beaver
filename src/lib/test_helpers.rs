@@ -92,6 +92,22 @@ pub fn alert_policy_exists(id: &str, project: &str) -> bool {
     ])
 }
 
+/// Returns true only when the SA is in the active list. GCP soft-deletes
+/// SAs (kept for ~30 days), so `describe` succeeds long after `delete` —
+/// `list` is the right "is it actually usable" check.
+pub fn service_account_exists(email: &str, project: &str) -> bool {
+    let out = Command::new("gcloud")
+        .args([
+            "iam", "service-accounts", "list",
+            "--project", project,
+            "--filter", &format!("email={}", email),
+            "--format=value(email)",
+        ])
+        .output()
+        .expect("gcloud failed");
+    !String::from_utf8_lossy(&out.stdout).trim().is_empty()
+}
+
 pub fn crs_service_exists(name: &str, project: &str, region: &str) -> bool {
     gcloud_describe_succeeds(&[
         "run", "services", "describe", name,

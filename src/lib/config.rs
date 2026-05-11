@@ -8,6 +8,7 @@ use crate::lib::notifications::NotificationsConfig;
 pub struct Config {
     pub region: String,
     pub project: String,
+    pub billing_account: Option<String>,
     pub service_account: Option<String>,
     formatted_service_account: Option<String>,
 }
@@ -28,6 +29,7 @@ impl Config {
         Self {
             region: region.to_string(),
             project: project.to_string(),
+            billing_account: None,
             service_account: service_account_binding,
             formatted_service_account: formatted_service_account_binding,
         }
@@ -42,13 +44,35 @@ impl Config {
 
         let region_binding = get!(beaver_config, "beaver", "region",).as_str().unwrap().to_owned();
         let project_id_binding = get!(beaver_config, "beaver", "project_id",).as_str().unwrap().to_owned();
+        let billing_account = beaver_config
+            .get(&Value::String("beaver".into()))
+            .and_then(|v| v.get(&Value::String("billing_account".into())))
+            .and_then(|v| v.as_str())
+            .map(String::from);
 
         Config {
             region: region_binding,
             project: project_id_binding,
+            billing_account,
             service_account: None,
             formatted_service_account: None,
         }
+    }
+
+    /// Extracts `sources.pubsub_in.subscription` from `beaver_config.yaml`.
+    /// This is the subscription Vector reads from — needed for the IAM grant.
+    pub fn load_input_subscription(path_to_config: &Path) -> Result<String> {
+        let mapping: Mapping = serde_yaml::from_reader(
+            File::open(path_to_config.join("beaver_config.yaml"))?
+        )?;
+        let sources = mapping.get(&Value::String("sources".into()))
+            .ok_or_else(|| anyhow::anyhow!("missing sources section"))?;
+        let pubsub_in = sources.get(&Value::String("pubsub_in".into()))
+            .ok_or_else(|| anyhow::anyhow!("missing sources.pubsub_in"))?;
+        let sub = pubsub_in.get(&Value::String("subscription".into()))
+            .and_then(|v| v.as_str())
+            .ok_or_else(|| anyhow::anyhow!("missing sources.pubsub_in.subscription"))?;
+        Ok(sub.to_string())
     }
 
     /// Reads the optional `notifications:` section from `beaver_config.yaml`

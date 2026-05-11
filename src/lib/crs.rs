@@ -14,6 +14,7 @@ pub fn create_vector(tracker: &mut Tracker, config: &Config) -> Result<()>{
     info!("creating vector...");
 
     let image_url = tracker.resources().vector_artifact_url.clone();
+    let sa_email = tracker.resources().vector_sa_email.clone();
     let mut random_string: String;
     let mut service_name_binding: String;
 
@@ -32,11 +33,17 @@ pub fn create_vector(tracker: &mut Tracker, config: &Config) -> Result<()>{
 
         // --min-instances=1 + --no-cpu-throttling keeps Vector running 24/7 so
         // it can poll Pub/Sub continuously instead of scaling to zero on idle.
-        let args: Vec<&str> =  Vec::from([
+        // --service-account binds the runtime to the minimal-permission SA
+        // beaver provisioned for vector instead of the default GCE editor SA.
+        let sa_flag = format!("--service-account={}", sa_email);
+        let mut args: Vec<&str> = vec![
             "run", "deploy", "--no-allow-unauthenticated",
             &service_name_binding, "--image", &image_url,
             "--min-instances=1", "--no-cpu-throttling",
-        ]);
+        ];
+        if !sa_email.is_empty() {
+            args.push(&sa_flag);
+        }
 
         let output = Command::new("gcloud").args(args).args(config.flatten()).output()?;
         log_output(&output)?;

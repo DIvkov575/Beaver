@@ -5,7 +5,7 @@ use std::path::Path;
 use crate::lib::config::Config;
 use crate::lib::resources::{Resources, Tracker};
 use crate::lib::utilities::{check_for_bq, check_for_gcloud, validate_config_path};
-use crate::lib::{bq, cloud_build, crs, dataflow, gcs, notifications, pubsub};
+use crate::lib::{bq, cloud_build, crs, dataflow, gcs, notifications, pubsub, service_accounts};
 
 #[derive(Debug, PartialEq, Eq)]
 pub enum DeleteStep {
@@ -20,6 +20,8 @@ pub enum DeleteStep {
     ArtifactImage(String),
     ArtifactRepo(String),
     GcsBucket(String),
+    VectorSa(String),
+    DataflowSa(String),
 }
 
 /// Reverse of creation: alert policies → notification channels → dataflow →
@@ -63,6 +65,16 @@ pub fn plan(res: &Resources) -> Vec<DeleteStep> {
     if !res.bucket_name.is_empty() {
         steps.push(DeleteStep::GcsBucket(res.bucket_name.clone()));
     }
+    // Service accounts last: only after every consumer (CRS, Dataflow) and
+    // every IAM-bound resource (sub, topic, bucket) is gone, so resource-scoped
+    // bindings clean up automatically when the resource disappears. Only delete
+    // when beaver-managed; user-supplied SAs are someone else's lifecycle.
+    if res.vector_sa_managed && !res.vector_sa_email.is_empty() {
+        steps.push(DeleteStep::VectorSa(res.vector_sa_email.clone()));
+    }
+    if res.dataflow_sa_managed && !res.dataflow_sa_email.is_empty() {
+        steps.push(DeleteStep::DataflowSa(res.dataflow_sa_email.clone()));
+    }
 
     steps
 }
@@ -90,6 +102,8 @@ where
                     DeleteStep::ArtifactImage(_) => tracker.forget_image(),
                     DeleteStep::ArtifactRepo(_) => tracker.forget_artifact_repo(),
                     DeleteStep::GcsBucket(_) => tracker.forget_bucket(),
+                    DeleteStep::VectorSa(_) => tracker.forget_vector_sa(),
+                    DeleteStep::DataflowSa(_) => tracker.forget_dataflow_sa(),
                 };
                 if let Err(e) = forget {
                     error!("forget after {:?} failed: {}", step, e);
@@ -112,6 +126,8 @@ fn dispatch_real(step: &DeleteStep, config: &Config) -> Result<()> {
         DeleteStep::ArtifactImage(url) => cloud_build::delete_image(url, config),
         DeleteStep::ArtifactRepo(name) => cloud_build::delete_repo(name, config),
         DeleteStep::GcsBucket(name) => gcs::delete_bucket(name),
+        DeleteStep::VectorSa(email) => service_accounts::delete_sa(email, &config.project),
+        DeleteStep::DataflowSa(email) => service_accounts::delete_sa(email, &config.project),
     }
 }
 
@@ -174,6 +190,10 @@ mod tests {
         let mut res = empty_resources();
         res.dataflow_pipeline_name = "df".into();
         res.crs_instance = "crs".into();
+        res.vector_sa_email = "v@x.iam".into();
+        res.vector_sa_managed = true;
+        res.dataflow_sa_email = "d@x.iam".into();
+        res.dataflow_sa_managed = true;
         res.output_pubsub.bq_subscription_id = "s1".into();
         res.output_pubsub.subscription_id_2 = "s2".into();
         res.output_pubsub.topic_id = "t".into();
@@ -401,6 +421,10 @@ mod tests {
         res.vector_artifact_url = "img".into();
         res.artifact_registry_repo = "repo".into();
         res.bucket_name = "bkt".into();
+        res.vector_sa_email = "v@x.iam".into();
+        res.vector_sa_managed = true;
+        res.dataflow_sa_email = "d@x.iam".into();
+        res.dataflow_sa_managed = true;
 
         let steps = plan(&res);
         assert_eq!(steps, vec![
@@ -413,6 +437,19 @@ mod tests {
             DeleteStep::ArtifactImage("img".into()),
             DeleteStep::ArtifactRepo("repo".into()),
             DeleteStep::GcsBucket("bkt".into()),
+            DeleteStep::VectorSa("v@x.iam".into()),
+            DeleteStep::DataflowSa("d@x.iam".into()),
         ]);
+    }
+
+    #[test]
+    fn plan_skips_unmanaged_service_accounts() {
+        let mut res = empty_resources();
+        res.vector_sa_email = "supplied@x.iam".into();
+        res.vector_sa_managed = false;
+        res.dataflow_sa_email = "also-supplied@x.iam".into();
+        res.dataflow_sa_managed = false;
+        // User-supplied SAs are not in beaver's lifecycle; planner ignores them.
+        assert!(plan(&res).is_empty());
     }
 }
