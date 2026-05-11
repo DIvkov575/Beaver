@@ -21,6 +21,14 @@ pub struct Resources {
     pub notification_channels: Vec<String>,
     #[serde(default)]
     pub alert_policies: Vec<String>,
+    #[serde(default)]
+    pub vector_sa_email: String,
+    #[serde(default)]
+    pub vector_sa_managed: bool,
+    #[serde(default)]
+    pub dataflow_sa_email: String,
+    #[serde(default)]
+    pub dataflow_sa_managed: bool,
 }
 
 impl Resources {
@@ -36,6 +44,10 @@ impl Resources {
             dataflow_pipeline_name: String::new(),
             notification_channels: Vec::new(),
             alert_policies: Vec::new(),
+            vector_sa_email: String::new(),
+            vector_sa_managed: false,
+            dataflow_sa_email: String::new(),
+            dataflow_sa_managed: false,
         }
     }
 
@@ -130,6 +142,18 @@ impl<'a> Tracker<'a> {
         self.persist()
     }
 
+    pub fn record_vector_sa(&mut self, email: String, managed: bool) -> Result<()> {
+        self.res.vector_sa_email = email;
+        self.res.vector_sa_managed = managed;
+        self.persist()
+    }
+
+    pub fn record_dataflow_sa(&mut self, email: String, managed: bool) -> Result<()> {
+        self.res.dataflow_sa_email = email;
+        self.res.dataflow_sa_managed = managed;
+        self.persist()
+    }
+
     pub fn forget_bq(&mut self) -> Result<()> {
         self.res.biq_query.dataset_id.clear();
         self.res.biq_query.table_id.clear();
@@ -183,6 +207,18 @@ impl<'a> Tracker<'a> {
 
     pub fn forget_alert_policy(&mut self, id: &str) -> Result<()> {
         self.res.alert_policies.retain(|x| x != id);
+        self.persist()
+    }
+
+    pub fn forget_vector_sa(&mut self) -> Result<()> {
+        self.res.vector_sa_email.clear();
+        self.res.vector_sa_managed = false;
+        self.persist()
+    }
+
+    pub fn forget_dataflow_sa(&mut self) -> Result<()> {
+        self.res.dataflow_sa_email.clear();
+        self.res.dataflow_sa_managed = false;
         self.persist()
     }
 }

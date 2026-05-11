@@ -25,6 +25,7 @@ pub fn create_template(path_to_config: &Path, tracker: &mut Tracker, config: &Co
 
     let detections_path = path_to_config.join("detections");
     let staging = format!("gs://{}/staging", bucket);
+    let temp = format!("gs://{}/temp", bucket);
     let template_path = format!("gs://{}/templates/{}", bucket, TEMPLATE_NAME);
 
     let args = vec![
@@ -34,8 +35,12 @@ pub fn create_template(path_to_config: &Path, tracker: &mut Tracker, config: &Co
         staging,
         template_path,
         config.region.clone(),
+        temp,
     ];
 
+    // Pin --temp_location to our bucket so the dataflow worker SA, which has
+    // storage.objectAdmin only on this bucket, can write temp files. Without
+    // this, Dataflow defaults to a managed bucket the SA can't touch.
     let (code, output, error) = run_script::run(
         r#"
         cd $1
@@ -46,7 +51,8 @@ pub fn create_template(path_to_config: &Path, tracker: &mut Tracker, config: &Co
             --subscription $3 \
             --staging_location $4 \
             --template_location $5 \
-            --region $6
+            --region $6 \
+            --temp_location $7
         "#,
         &args,
         &ScriptOptions::new(),
@@ -70,6 +76,7 @@ pub fn create_pipeline(tracker: &mut Tracker, config: &Config) -> Result<()> {
 
     let bucket = tracker.resources().bucket_name.clone();
     let template_path = format!("gs://{}/templates/{}", bucket, TEMPLATE_NAME);
+    let sa_email = tracker.resources().dataflow_sa_email.clone();
 
     let mut random_string: String;
     let mut pipeline_name: String;
@@ -95,8 +102,9 @@ pub fn create_pipeline(tracker: &mut Tracker, config: &Config) -> Result<()> {
         let zone = std::env::var("BEAVER_DATAFLOW_ZONE")
             .unwrap_or_else(|_| format!("{}-b", config.region));
         let worker_zone_flag = format!("--worker-zone={}", zone);
+        let sa_flag = format!("--service-account-email={}", sa_email);
 
-        let args = vec![
+        let mut args = vec![
             "dataflow", "jobs", "run", &pipeline_name,
             "--gcs-location", &template_path,
             "--region", &config.region,
@@ -104,6 +112,9 @@ pub fn create_pipeline(tracker: &mut Tracker, config: &Config) -> Result<()> {
             "--enable-streaming-engine",
             &worker_zone_flag,
         ];
+        if !sa_email.is_empty() {
+            args.push(&sa_flag);
+        }
 
         let output = Command::new("gcloud").args(args).output()?;
 

@@ -10,6 +10,8 @@ pub mod detections_gen;
 pub mod crs;
 pub mod cloud_build;
 pub mod notifications;
+pub mod service_accounts;
+pub mod precheck;
 
 #[cfg(test)]
 pub mod test_helpers;
