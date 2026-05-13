@@ -11,7 +11,7 @@ bucket_name: beaver_t6fxdolmt
 artifact_registry_repo: beaver-images
 crs_instance: beaver-vector-instance-udjh
 vector_artifact_url: us-east1-docker.pkg.dev/neon-circle-400322/beaver-images/beaver-vector-image-a10e0vg
-dataflow_pipeline_name: beaver-detections-ptfrgrqhh
+dataflow_pipeline_name: beaver-detections-d1z3enqj6
 notification_channels: []
 alert_policies: []
 vector_sa_email: beaver-vector-wbtage@neon-circle-400322.iam.gserviceaccount.com
