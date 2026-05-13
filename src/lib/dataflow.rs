@@ -99,8 +99,11 @@ pub fn create_pipeline(tracker: &mut Tracker, config: &Config) -> Result<()> {
         // Pin worker zone away from `<region>-c` because Dataflow's auto-zone
         // selector keeps picking it and us-east1-c has been stockout-prone.
         // `<region>-b` is the next default; override via BEAVER_DATAFLOW_ZONE.
+        // Default to <region>-d because <region>-b has been intermittently
+        // stockout-prone for the n1-standard-2 workers Dataflow defaults to.
+        // Override via BEAVER_DATAFLOW_ZONE if needed.
         let zone = std::env::var("BEAVER_DATAFLOW_ZONE")
-            .unwrap_or_else(|_| format!("{}-b", config.region));
+            .unwrap_or_else(|_| format!("{}-d", config.region));
         let worker_zone_flag = format!("--worker-zone={}", zone);
         let sa_flag = format!("--service-account-email={}", sa_email);
 
@@ -132,6 +135,104 @@ pub fn create_pipeline(tracker: &mut Tracker, config: &Config) -> Result<()> {
     }
 
     Ok(())
+}
+
+/// Polls the Dataflow job's `currentState` for up to 5 minutes after submission.
+/// Returns `Ok` once state is `JOB_STATE_RUNNING`. Returns `Err` immediately if
+/// the job hits a terminal failure state (FAILED, CANCELLED) — and includes
+/// the most recent worker errors from Cloud Logging in the error chain so the
+/// operator can diagnose without digging through the console.
+pub fn wait_for_running(name: &str, config: &Config) -> Result<()> {
+    info!("waiting for Dataflow job {} to reach Running state", name);
+    let job_id = lookup_job_id(name, config)?;
+    let timeout = std::time::Duration::from_secs(300);
+    let interval = std::time::Duration::from_secs(15);
+    let start = std::time::Instant::now();
+    let mut last_state = String::new();
+    loop {
+        let state = describe_state(&job_id, config)?;
+        if state != last_state {
+            info!("Dataflow state: {}", state);
+            last_state = state.clone();
+        }
+        match state.as_str() {
+            "JOB_STATE_RUNNING" => return Ok(()),
+            "JOB_STATE_FAILED" | "JOB_STATE_CANCELLED" | "JOB_STATE_UPDATED" | "JOB_STATE_DRAINED" => {
+                let errs = recent_errors(&job_id, config);
+                return Err(anyhow!(
+                    "Dataflow job {} entered terminal state {} before reaching RUNNING.\n\
+                     Recent worker errors:\n{}",
+                    name, state, errs
+                ));
+            }
+            _ => {}
+        }
+        if start.elapsed() > timeout {
+            let errs = recent_errors(&job_id, config);
+            return Err(anyhow!(
+                "Dataflow job {} did not reach RUNNING within {:?} (last state {}).\n\
+                 Recent worker errors:\n{}",
+                name, timeout, state, errs
+            ));
+        }
+        std::thread::sleep(interval);
+    }
+}
+
+fn lookup_job_id(name: &str, config: &Config) -> Result<String> {
+    let out = Command::new("gcloud")
+        .args([
+            "dataflow", "jobs", "list",
+            "--region", &config.region,
+            "--project", &config.project,
+            "--filter", &format!("name={}", name),
+            "--format=value(JOB_ID)",
+        ])
+        .output()?;
+    let id = String::from_utf8_lossy(&out.stdout)
+        .lines().next().unwrap_or("").trim().to_string();
+    if id.is_empty() {
+        return Err(anyhow!("could not find dataflow job named {}", name));
+    }
+    Ok(id)
+}
+
+fn describe_state(job_id: &str, config: &Config) -> Result<String> {
+    let out = Command::new("gcloud")
+        .args([
+            "dataflow", "jobs", "describe", job_id,
+            "--region", &config.region,
+            "--project", &config.project,
+            "--format=value(currentState)",
+        ])
+        .output()?;
+    Ok(String::from_utf8_lossy(&out.stdout).trim().to_string())
+}
+
+fn recent_errors(job_id: &str, config: &Config) -> String {
+    let filter = format!(
+        r#"resource.type="dataflow_step" AND resource.labels.job_id="{}" AND severity>=ERROR"#,
+        job_id
+    );
+    let out = Command::new("gcloud")
+        .args([
+            "logging", "read", &filter,
+            "--project", &config.project,
+            "--limit=3",
+            "--format=value(textPayload)",
+        ])
+        .output();
+    match out {
+        Ok(o) if o.status.success() => {
+            let stdout = String::from_utf8_lossy(&o.stdout).to_string();
+            if stdout.trim().is_empty() {
+                "  (no errors surfaced in logs yet — check the Dataflow console for status)".into()
+            } else {
+                stdout.lines().map(|l| format!("  {}", l)).collect::<Vec<_>>().join("\n")
+            }
+        }
+        _ => "  (could not fetch error logs)".into(),
+    }
 }
 
 /// Cancels the running Dataflow job. Looks up the job by name in the region
