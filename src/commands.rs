@@ -8,6 +8,8 @@ mod destroy;
 use destroy::destroy;
 mod init;
 use init::init;
+mod repair;
+use repair::repair_dataflow;
 
 
 #[derive(Parser, Debug)]
@@ -31,6 +33,11 @@ pub enum Command {
         #[arg(short, long)]
         path: String
     },
+    #[command(about="Relaunch the Dataflow job for an existing deploy")]
+    RepairDataflow {
+        #[arg(short, long)]
+        path: String
+    },
 }
 impl Command {
     pub fn run(self) -> Result<()> {
@@ -39,6 +46,7 @@ impl Command {
             Init{force, dev, path} => init(force, dev, path),
             Deploy{path} => deploy(&path),
             Destroy{path} => destroy(&path),
+            RepairDataflow{path} => repair_dataflow(&path),
         }
     }
 }

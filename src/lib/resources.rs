@@ -37,8 +37,12 @@ pub struct Resources {
 
 impl Resources {
     pub fn empty(config: &Config, path: &Path) -> Self {
+        // Canonicalize so `save()` works regardless of the cwd commands are
+        // later invoked from (e.g. repair). Falls back to the raw path if the
+        // dir can't be resolved.
+        let abs = path.canonicalize().unwrap_or_else(|_| path.to_path_buf());
         Self {
-            config_path: path.as_os_str().to_str().unwrap().to_string(),
+            config_path: abs.as_os_str().to_str().unwrap().to_string(),
             biq_query: BqTable::empty(&config),
             output_pubsub: PubSub::empty(),
             bucket_name: String::new(),

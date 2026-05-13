@@ -179,6 +179,29 @@ pub fn wait_for_running(name: &str, config: &Config) -> Result<()> {
     }
 }
 
+/// Returns the current Dataflow `currentState` for a job, looked up by name.
+/// Returns `None` if no job with that name exists in the region. Used by
+/// `beaver repair-dataflow` to decide whether to relaunch.
+pub fn current_state(name: &str, config: &Config) -> Result<Option<String>> {
+    let out = Command::new("gcloud")
+        .args([
+            "dataflow", "jobs", "list",
+            "--region", &config.region,
+            "--project", &config.project,
+            "--filter", &format!("name={}", name),
+            "--format=value(JOB_ID,STATE)",
+        ])
+        .output()?;
+    let line = String::from_utf8_lossy(&out.stdout)
+        .lines().next().unwrap_or("").trim().to_string();
+    if line.is_empty() {
+        return Ok(None);
+    }
+    // gcloud format=value joins fields with tabs.
+    let state = line.split_whitespace().nth(1).unwrap_or("").to_string();
+    Ok(Some(state))
+}
+
 fn lookup_job_id(name: &str, config: &Config) -> Result<String> {
     let out = Command::new("gcloud")
         .args([
