@@ -8,7 +8,7 @@ use anyhow::{anyhow, Result};
 use log::info;
 use spinoff::{spinners, Color, Spinner};
 
-use crate::lib::{config::Config, dataflow};
+use crate::lib::{config::Config, dataflow, detections_gen, sigma};
 use crate::lib::resources::{Resources, Tracker};
 use crate::lib::utilities::{check_for_bq, check_for_gcloud, validate_config_path};
 
@@ -92,5 +92,64 @@ pub fn repair_dataflow(path_arg: &str) -> Result<()> {
     })?;
 
     println!("\nRepaired: Dataflow job {} is Running.\n", new_name);
+    Ok(())
+}
+
+/// Recompiles Sigma rules, regenerates the detections Python module, re-uploads
+/// the Dataflow template, cancels the running job, and launches a fresh one
+/// with the new code. Use after editing rules in `beaver_config/sigma/`.
+pub fn refresh_detections(path_arg: &str) -> Result<()> {
+    info!("=======Refreshing Detections======");
+    println!("\nBeaver refresh-detections");
+    println!("=========================\n");
+
+    let path = Path::new(path_arg);
+    validate_config_path(path)?;
+    check_for_bq()?;
+    check_for_gcloud()?;
+
+    let resources_path = path.join("artifacts/resources.yaml");
+    if !resources_path.exists() {
+        return Err(anyhow!("resources.yaml not found at {}", resources_path.display()));
+    }
+    let yaml = std::fs::read_to_string(&resources_path)?;
+    let mut resources: Resources = serde_yaml::from_str(&yaml)?;
+    if let Ok(abs) = path.canonicalize() {
+        resources.config_path = abs.as_os_str().to_str().unwrap().to_string();
+    }
+    let config = Config::from_path(path);
+
+    let current_name = resources.dataflow_pipeline_name.clone();
+    if current_name.is_empty() {
+        return Err(anyhow!(
+            "no Dataflow job recorded in resources.yaml; run `beaver deploy` first"
+        ));
+    }
+
+    step("compile sigma rules", || {
+        sigma::generate_detections(path)?;
+        detections_gen::generate_detections_file(path)
+    })?;
+
+    // Cancel the existing job unconditionally — even if it's Running, it's
+    // running stale code. delete_job is a no-op for inactive jobs.
+    let _ = step("cancel existing job", || {
+        dataflow::delete_job(&current_name, &config)
+    });
+
+    let mut tracker = Tracker::new(&mut resources);
+
+    step("re-upload Dataflow template", || {
+        dataflow::create_template(path, &mut tracker, &config)
+    })?;
+    step("launch new Dataflow streaming job", || {
+        dataflow::create_pipeline(&mut tracker, &config)
+    })?;
+    let new_name = tracker.resources().dataflow_pipeline_name.clone();
+    step("wait for Dataflow workers to come up (up to 5 min)", || {
+        dataflow::wait_for_running(&new_name, &config)
+    })?;
+
+    println!("\nRefreshed: Dataflow job {} is Running with new detections.\n", new_name);
     Ok(())
 }
