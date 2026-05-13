@@ -3,29 +3,6 @@
 version = 4
 
 [[package]]
-name = "Beaver"
-version = "0.2.0"
-dependencies = [
- "anyhow",
- "chrono",
- "clap",
- "clap_complete",
- "fern",
- "humantime",
- "include-bytes-zstd",
- "inquire",
- "log",
- "python-parser",
- "rand",
- "run_script",
- "serde",
- "serde_yaml",
- "spinoff",
- "tempfile",
- "thiserror",
-]
-
-[[package]]
 name = "android-tzdata"
 version = "0.1.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -99,6 +76,29 @@ name = "autocfg"
 version = "1.1.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "d468802bab17cbc0cc575e9b053f41e72aa36bfa6b7f55e3529ffa43161b97fa"
+
+[[package]]
+name = "beaver-siem"
+version = "0.2.0"
+dependencies = [
+ "anyhow",
+ "chrono",
+ "clap",
+ "clap_complete",
+ "fern",
+ "humantime",
+ "include-bytes-zstd",
+ "inquire",
+ "log",
+ "python-parser",
+ "rand",
+ "run_script",
+ "serde",
+ "serde_yaml",
+ "spinoff",
+ "tempfile",
+ "thiserror",
+]
 
 [[package]]
 name = "bitflags"

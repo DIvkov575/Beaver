@@ -157,6 +157,11 @@ pub fn destroy(path_arg: &str) -> Result<()> {
     }
     let yaml = std::fs::read_to_string(&resources_path)?;
     let mut resources: Resources = serde_yaml::from_str(&yaml)?;
+    // Older resources.yaml stored config_path relative to deploy cwd; rewrite
+    // to absolute so Tracker.save() works no matter where destroy is run from.
+    if let Ok(abs) = path.canonicalize() {
+        resources.config_path = abs.as_os_str().to_str().unwrap().to_string();
+    }
 
     let config = Config::from_path(path);
     let steps = plan(&resources);

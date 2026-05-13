@@ -1,0 +1,889 @@
+<!DOCTYPE HTML>
+<html lang="en" class="navy sidebar-visible" dir="ltr">
+    <head>
+        <!-- Book generated using mdBook -->
+        <meta charset="UTF-8">
+        <title>Beaver</title>
+        <meta name="robots" content="noindex">
+
+
+        <!-- Custom HTML head -->
+
+        <meta name="description" content="SIEM pipeline-as-code for GCP.">
+        <meta name="viewport" content="width=device-width, initial-scale=1">
+        <meta name="theme-color" content="#ffffff">
+
+        <link rel="icon" href="favicon-de23e50b.svg">
+        <link rel="shortcut icon" href="favicon-8114d1fc.png">
+        <link rel="stylesheet" href="css/variables-8adf115d.css">
+        <link rel="stylesheet" href="css/general-2459343d.css">
+        <link rel="stylesheet" href="css/chrome-ae938929.css">
+        <link rel="stylesheet" href="css/print-9e4910d8.css" media="print">
+
+        <!-- Fonts -->
+        <link rel="stylesheet" href="fonts/fonts-9644e21d.css">
+
+        <!-- Highlight.js Stylesheets -->
+        <link rel="stylesheet" id="mdbook-highlight-css" href="highlight-493f70e1.css">
+        <link rel="stylesheet" id="mdbook-tomorrow-night-css" href="tomorrow-night-4c0ae647.css">
+        <link rel="stylesheet" id="mdbook-ayu-highlight-css" href="ayu-highlight-3fdfc3ac.css">
+
+        <!-- Custom theme stylesheets -->
+
+
+        <!-- Provide site root and default themes to javascript -->
+        <script>
+            const path_to_root = "";
+            const default_light_theme = "navy";
+            const default_dark_theme = "navy";
+            window.path_to_searchindex_js = "searchindex-6e2e3a4b.js";
+        </script>
+        <!-- Start loading toc.js asap -->
+        <script src="toc-a58b4188.js"></script>
+    </head>
+    <body>
+    <div id="mdbook-help-container">
+        <div id="mdbook-help-popup">
+            <h2 class="mdbook-help-title">Keyboard shortcuts</h2>
+            <div>
+                <p>Press <kbd>←</kbd> or <kbd>→</kbd> to navigate between chapters</p>
+                <p>Press <kbd>S</kbd> or <kbd>/</kbd> to search in the book</p>
+                <p>Press <kbd>?</kbd> to show this help</p>
+                <p>Press <kbd>Esc</kbd> to hide this help</p>
+            </div>
+        </div>
+    </div>
+    <div id="mdbook-body-container">
+        <!-- Work around some values being stored in localStorage wrapped in quotes -->
+        <script>
+            try {
+                let theme = localStorage.getItem('mdbook-theme');
+                let sidebar = localStorage.getItem('mdbook-sidebar');
+
+                if (theme.startsWith('"') && theme.endsWith('"')) {
+                    localStorage.setItem('mdbook-theme', theme.slice(1, theme.length - 1));
+                }
+
+                if (sidebar.startsWith('"') && sidebar.endsWith('"')) {
+                    localStorage.setItem('mdbook-sidebar', sidebar.slice(1, sidebar.length - 1));
+                }
+            } catch (e) { }
+        </script>
+
+        <!-- Set the theme before any content is loaded, prevents flash -->
+        <script>
+            const default_theme = window.matchMedia("(prefers-color-scheme: dark)").matches ? default_dark_theme : default_light_theme;
+            let theme;
+            try { theme = localStorage.getItem('mdbook-theme'); } catch(e) { }
+            if (theme === null || theme === undefined) { theme = default_theme; }
+            const html = document.documentElement;
+            html.classList.remove('navy')
+            html.classList.add(theme);
+            html.classList.add("js");
+        </script>
+
+        <input type="checkbox" id="mdbook-sidebar-toggle-anchor" class="hidden">
+
+        <!-- Hide / unhide sidebar before it is displayed -->
+        <script>
+            let sidebar = null;
+            const sidebar_toggle = document.getElementById("mdbook-sidebar-toggle-anchor");
+            if (document.body.clientWidth >= 1080) {
+                try { sidebar = localStorage.getItem('mdbook-sidebar'); } catch(e) { }
+                sidebar = sidebar || 'visible';
+            } else {
+                sidebar = 'hidden';
+                sidebar_toggle.checked = false;
+            }
+            if (sidebar === 'visible') {
+                sidebar_toggle.checked = true;
+            } else {
+                html.classList.remove('sidebar-visible');
+            }
+        </script>
+
+        <nav id="mdbook-sidebar" class="sidebar" aria-label="Table of contents">
+            <!-- populated by js -->
+            <mdbook-sidebar-scrollbox class="sidebar-scrollbox"></mdbook-sidebar-scrollbox>
+            <noscript>
+                <iframe class="sidebar-iframe-outer" src="toc.html"></iframe>
+            </noscript>
+            <div id="mdbook-sidebar-resize-handle" class="sidebar-resize-handle">
+                <div class="sidebar-resize-indicator"></div>
+            </div>
+        </nav>
+
+        <div id="mdbook-page-wrapper" class="page-wrapper">
+
+            <div class="page">
+                <div id="mdbook-menu-bar-hover-placeholder"></div>
+                <div id="mdbook-menu-bar" class="menu-bar sticky">
+                    <div class="left-buttons">
+                        <label id="mdbook-sidebar-toggle" class="icon-button" for="mdbook-sidebar-toggle-anchor" title="Toggle Table of Contents" aria-label="Toggle Table of Contents" aria-controls="mdbook-sidebar">
+                            <span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M0 96C0 78.3 14.3 64 32 64H416c17.7 0 32 14.3 32 32s-14.3 32-32 32H32C14.3 128 0 113.7 0 96zM0 256c0-17.7 14.3-32 32-32H416c17.7 0 32 14.3 32 32s-14.3 32-32 32H32c-17.7 0-32-14.3-32-32zM448 416c0 17.7-14.3 32-32 32H32c-17.7 0-32-14.3-32-32s14.3-32 32-32H416c17.7 0 32 14.3 32 32z"/></svg></span>
+                        </label>
+                        <button id="mdbook-theme-toggle" class="icon-button" type="button" title="Change theme" aria-label="Change theme" aria-haspopup="true" aria-expanded="false" aria-controls="mdbook-theme-list">
+                            <span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 576 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M371.3 367.1c27.3-3.9 51.9-19.4 67.2-42.9L600.2 74.1c12.6-19.5 9.4-45.3-7.6-61.2S549.7-4.4 531.1 9.6L294.4 187.2c-24 18-38.2 46.1-38.4 76.1L371.3 367.1zm-19.6 25.4l-116-104.4C175.9 290.3 128 339.6 128 400c0 3.9 .2 7.8 .6 11.6c1.8 17.5-10.2 36.4-27.8 36.4H96c-17.7 0-32 14.3-32 32s14.3 32 32 32H240c61.9 0 112-50.1 112-112c0-2.5-.1-5-.2-7.5z"/></svg></span>
+                        </button>
+                        <ul id="mdbook-theme-list" class="theme-popup" aria-label="Themes" role="menu">
+                            <li role="none"><button role="menuitem" class="theme" id="mdbook-theme-default_theme">Auto</button></li>
+                            <li role="none"><button role="menuitem" class="theme" id="mdbook-theme-light">Light</button></li>
+                            <li role="none"><button role="menuitem" class="theme" id="mdbook-theme-rust">Rust</button></li>
+                            <li role="none"><button role="menuitem" class="theme" id="mdbook-theme-coal">Coal</button></li>
+                            <li role="none"><button role="menuitem" class="theme" id="mdbook-theme-navy">Navy</button></li>
+                            <li role="none"><button role="menuitem" class="theme" id="mdbook-theme-ayu">Ayu</button></li>
+                        </ul>
+                        <button id="mdbook-search-toggle" class="icon-button" type="button" title="Search (`/`)" aria-label="Toggle Searchbar" aria-expanded="false" aria-keyshortcuts="/ s" aria-controls="mdbook-searchbar">
+                            <span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M416 208c0 45.9-14.9 88.3-40 122.7L502.6 457.4c12.5 12.5 12.5 32.8 0 45.3s-32.8 12.5-45.3 0L330.7 376c-34.4 25.2-76.8 40-122.7 40C93.1 416 0 322.9 0 208S93.1 0 208 0S416 93.1 416 208zM208 352c79.5 0 144-64.5 144-144s-64.5-144-144-144S64 128.5 64 208s64.5 144 144 144z"/></svg></span>
+                        </button>
+                    </div>
+
+                    <h1 class="menu-title">Beaver</h1>
+
+                    <div class="right-buttons">
+                        <a href="print.html" title="Print this book" aria-label="Print this book">
+                            <span class=fa-svg id="print-button"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M128 0C92.7 0 64 28.7 64 64v96h64V64H354.7L384 93.3V160h64V93.3c0-17-6.7-33.3-18.7-45.3L400 18.7C388 6.7 371.7 0 354.7 0H128zM384 352v32 64H128V384 368 352H384zm64 32h32c17.7 0 32-14.3 32-32V256c0-35.3-28.7-64-64-64H64c-35.3 0-64 28.7-64 64v96c0 17.7 14.3 32 32 32H64v64c0 35.3 28.7 64 64 64H384c35.3 0 64-28.7 64-64V384zm-16-88c-13.3 0-24-10.7-24-24s10.7-24 24-24s24 10.7 24 24s-10.7 24-24 24z"/></svg></span>
+                        </a>
+                        <a href="https://github.com/Divkov575/Beaver" title="Git repository" aria-label="Git repository">
+                            <span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 496 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M165.9 397.4c0 2-2.3 3.6-5.2 3.6-3.3.3-5.6-1.3-5.6-3.6 0-2 2.3-3.6 5.2-3.6 3-.3 5.6 1.3 5.6 3.6zm-31.1-4.5c-.7 2 1.3 4.3 4.3 4.9 2.6 1 5.6 0 6.2-2s-1.3-4.3-4.3-5.2c-2.6-.7-5.5.3-6.2 2.3zm44.2-1.7c-2.9.7-4.9 2.6-4.6 4.9.3 2 2.9 3.3 5.9 2.6 2.9-.7 4.9-2.6 4.6-4.6-.3-1.9-3-3.2-5.9-2.9zM244.8 8C106.1 8 0 113.3 0 252c0 110.9 69.8 205.8 169.5 239.2 12.8 2.3 17.3-5.6 17.3-12.1 0-6.2-.3-40.4-.3-61.4 0 0-70 15-84.7-29.8 0 0-11.4-29.1-27.8-36.6 0 0-22.9-15.7 1.6-15.4 0 0 24.9 2 38.6 25.8 21.9 38.6 58.6 27.5 72.9 20.9 2.3-16 8.8-27.1 16-33.7-55.9-6.2-112.3-14.3-112.3-110.5 0-27.5 7.6-41.3 23.6-58.9-2.6-6.5-11.1-33.3 2.6-67.9 20.9-6.5 69 27 69 27 20-5.6 41.5-8.5 62.8-8.5s42.8 2.9 62.8 8.5c0 0 48.1-33.6 69-27 13.7 34.7 5.2 61.4 2.6 67.9 16 17.7 25.8 31.5 25.8 58.9 0 96.5-58.9 104.2-114.8 110.5 9.2 7.9 17 22.9 17 46.4 0 33.7-.3 75.4-.3 83.6 0 6.5 4.6 14.4 17.3 12.1C428.2 457.8 496 362.9 496 252 496 113.3 383.5 8 244.8 8zM97.2 352.9c-1.3 1-1 3.3.7 5.2 1.6 1.6 3.9 2.3 5.2 1 1.3-1 1-3.3-.7-5.2-1.6-1.6-3.9-2.3-5.2-1zm-10.8-8.1c-.7 1.3.3 2.9 2.3 3.9 1.6 1 3.6.7 4.3-.7.7-1.3-.3-2.9-2.3-3.9-2-.6-3.6-.3-4.3.7zm32.4 35.6c-1.6 1.3-1 4.3 1.3 6.2 2.3 2.3 5.2 2.6 6.5 1 1.3-1.3.7-4.3-1.3-6.2-2.2-2.3-5.2-2.6-6.5-1zm-11.4-14.7c-1.6 1-1.6 3.6 0 5.9 1.6 2.3 4.3 3.3 5.6 2.3 1.6-1.3 1.6-3.9 0-6.2-1.4-2.3-4-3.3-5.6-2z"/></svg></span>
+                        </a>
+
+                    </div>
+                </div>
+
+                <div id="mdbook-search-wrapper" class="hidden">
+                    <form id="mdbook-searchbar-outer" class="searchbar-outer">
+                        <div class="search-wrapper">
+                            <input type="search" id="mdbook-searchbar" name="searchbar" placeholder="Search this book ..." aria-controls="mdbook-searchresults-outer" aria-describedby="searchresults-header">
+                            <div class="spinner-wrapper">
+                                <span class=fa-svg id="fa-spin"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M304 48c0-26.5-21.5-48-48-48s-48 21.5-48 48s21.5 48 48 48s48-21.5 48-48zm0 416c0-26.5-21.5-48-48-48s-48 21.5-48 48s21.5 48 48 48s48-21.5 48-48zM48 304c26.5 0 48-21.5 48-48s-21.5-48-48-48s-48 21.5-48 48s21.5 48 48 48zm464-48c0-26.5-21.5-48-48-48s-48 21.5-48 48s21.5 48 48 48s48-21.5 48-48zM142.9 437c18.7-18.7 18.7-49.1 0-67.9s-49.1-18.7-67.9 0s-18.7 49.1 0 67.9s49.1 18.7 67.9 0zm0-294.2c18.7-18.7 18.7-49.1 0-67.9S93.7 56.2 75 75s-18.7 49.1 0 67.9s49.1 18.7 67.9 0zM369.1 437c18.7 18.7 49.1 18.7 67.9 0s18.7-49.1 0-67.9s-49.1-18.7-67.9 0s-18.7 49.1 0 67.9z"/></svg></span>
+                            </div>
+                        </div>
+                    </form>
+                    <div id="mdbook-searchresults-outer" class="searchresults-outer hidden">
+                        <div id="mdbook-searchresults-header" class="searchresults-header"></div>
+                        <ul id="mdbook-searchresults">
+                        </ul>
+                    </div>
+                </div>
+
+                <!-- Apply ARIA attributes after the sidebar and the sidebar toggle button are added to the DOM -->
+                <script>
+                    document.getElementById('mdbook-sidebar-toggle').setAttribute('aria-expanded', sidebar === 'visible');
+                    document.getElementById('mdbook-sidebar').setAttribute('aria-hidden', sidebar !== 'visible');
+                    Array.from(document.querySelectorAll('#mdbook-sidebar a')).forEach(function(link) {
+                        link.setAttribute('tabIndex', sidebar === 'visible' ? 0 : -1);
+                    });
+                </script>
+
+                <div id="mdbook-content" class="content">
+                    <main>
+                        <h1 id="beaver"><a class="header" href="#beaver">Beaver</a></h1>
+<p>Beaver provisions a turnkey SIEM detection pipeline on Google Cloud Platform from a single YAML config. It’s a Rust CLI that wraps <code>gcloud</code> to stand up — and tear down — a real, working detection stack:</p>
+<pre><code>Pub/Sub input  →  Vector (Cloud Run)  →  Pub/Sub output  →  Dataflow (Sigma rules)  →  Pub/Sub (BQ sub)  →  BigQuery
+                                                              │
+                                                              └→  Cloud Monitoring (log-based metric, alert policies, dashboard)
+</code></pre>
+<p>You bring:</p>
+<ul>
+<li>Log events flowing into a Pub/Sub topic</li>
+<li>A directory of Sigma rules</li>
+<li>A GCP project with billing enabled</li>
+</ul>
+<p>Beaver handles:</p>
+<ul>
+<li>Transport via Vector deployed on Cloud Run</li>
+<li>Detection pipeline compiled from Sigma to a Beam streaming job on Dataflow</li>
+<li>BigQuery sink for long-term storage and ad-hoc queries</li>
+<li>A Cloud Monitoring dashboard with per-component health alertCharts, live detection feed, top firing rules, and Dataflow worker logs</li>
+<li>Optional notification channels and per-route alert policies</li>
+</ul>
+<p>See <a href="#quickstart">Quickstart</a> for the fastest path to a running pipeline.</p>
+<div style="break-before: page; page-break-before: always;"></div>
+<h1 id="quickstart"><a class="header" href="#quickstart">Quickstart</a></h1>
+<h2 id="prerequisites"><a class="header" href="#prerequisites">Prerequisites</a></h2>
+<ul>
+<li>A GCP project with billing enabled</li>
+<li><code>gcloud</code> and <code>bq</code> installed, authenticated (<code>gcloud auth login</code> + <code>gcloud auth application-default login</code>)</li>
+<li>A Rust toolchain (<code>cargo</code> 1.70+) to build Beaver itself</li>
+</ul>
+<h2 id="install"><a class="header" href="#install">Install</a></h2>
+<p>Pick whichever fits.</p>
+<h3 id="one-line-installer-macos--linux"><a class="header" href="#one-line-installer-macos--linux">One-line installer (macOS / Linux)</a></h3>
+<pre><code class="language-bash">curl -sSfL https://raw.githubusercontent.com/Divkov575/Beaver/main/install.sh | sh
+</code></pre>
+<p>Detects your OS/arch, downloads the matching release binary from GitHub, and drops it at <code>~/.local/bin/beaver</code>. The script prints a PATH hint if that dir isn’t already on <code>$PATH</code>. Override the install dir with <code>BEAVER_INSTALL_DIR=/usr/local/bin</code>, or pin a version with <code>BEAVER_VERSION=v0.3.0</code>.</p>
+<h3 id="cargo"><a class="header" href="#cargo">Cargo</a></h3>
+<pre><code class="language-bash">cargo install beaver-siem
+</code></pre>
+<p>Installs as <code>beaver</code> on <code>~/.cargo/bin</code> (which most Rust users already have on PATH).</p>
+<h3 id="from-source"><a class="header" href="#from-source">From source</a></h3>
+<pre><code class="language-bash">git clone https://github.com/Divkov575/Beaver
+cd Beaver
+cargo build --release
+# binary at target/release/beaver
+</code></pre>
+<h2 id="scaffold-a-config"><a class="header" href="#scaffold-a-config">Scaffold a config</a></h2>
+<pre><code class="language-bash">beaver init --path my-beaver --dev
+</code></pre>
+<p>This creates <code>my-beaver/beaver_config/</code> containing:</p>
+<ul>
+<li><code>beaver_config.yaml</code> — top-level config (project, region, dashboard, notifications)</li>
+<li><code>sigma/</code> — your Sigma rule YAMLs go here</li>
+<li><code>artifacts/</code> — generated files (Python, vector.yaml, resources.yaml) Beaver writes during deploy</li>
+</ul>
+<p>Edit <code>beaver_config.yaml</code> to point at your project, region, and an existing Pub/Sub input subscription.</p>
+<h2 id="deploy"><a class="header" href="#deploy">Deploy</a></h2>
+<pre><code class="language-bash">beaver deploy --path my-beaver/beaver_config
+</code></pre>
+<p>Beaver runs a sequence of named steps: precheck, sigma compile, BQ, Pub/Sub, GCS, Vector SA, Vector image build, Cloud Run, Dataflow SA, Dataflow template, Dataflow job, optional notifications, dashboard. Each step appears as a spinner with success/failure.</p>
+<p>Total runtime: 6–10 minutes on a fresh project.</p>
+<h2 id="send-a-test-event"><a class="header" href="#send-a-test-event">Send a test event</a></h2>
+<p>If you used the bundled <code>examples/test-pipeline</code>:</p>
+<pre><code class="language-bash">cd examples/test-pipeline
+./scripts/input_topic.sh         # creates the harness input topic/sub
+./scripts/publish_payloads.sh    # publishes the test payloads
+</code></pre>
+<p>You should see detection events in the dashboard’s live feed within ~30s, and in BigQuery within ~1 min.</p>
+<h2 id="iterate"><a class="header" href="#iterate">Iterate</a></h2>
+<p>Edit rules and re-deploy just the detection logic:</p>
+<pre><code class="language-bash">beaver refresh-detections --path my-beaver/beaver_config
+</code></pre>
+<p>This recompiles Sigma, re-uploads the Dataflow template, and relaunches the job — no other infra is touched.</p>
+<h2 id="tear-down"><a class="header" href="#tear-down">Tear down</a></h2>
+<pre><code class="language-bash">beaver destroy --path my-beaver/beaver_config
+</code></pre>
+<p><code>destroy</code> is a plan-then-execute pass over <code>resources.yaml</code>. Anything Beaver provisioned gets deleted; pre-existing project resources are untouched.</p>
+<div style="break-before: page; page-break-before: always;"></div>
+<h1 id="pipeline-overview"><a class="header" href="#pipeline-overview">Pipeline overview</a></h1>
+<pre><code class="language-text">                        ┌─────────────────────────────────────────────────┐
+                        │                  Your GCP project                │
+                        │                                                  │
+  events  ─────▶ Pub/Sub │────▶ Vector ────▶ Pub/Sub ────▶ Dataflow  ──────│
+  (your input)   input   │     (Cloud Run)   output       (streaming Beam) │
+                  sub    │                   topic               │         │
+                        │                                       │         │
+                        │                                  ┌────┴────┐    │
+                        │                                  │         │    │
+                        │                                  ▼         ▼    │
+                        │                              BigQuery   Cloud   │
+                        │                              (raw + decorated   │
+                        │                               events)   Logging │
+                        │                                            │   │
+                        │                                            ▼   │
+                        │                                       Alert    │
+                        │                                       policies │
+                        │                                            │   │
+                        │                                            ▼   │
+                        │                                       Slack /  │
+                        │                                       PagerDuty│
+                        └─────────────────────────────────────────────────┘
+
+                        Observability:   Cloud Monitoring dashboard with
+                                         per-component health, live event feed,
+                                         per-rule firing rates.
+</code></pre>
+<h2 id="stage-by-stage"><a class="header" href="#stage-by-stage">Stage by stage</a></h2>
+<h3 id="1-ingest--vector-on-cloud-run"><a class="header" href="#1-ingest--vector-on-cloud-run">1. Ingest — Vector on Cloud Run</a></h3>
+<p>A <a href="https://vector.dev/">Vector</a> container reads from your existing Pub/Sub input subscription (specified in <code>beaver_config.yaml</code>), applies whatever shaping you configure, and republishes to Beaver’s internal output topic. Vector’s config is generated at deploy time (<code>artifacts/vector.yaml</code>) and baked into the container image via Cloud Build.</p>
+<p>Runs as a least-privilege service account (<code>beaver-vector-&lt;random&gt;</code>) with:</p>
+<ul>
+<li><code>roles/pubsub.subscriber</code> on your input subscription</li>
+<li><code>roles/pubsub.publisher</code> on Beaver’s output topic</li>
+<li><code>roles/logging.logWriter</code> project-wide</li>
+</ul>
+<h3 id="2-message-bus--pubsub"><a class="header" href="#2-message-bus--pubsub">2. Message bus — Pub/Sub</a></h3>
+<p>Beaver creates a single output topic plus two subscriptions on it:</p>
+<ul>
+<li><strong>BigQuery subscription</strong> (<code>beaver_bqsub*</code>) — pushes raw events directly into BigQuery via Pub/Sub’s BigQuery subscription type.</li>
+<li><strong>Dataflow subscription</strong> (<code>beaver_subscription_2*</code>) — read by the streaming job.</li>
+</ul>
+<p>This fan-out means raw events land in the warehouse even if detections lag or the Dataflow job is unhealthy.</p>
+<h3 id="3-detection--dataflow-streaming"><a class="header" href="#3-detection--dataflow-streaming">3. Detection — Dataflow streaming</a></h3>
+<p>A classic Dataflow template (built once at deploy, relaunchable any time) runs <code>dataflow/detections_template.py</code>:</p>
+<ol>
+<li>Reads JSON events from the Dataflow subscription.</li>
+<li>Passes each event through every compiled detection function in <code>detections_gen.py</code>.</li>
+<li>On a match, emits a structured <code>BEAVER_SIEM_MATCH</code> log entry tagged with <code>rule_name</code>, <code>severity</code>, and the original record.</li>
+</ol>
+<p>The match log entries are what every downstream alert/observability path consumes.</p>
+<h3 id="4-notification--cloud-logging--alert-policies"><a class="header" href="#4-notification--cloud-logging--alert-policies">4. Notification — Cloud Logging + alert policies</a></h3>
+<p>For each route in <code>notifications.yaml</code>, Beaver creates a log-based alert policy whose filter matches <code>BEAVER_SIEM_MATCH</code> AND the route’s match keys (severity, rule_name, etc.). When a matching event lands, the policy opens an incident and pushes to all configured notification channels.</p>
+<h3 id="5-observability--dashboard--log-based-metric"><a class="header" href="#5-observability--dashboard--log-based-metric">5. Observability — dashboard + log-based metric</a></h3>
+<p>A log-based metric counts <code>BEAVER_SIEM_MATCH</code> entries with <code>rule_name</code> as a label. The dashboard uses that metric for per-rule rates and top-firing tables. See <a href="#dashboard-tour">Dashboard tour</a>.</p>
+<h2 id="why-a-separate-vector-tier"><a class="header" href="#why-a-separate-vector-tier">Why a separate Vector tier?</a></h2>
+<p>You could in theory have Dataflow read directly from your input subscription, but pushing through Vector first gives you:</p>
+<ul>
+<li>A place to drop, sample, or reshape events without touching the detection code.</li>
+<li>Buffering and back-pressure semantics independent of the Beam worker pool.</li>
+<li>A clean separation between “ingest your raw event format” and “run detections” so each team owns one tier.</li>
+</ul>
+<h2 id="why-pubsubbq-subscription-instead-of-the-dataflow-path-writing-to-bq"><a class="header" href="#why-pubsubbq-subscription-instead-of-the-dataflow-path-writing-to-bq">Why Pub/Sub→BQ subscription instead of the Dataflow path writing to BQ?</a></h2>
+<p>The native Pub/Sub BigQuery subscription writes raw events with no transformation. The Dataflow path only emits <em>detections</em>, not raw events. Beaver wants both — full raw history in BQ for hunt queries, plus detections in logs for alerting — so it splits the topic into two subscriptions with two consumers.</p>
+<div style="break-before: page; page-break-before: always;"></div>
+<h1 id="configuration-reference"><a class="header" href="#configuration-reference">Configuration reference</a></h1>
+<p>A Beaver deploy is driven entirely by files inside <code>&lt;config&gt;/beaver_config/</code>:</p>
+<pre><code>beaver_config/
+├── beaver_config.yaml      # top-level config (this page)
+├── sigma/                  # your Sigma rule YAML files
+├── notifications.yaml      # optional; alert routes (this page)
+└── artifacts/              # populated by Beaver; do not edit
+    ├── resources.yaml      # tracker of what got provisioned (destroy reads this)
+    ├── detections_gen.py   # generated Python detection module
+    └── vector.yaml         # generated Vector config
+</code></pre>
+<h2 id="beaver_configyaml"><a class="header" href="#beaver_configyaml"><code>beaver_config.yaml</code></a></h2>
+<pre><code class="language-yaml">project: your-gcp-project-id        # required
+region: us-east1                    # required; all resources are regional
+billing_account: 0X0X0X-0X0X0X-0X0X # optional; precheck will link it if missing
+service_account: optional@iam       # optional; reserved
+input_subscription: my-input-sub    # required; existing Pub/Sub sub Vector reads from
+
+dashboard:
+  enabled: true                     # off by default; opt-in
+  name: "My SIEM"                   # display name; gets a random suffix
+</code></pre>
+<div class="table-wrapper">
+<table>
+<thead>
+<tr><th>Field</th><th>Required</th><th>Notes</th></tr>
+</thead>
+<tbody>
+<tr><td><code>project</code></td><td>yes</td><td>GCP project ID. Beaver does not create the project.</td></tr>
+<tr><td><code>region</code></td><td>yes</td><td>Used for Cloud Run, Dataflow, GCS, Artifact Registry.</td></tr>
+<tr><td><code>billing_account</code></td><td>no</td><td>Precheck calls <code>gcloud beta billing projects link</code> if the project lacks billing.</td></tr>
+<tr><td><code>service_account</code></td><td>no</td><td>Reserved for future use.</td></tr>
+<tr><td><code>input_subscription</code></td><td>yes</td><td>A Pub/Sub subscription that already exists; Vector reads raw events from it.</td></tr>
+<tr><td><code>dashboard.enabled</code></td><td>no</td><td>When <code>true</code>, Beaver provisions a Cloud Monitoring dashboard + log-based metric + per-component health policies.</td></tr>
+<tr><td><code>dashboard.name</code></td><td>when enabled</td><td>Human-readable display name.</td></tr>
+</tbody>
+</table>
+</div>
+<h2 id="sigma-rules"><a class="header" href="#sigma-rules"><code>sigma/</code> rules</a></h2>
+<p>Drop standard <a href="https://github.com/SigmaHQ/sigma/wiki/Specification">Sigma YAML</a> rules into this directory. Beaver:</p>
+<ol>
+<li>Compiles each rule via the matanolabs pySigma backend.</li>
+<li>Bakes the resulting Python detection functions into <code>artifacts/detections_gen.py</code>.</li>
+<li>Embeds that module into the Dataflow template at build time.</li>
+</ol>
+<p>After editing a rule, run <a href="#refresh-detections"><code>beaver refresh-detections</code></a> to recompile and relaunch the streaming job. No full redeploy needed.</p>
+<h2 id="notificationsyaml-optional"><a class="header" href="#notificationsyaml-optional"><code>notifications.yaml</code> (optional)</a></h2>
+<pre><code class="language-yaml">channels:
+  - name: soc-slack
+    type: slack
+    auth_token: xoxb-…              # see gcloud monitoring channel-descriptors describe slack
+    channel_name: "#soc-alerts"
+  - name: oncall-pager
+    type: pagerduty
+    service_key: …
+
+routes:
+  - match:
+      severity: high
+    channels: [soc-slack, oncall-pager]
+  - match:
+      rule_name: aws_root_account_use
+    channels: [oncall-pager]
+</code></pre>
+<p><code>channels</code> defines reusable notification targets. <code>routes</code> map detection events (filtered by <code>severity</code> and/or <code>rule_name</code> extracted from the harness payload) to one or more channels. Beaver:</p>
+<ol>
+<li>Provisions one Cloud Monitoring notification channel per <code>channels</code> entry.</li>
+<li>Provisions one log-based alert policy per <code>routes</code> entry.</li>
+<li>Adds one <code>alertChart</code> widget per policy on the dashboard.</li>
+</ol>
+<p>If <code>notifications.yaml</code> is absent or empty, the alerting section of the dashboard is omitted entirely.</p>
+<h2 id="what-you-should-not-edit"><a class="header" href="#what-you-should-not-edit">What you should not edit</a></h2>
+<ul>
+<li><code>artifacts/resources.yaml</code> — the tracker. <a href="#destroy"><code>destroy</code></a> and the repair commands rely on it. If you hand-edit it, destroy may leave orphans on GCP.</li>
+<li><code>artifacts/detections_gen.py</code> — regenerated on every <code>deploy</code> or <code>refresh-detections</code>.</li>
+<li><code>artifacts/vector.yaml</code> — regenerated on every <code>deploy</code>.</li>
+</ul>
+<div style="break-before: page; page-break-before: always;"></div>
+<h1 id="commands"><a class="header" href="#commands">Commands</a></h1>
+<p>Beaver exposes five subcommands. All take <code>--path &lt;dir&gt;</code> pointing at your <code>beaver_config/</code> directory.</p>
+<div class="table-wrapper">
+<table>
+<thead>
+<tr><th>Command</th><th>Purpose</th><th>Affects GCP</th></tr>
+</thead>
+<tbody>
+<tr><td><a href="#init"><code>init</code></a></td><td>Scaffold a new <code>beaver_config/</code> skeleton.</td><td>No</td></tr>
+<tr><td><a href="#deploy-1"><code>deploy</code></a></td><td>Provision everything from scratch.</td><td>Yes — creates ~15 resources</td></tr>
+<tr><td><a href="#destroy"><code>destroy</code></a></td><td>Tear down everything tracked in <code>resources.yaml</code>.</td><td>Yes — deletes everything Beaver created</td></tr>
+<tr><td><a href="#repair-dataflow"><code>repair-dataflow</code></a></td><td>Relaunch only the Dataflow job. Idempotent if it’s already Running.</td><td>Yes — Dataflow job only</td></tr>
+<tr><td><a href="#refresh-detections"><code>refresh-detections</code></a></td><td>Recompile Sigma rules and relaunch Dataflow with the new code.</td><td>Yes — Dataflow job only</td></tr>
+</tbody>
+</table>
+</div>
+<h2 id="mental-model"><a class="header" href="#mental-model">Mental model</a></h2>
+<p>The system has two layers of state:</p>
+<ul>
+<li><strong>Slow-moving infra</strong>: SAs, IAM grants, BQ, Pub/Sub, GCS, Cloud Run, Artifact Registry, dashboards. Created once at <code>deploy</code>, destroyed by <code>destroy</code>. Rarely needs to change.</li>
+<li><strong>Fast-moving compute</strong>: the Dataflow job + the detection code it embeds. Crashes, runs out of workers, gets new rules — needs to be replaced often without touching the rest.</li>
+</ul>
+<p>That split is why <code>repair-dataflow</code> and <code>refresh-detections</code> exist as separate commands: most operational needs only touch the fast layer, so you shouldn’t have to destroy and redeploy ~15 resources just to swap out a streaming job.</p>
+<h2 id="recommended-workflows"><a class="header" href="#recommended-workflows">Recommended workflows</a></h2>
+<div class="table-wrapper">
+<table>
+<thead>
+<tr><th>Situation</th><th>Command</th></tr>
+</thead>
+<tbody>
+<tr><td>First-time setup</td><td><code>init</code> then <code>deploy</code></td></tr>
+<tr><td>Edited a Sigma rule</td><td><code>refresh-detections</code></td></tr>
+<tr><td>Dataflow job failed (zone exhaustion, OOM, crash)</td><td><code>repair-dataflow</code></td></tr>
+<tr><td>Changed <code>beaver_config.yaml</code> or <code>vector.yaml</code> shape</td><td><code>destroy</code> then <code>deploy</code> (no targeted repair yet)</td></tr>
+<tr><td>Done with the deploy</td><td><code>destroy</code></td></tr>
+</tbody>
+</table>
+</div>
+<div style="break-before: page; page-break-before: always;"></div>
+<h1 id="deploy-1"><a class="header" href="#deploy-1">deploy</a></h1>
+<p>Provision a full Beaver pipeline from a <code>beaver_config/</code> directory.</p>
+<pre><code class="language-bash">beaver deploy --path &lt;config&gt;
+</code></pre>
+<h2 id="what-it-does"><a class="header" href="#what-it-does">What it does</a></h2>
+<p>Runs the following steps in order, each as a spinner. Every step writes back to <code>artifacts/resources.yaml</code> as soon as the resource is created, so a crash mid-deploy leaves an accurate record that <code>destroy</code> can later clean up.</p>
+<ol>
+<li><strong>environment precheck</strong> — checks <code>gcloud</code>/<code>bq</code> CLIs, ADC, the active project, optionally links billing, enables 9 required APIs, and installs <code>gcloud alpha</code> components.</li>
+<li><strong>compile sigma rules</strong> — runs pySigma over <code>sigma/</code> and generates <code>artifacts/detections_gen.py</code>.</li>
+<li><strong>grant Pub/Sub→BQ delivery</strong> — gives the Pub/Sub service agent <code>roles/bigquery.dataEditor</code> so BQ subscriptions can deliver.</li>
+<li><strong>BigQuery dataset + table</strong> — creates <code>beaver_&lt;rand&gt;</code> dataset and the events table.</li>
+<li><strong>Pub/Sub topic + subscriptions</strong> — output topic plus the BQ subscription and the Dataflow pull subscription.</li>
+<li><strong>GCS bucket</strong> — <code>beaver_&lt;rand&gt;</code> for Dataflow staging + temp.</li>
+<li><strong>Vector SA + IAM</strong> — creates <code>beaver-vector-&lt;rand&gt;@</code>, grants resource-scoped subscriber/publisher and <code>logging.logWriter</code>.</li>
+<li><strong>write vector.yaml</strong> — renders the Vector config that points at input sub → output topic.</li>
+<li><strong>build Vector docker image (Cloud Build)</strong> — submits a Cloud Build job that bakes vector.yaml into the image.</li>
+<li><strong>deploy Vector Cloud Run service</strong> — runs the image as <code>beaver-vector-instance-&lt;rand&gt;</code>.</li>
+<li><strong>Dataflow SA + IAM</strong> — creates <code>beaver-dataflow-&lt;rand&gt;@</code>, grants Dataflow subscriber, objectAdmin on the Beaver bucket <em>and</em> on <code>dataflow-staging-&lt;region&gt;-&lt;projectnum&gt;</code>, plus <code>dataflow.worker</code> and <code>logging.logWriter</code>.</li>
+<li><strong>upload Dataflow template</strong> — builds the classic template from <code>detections_gen.py</code> and uploads to <code>gs://&lt;bucket&gt;/templates/</code>.</li>
+<li><strong>launch Dataflow streaming job</strong> — runs the template as <code>beaver-detections-&lt;rand&gt;</code>. Pins worker zone to <code>&lt;region&gt;-d</code> by default to avoid known-stockout zones. Override with <code>BEAVER_DATAFLOW_ZONE</code>.</li>
+<li><strong>wait for Dataflow workers to come up (up to 5 min)</strong> — polls <code>currentState</code> until <code>Running</code>. On terminal failure, pulls recent worker errors from Cloud Logging into the error message.</li>
+<li><strong>notification channels + alert policies</strong> — <em>only if</em> <code>notifications.yaml</code> is present.</li>
+<li><strong>SOC dashboard + log-based metric</strong> — <em>only if</em> <code>dashboard.enabled: true</code>. Creates the log-based metric, 8 per-component health alert policies, and the dashboard itself.</li>
+</ol>
+<h2 id="idempotency"><a class="header" href="#idempotency">Idempotency</a></h2>
+<p><code>deploy</code> is not currently fully idempotent. Re-running it against an existing <code>resources.yaml</code> will fail on resource collisions (BQ dataset exists, topic exists, etc.). Use <a href="#destroy"><code>destroy</code></a> followed by <code>deploy</code> to start over, or use the targeted <a href="#repair-dataflow"><code>repair-dataflow</code></a> / <a href="#refresh-detections"><code>refresh-detections</code></a> commands for the common partial-failure cases.</p>
+<h2 id="environment-overrides"><a class="header" href="#environment-overrides">Environment overrides</a></h2>
+<div class="table-wrapper">
+<table>
+<thead>
+<tr><th>Variable</th><th>Effect</th></tr>
+</thead>
+<tbody>
+<tr><td><code>BEAVER_DATAFLOW_ZONE</code></td><td>Pin Dataflow workers to a specific zone (e.g. <code>us-east1-b</code>). Useful when the default zone is stockout-prone.</td></tr>
+</tbody>
+</table>
+</div>
+<h2 id="output"><a class="header" href="#output">Output</a></h2>
+<p>On success Beaver prints a summary block plus a dashboard URL (if enabled):</p>
+<pre><code class="language-text">Deployed:
+  BigQuery dataset    my-project.beaver_a1b2c3.events
+  Pub/Sub output      beaver_x9y8z7
+  GCS bucket          beaver_h7i8j9
+  Vector (Cloud Run)  beaver-vector-instance-d4e5f6
+  Dataflow job        beaver-detections-s1t2u3
+  Vector SA           beaver-vector-d4e5f6@my-project.iam.gserviceaccount.com
+  Dataflow SA         beaver-dataflow-d4e5f6@my-project.iam.gserviceaccount.com
+
+Dashboard: https://console.cloud.google.com/monitoring/dashboards/builder/abc-123?project=my-project
+</code></pre>
+<div style="break-before: page; page-break-before: always;"></div>
+<h1 id="destroy"><a class="header" href="#destroy">destroy</a></h1>
+<p>Tear down everything tracked in <code>artifacts/resources.yaml</code>.</p>
+<pre><code class="language-bash">beaver destroy --path &lt;config&gt;
+</code></pre>
+<h2 id="what-it-does-1"><a class="header" href="#what-it-does-1">What it does</a></h2>
+<p><code>destroy</code> is a <strong>plan-then-execute</strong> pass over <code>resources.yaml</code>. It walks the tracker in reverse dependency order and calls the appropriate <code>delete_*</code> for each:</p>
+<pre><code>Dashboard
+LogMetric
+AlertPolicy (one per route + one per component health check)
+NotificationChannel
+DataflowJob          (cancels via JOB_ID lookup)
+CrsService
+PubsubBqSubscription
+PubsubSubscription2
+PubsubTopic
+BqDataset
+ArtifactImage
+ArtifactRepo
+GcsBucket            (force-empties on delete)
+VectorSa
+DataflowSa
+</code></pre>
+<p>Every individual delete is idempotent — <code>NOT_FOUND</code>, <code>does not exist</code>, and similar errors are treated as success — so re-running <code>destroy</code> after a partial run is safe and converges.</p>
+<h2 id="what-destroy-does-not-touch"><a class="header" href="#what-destroy-does-not-touch">What <code>destroy</code> does <em>not</em> touch</a></h2>
+<ul>
+<li>Your input Pub/Sub topic/subscription (Beaver only consumed it)</li>
+<li>GCP-managed buckets like <code>dataflow-staging-&lt;region&gt;-&lt;projnum&gt;</code> and <code>&lt;project&gt;_cloudbuild</code></li>
+<li>Any resource created outside Beaver and not present in <code>resources.yaml</code></li>
+</ul>
+<p>If you’ve poked at <code>resources.yaml</code> by hand, or provisioned policies/channels via <code>gcloud</code> directly (the way the dashboard iteration phase sometimes does), <code>destroy</code> will not see those and you’ll need to delete them manually.</p>
+<h2 id="after-successful-destroy"><a class="header" href="#after-successful-destroy">After successful destroy</a></h2>
+<p>If every planned step succeeds, <code>resources.yaml</code> is removed:</p>
+<pre><code class="language-text">destroy complete; resources.yaml removed
+</code></pre>
+<p>If anything failed, <code>resources.yaml</code> keeps the entries that didn’t get cleaned up, so a re-run can pick up where it left off:</p>
+<pre><code class="language-text">destroy partial; resources.yaml retains failed entries
+</code></pre>
+<h2 id="verifying"><a class="header" href="#verifying">Verifying</a></h2>
+<p>Spot-check what’s left:</p>
+<pre><code class="language-bash">gcloud dataflow jobs list --region=&lt;region&gt; --status=active
+gcloud run services list --region=&lt;region&gt;
+gcloud pubsub topics list | grep beaver_
+gcloud iam service-accounts list --filter='email:beaver-*'
+gcloud alpha monitoring policies list --filter='displayName:Beaver'
+gcloud logging metrics list --filter='name~beaver_'
+</code></pre>
+<div style="break-before: page; page-break-before: always;"></div>
+<h1 id="repair-dataflow"><a class="header" href="#repair-dataflow">repair-dataflow</a></h1>
+<p>Relaunch only the Dataflow job. Use when the streaming job has failed (zone exhaustion, OOM, crash) but the rest of the pipeline is healthy.</p>
+<pre><code class="language-bash">beaver repair-dataflow --path &lt;config&gt;
+</code></pre>
+<h2 id="what-it-does-2"><a class="header" href="#what-it-does-2">What it does</a></h2>
+<ol>
+<li>Loads <code>resources.yaml</code> and looks up the recorded <code>dataflow_pipeline_name</code>.</li>
+<li>Calls <code>gcloud dataflow jobs list</code> to read the current <code>currentState</code>.</li>
+<li>If <code>Running</code> → exits as no-op.</li>
+<li>Otherwise:
+<ul>
+<li>Best-effort cancels the existing job (returns OK if already inactive).</li>
+<li>Re-uploads the Dataflow template to GCS.</li>
+<li>Launches a new streaming job with a fresh random name.</li>
+<li>Polls <code>currentState</code> until <code>Running</code> (up to 5 min) or surfaces recent worker errors on failure.</li>
+</ul>
+</li>
+<li>Updates <code>dataflow_pipeline_name</code> in <code>resources.yaml</code> to the new name.</li>
+</ol>
+<p>Everything else — SAs, IAM grants, GCS bucket, Cloud Run service, BQ, Pub/Sub, dashboard — is <strong>not touched</strong>. The repair assumes those are still healthy.</p>
+<h2 id="when-to-use"><a class="header" href="#when-to-use">When to use</a></h2>
+<div class="table-wrapper">
+<table>
+<thead>
+<tr><th>Symptom</th><th>Use this?</th></tr>
+</thead>
+<tbody>
+<tr><td>Dataflow job is FAILED or CANCELLED, rest of pipeline looks fine</td><td>✅</td></tr>
+<tr><td>Dataflow alertChart on dashboard is red</td><td>✅</td></tr>
+<tr><td>Cloud Run is also broken</td><td>❌ — use <code>destroy</code> + <code>deploy</code></td></tr>
+<tr><td>You edited rules, not just the job state</td><td>use <a href="#refresh-detections"><code>refresh-detections</code></a> instead</td></tr>
+<tr><td>Workers exhausted in default zone</td><td>✅ — set <code>BEAVER_DATAFLOW_ZONE</code> then run repair</td></tr>
+</tbody>
+</table>
+</div>
+<h2 id="common-pattern-zone-exhaustion"><a class="header" href="#common-pattern-zone-exhaustion">Common pattern: zone exhaustion</a></h2>
+<p>The default Dataflow zone (<code>&lt;region&gt;-d</code>) is intermittently stockout-prone for <code>n1-standard-2</code> workers. If you see <code>ZONE_RESOURCE_POOL_EXHAUSTED</code> in worker logs:</p>
+<pre><code class="language-bash">BEAVER_DATAFLOW_ZONE=us-east1-b beaver repair-dataflow --path &lt;config&gt;
+</code></pre>
+<p>The new job lands in the override zone. You can keep that env var set for subsequent repairs until the default zone recovers.</p>
+<div style="break-before: page; page-break-before: always;"></div>
+<h1 id="refresh-detections"><a class="header" href="#refresh-detections">refresh-detections</a></h1>
+<p>Recompile Sigma rules and relaunch Dataflow with the new detection code.</p>
+<pre><code class="language-bash">beaver refresh-detections --path &lt;config&gt;
+</code></pre>
+<h2 id="what-it-does-3"><a class="header" href="#what-it-does-3">What it does</a></h2>
+<ol>
+<li>Loads <code>resources.yaml</code>.</li>
+<li>Runs the sigma compile step → regenerates <code>artifacts/detections_gen.py</code>.</li>
+<li>Cancels the current Dataflow job <strong>unconditionally</strong> (even if Running — it’s running stale code).</li>
+<li>Re-uploads the Dataflow template with the freshly compiled module baked in.</li>
+<li>Launches a new streaming job (fresh random name).</li>
+<li>Polls <code>currentState</code> until <code>Running</code>.</li>
+</ol>
+<p>Everything else stays put.</p>
+<h2 id="when-to-use-1"><a class="header" href="#when-to-use-1">When to use</a></h2>
+<div class="table-wrapper">
+<table>
+<thead>
+<tr><th>Situation</th><th>Use this</th></tr>
+</thead>
+<tbody>
+<tr><td>Added a new Sigma rule</td><td>✅</td></tr>
+<tr><td>Edited an existing rule’s logic</td><td>✅</td></tr>
+<tr><td>Renamed a rule</td><td>✅</td></tr>
+<tr><td>Deleted a rule</td><td>✅</td></tr>
+<tr><td>Job is failing for a <em>non</em>-code reason (zone exhaustion, IAM)</td><td>use <a href="#repair-dataflow"><code>repair-dataflow</code></a> — it’s the same flow without the recompile</td></tr>
+</tbody>
+</table>
+</div>
+<h2 id="cost-of-using-this"><a class="header" href="#cost-of-using-this">Cost of using this</a></h2>
+<p>Because step 3 cancels the running job unconditionally, you’ll get a ~2–3 min gap where the detection pipeline is down (workers spin up, template loads). Raw events still land in BigQuery via the BQ subscription throughout — only the detections layer is interrupted.</p>
+<div style="break-before: page; page-break-before: always;"></div>
+<h1 id="init"><a class="header" href="#init">init</a></h1>
+<p>Scaffold a new <code>beaver_config/</code> directory.</p>
+<pre><code class="language-bash">beaver init --path &lt;dir&gt;
+</code></pre>
+<h2 id="flags"><a class="header" href="#flags">Flags</a></h2>
+<div class="table-wrapper">
+<table>
+<thead>
+<tr><th>Flag</th><th>Effect</th></tr>
+</thead>
+<tbody>
+<tr><td><code>-p, --path &lt;dir&gt;</code></td><td>Where to create the scaffolded <code>beaver_config/</code>.</td></tr>
+<tr><td><code>-f, --force</code></td><td>Overwrite an existing config (otherwise errors if the directory is non-empty).</td></tr>
+<tr><td><code>-d, --dev</code></td><td>Populate with a development-friendly default config (sample Sigma rule, dashboard enabled, etc.).</td></tr>
+</tbody>
+</table>
+</div>
+<h2 id="what-it-produces"><a class="header" href="#what-it-produces">What it produces</a></h2>
+<pre><code>&lt;dir&gt;/beaver_config/
+├── beaver_config.yaml          # stub — fill in project, region, input_subscription
+├── sigma/
+│   └── example_rule.yaml       # one sample Sigma rule (with --dev)
+└── artifacts/                  # empty; populated on deploy
+</code></pre>
+<p>After <code>init</code>, edit <code>beaver_config.yaml</code> then run <a href="#deploy-1"><code>deploy</code></a>.</p>
+<div style="break-before: page; page-break-before: always;"></div>
+<h1 id="writing-sigma-rules"><a class="header" href="#writing-sigma-rules">Writing Sigma rules</a></h1>
+<p>Beaver runs standard <a href="https://github.com/SigmaHQ/sigma">Sigma</a> YAML through the <a href="https://github.com/matanolabs/pySigma-backend-matano"><code>pySigma-backend-matano</code></a> backend, which compiles each rule into a Python function. Those functions get bundled into the Dataflow streaming job at deploy time.</p>
+<h2 id="rule-layout"><a class="header" href="#rule-layout">Rule layout</a></h2>
+<p>Rules live in <code>beaver_config/sigma/</code>. Beaver picks up <code>*.yaml</code> recursively. A minimal rule:</p>
+<pre><code class="language-yaml">title: Suspicious sudo from non-admin
+id: 1a2b3c4d-5e6f-7a8b-9c0d-1e2f3a4b5c6d
+description: A non-admin user invoked sudo.
+status: experimental
+author: you
+date: 2026/01/01
+logsource:
+  product: linux
+  service: syslog
+detection:
+  selection:
+    program: sudo
+  filter:
+    user|startswith: "admin-"
+  condition: selection and not filter
+fields:
+  - user
+  - program
+  - command
+level: high
+tags:
+  - attack.privilege_escalation
+</code></pre>
+<h2 id="how-matching-works-at-runtime"><a class="header" href="#how-matching-works-at-runtime">How matching works at runtime</a></h2>
+<p>For every event the Dataflow harness receives from the output Pub/Sub subscription:</p>
+<ol>
+<li>The harness parses it as JSON.</li>
+<li>Calls every compiled detection function with the parsed dict.</li>
+<li>On any function returning truthy, emits a structured log entry:
+<pre><code class="language-json">{
+  "event": "BEAVER_SIEM_MATCH",
+  "rule_name": "Suspicious sudo from non-admin",
+  "severity": "high",
+  "record": { ... original event ... },
+  "message": "Suspicious sudo from non-admin"
+}
+</code></pre>
+</li>
+<li>That log entry flows to Cloud Logging, which:
+<ul>
+<li>Increments the log-based metric (per <code>rule_name</code> label) — drives dashboard panels</li>
+<li>Triggers any alert policies whose filter matches</li>
+</ul>
+</li>
+</ol>
+<h2 id="what-fields-can-rules-use"><a class="header" href="#what-fields-can-rules-use">What fields can rules use?</a></h2>
+<p>Whatever’s in your event JSON after Vector finishes shaping it. The Sigma backend translates conditions to Python attribute access on a dict. So if Vector emits:</p>
+<pre><code class="language-json">{ "user": "alice", "program": "sudo", "command": "/bin/bash" }
+</code></pre>
+<p>then <code>selection: { program: sudo }</code> translates to <code>record.get("program") == "sudo"</code>.</p>
+<h2 id="severity--alert-routing"><a class="header" href="#severity--alert-routing">Severity → alert routing</a></h2>
+<p>Beaver extracts <code>level:</code> from the rule, normalizes it to the <code>severity</code> label, and writes it into every match event. Your <code>notifications.yaml</code> routes can then match on it:</p>
+<pre><code class="language-yaml">routes:
+  - match: { severity: critical }
+    channels: [oncall-pager]
+  - match: { severity: high }
+    channels: [soc-slack]
+</code></pre>
+<p>See <a href="#configuration-reference">Configuration reference</a> for the full notification schema.</p>
+<h2 id="iterating-on-rules"><a class="header" href="#iterating-on-rules">Iterating on rules</a></h2>
+<ol>
+<li>Edit rule YAMLs in <code>beaver_config/sigma/</code>.</li>
+<li>Run <code>beaver refresh-detections --path beaver_config</code>. This recompiles and relaunches the Dataflow job only — no other infra is touched.</li>
+<li>Publish a test event and watch the dashboard’s live feed.</li>
+</ol>
+<p>If the compile step fails, the spinner shows <code>✗ compile sigma rules</code> and the pySigma error is included in the output. Fix the rule and re-run.</p>
+<h2 id="limitations"><a class="header" href="#limitations">Limitations</a></h2>
+<ul>
+<li>Only the matanolabs pySigma backend is wired in. Rules that depend on Splunk-specific functions or ES query DSL will not compile.</li>
+<li>No correlation rules yet (each event is evaluated independently).</li>
+<li>Rule changes require a Dataflow job restart (~2–3 min gap) since the rules are compiled into the streaming code rather than loaded dynamically.</li>
+</ul>
+<div style="break-before: page; page-break-before: always;"></div>
+<h1 id="dashboard-tour"><a class="header" href="#dashboard-tour">Dashboard tour</a></h1>
+<p>When <code>dashboard.enabled: true</code> in <code>beaver_config.yaml</code>, Beaver provisions a Cloud Monitoring dashboard with a uniform component-health grid plus detection-specific panels.</p>
+<p>The dashboard URL is printed at the end of <code>beaver deploy</code> and is also recorded as <code>dashboard_id</code> in <code>resources.yaml</code>.</p>
+<h2 id="layout"><a class="header" href="#layout">Layout</a></h2>
+<pre><code>┌─────────────────────────────────────────────────────────────────────────┐
+│ Resources                                                                │
+│ [Cloud Run] · [Dataflow] · [BigQuery] · [Output topic] · [BQ sub] · …    │
+├─────────────────────────────────────────────────────────────────────────┤
+│ Cloud Run    │ Dataflow      │ Output topic    │ BQ subscription        │
+│ alertChart   │ alertChart    │ alertChart      │ alertChart             │
+├─────────────────────────────────────────────────────────────────────────┤
+│ DF sub       │ BigQuery      │ GCS bucket      │ Log metric             │
+│ alertChart   │ alertChart    │ alertChart      │ alertChart             │
+├─────────────────────────────────────────────────────────────────────────┤
+│ Detection events (live feed) — logsPanel filtered to BEAVER_SIEM_MATCH   │
+├──────────────────────────────┬──────────────────────────────────────────┤
+│ Top firing rules (1h)        │ Detection rate by rule (6h)              │
+│ timeSeriesTable              │ xyChart                                  │
+├─────────────────────────────────────────────────────────────────────────┤
+│ Dataflow worker logs (warnings + errors)                                │
+├─────────────────────────────────────────────────────────────────────────┤
+│ (if notifications configured)                                           │
+│   Notification delivery (recent)                                        │
+│   Per-route alertCharts                                                 │
+└─────────────────────────────────────────────────────────────────────────┘
+</code></pre>
+<h2 id="the-component-health-grid"><a class="header" href="#the-component-health-grid">The component-health grid</a></h2>
+<p>Every provisioned resource appears as an <code>alertChart</code> widget backed by a Cloud Monitoring alert policy. The widget reads green when the policy is OK and red when it’s open.</p>
+<div class="table-wrapper">
+<table>
+<thead>
+<tr><th>Widget</th><th>Backing policy condition</th></tr>
+</thead>
+<tbody>
+<tr><td>Cloud Run</td><td>no-op (instance_count &gt; 999999) — always green if deploy succeeded</td></tr>
+<tr><td>Dataflow</td><td><code>is_failed &gt; 0</code> OR <code>metric absent &gt; 10min</code> — red on real failure or worker stockout</td></tr>
+<tr><td>Output topic</td><td>no-op — always green</td></tr>
+<tr><td>BQ subscription</td><td><code>num_undelivered_messages &gt; 10000</code> for 60s — red on real backlog</td></tr>
+<tr><td>DF subscription</td><td>same</td></tr>
+<tr><td>BigQuery</td><td>no-op</td></tr>
+<tr><td>GCS bucket</td><td>no-op</td></tr>
+<tr><td>Log metric</td><td>no-op</td></tr>
+</tbody>
+</table>
+</div>
+<p><strong>The no-op widgets are intentional.</strong> Resources like BigQuery, GCS buckets, and idle Pub/Sub topics have no runtime metric that reliably signals “still alive”. Rather than have an inconsistent grid (some scorecards, some markdown), every component gets the same alertChart UI; the ones without meaningful runtime signal show green forever as a “deploy succeeded” indicator.</p>
+<p>The two widgets that <em>will</em> turn red on real issues are <strong>Dataflow</strong> and the two <strong>subscription backlog</strong> widgets. Watch those.</p>
+<h2 id="detection-events-live-feed"><a class="header" href="#detection-events-live-feed">Detection events live feed</a></h2>
+<p><code>logsPanel</code> filtered to <code>resource.type="dataflow_step" AND jsonPayload.message:"BEAVER_SIEM_MATCH"</code>. New detection events stream in within a few seconds of the Dataflow harness emitting them.</p>
+<h2 id="top-firing-rules-1h"><a class="header" href="#top-firing-rules-1h">Top firing rules (1h)</a></h2>
+<p><code>timeSeriesTable</code> over the log-based metric, grouped by <code>metric.label.rule_name</code>, summed over the last hour. Use this to spot which rule is generating the most volume right now.</p>
+<h2 id="detection-rate-by-rule-6h"><a class="header" href="#detection-rate-by-rule-6h">Detection rate by rule (6h)</a></h2>
+<p><code>xyChart</code> of the same metric, rate-aligned, grouped by rule. Sustained spikes show up here before they swamp the live feed.</p>
+<h2 id="dataflow-worker-logs"><a class="header" href="#dataflow-worker-logs">Dataflow worker logs</a></h2>
+<p><code>logsPanel</code> filtered to <code>resource.type="dataflow_step" AND resource.labels.job_name=&lt;current&gt; AND severity&gt;=WARNING</code>. First place to look when the Dataflow alertChart goes red.</p>
+<h2 id="notification-rows-optional"><a class="header" href="#notification-rows-optional">Notification rows (optional)</a></h2>
+<p>When <code>notifications.yaml</code> is configured, an extra row appears:</p>
+<ul>
+<li><strong>Notification delivery (recent)</strong> — <code>logsPanel</code> on <code>resource.type="alerting_policy"</code>, showing when policies fired and how the channels handled delivery.</li>
+<li>One <strong>alertChart per route</strong> — visual status of every alert policy.</li>
+</ul>
+<h2 id="re-rendering-the-dashboard"><a class="header" href="#re-rendering-the-dashboard">Re-rendering the dashboard</a></h2>
+<p>If you want to tweak the layout without a full destroy/deploy, the easiest path is to edit <code>src/lib/dashboard.rs::render_dashboard</code>, run <code>cargo build</code>, then destroy + deploy. For surgical changes against an already-running dashboard, you can also <code>gcloud monitoring dashboards describe</code> it to JSON, hand-edit, and <code>dashboards update</code>. The Rust code is the source of truth — keep them in sync.</p>
+<div style="break-before: page; page-break-before: always;"></div>
+<h1 id="troubleshooting"><a class="header" href="#troubleshooting">Troubleshooting</a></h1>
+<p>Real failures encountered while building and operating Beaver.</p>
+<h2 id="dataflow-workers-never-come-up-zone_resource_pool_exhausted"><a class="header" href="#dataflow-workers-never-come-up-zone_resource_pool_exhausted">Dataflow workers never come up: <code>ZONE_RESOURCE_POOL_EXHAUSTED</code></a></h2>
+<p><strong>Symptom</strong>: <code>beaver deploy</code> hangs at “wait for Dataflow workers to come up”, then errors out. Dataflow console shows the job in <code>JOB_STATE_FAILED</code> with <code>ZONE_RESOURCE_POOL_EXHAUSTED</code> errors.</p>
+<p><strong>Cause</strong>: GCP’s auto-zone selector picked a zone that’s out of <code>n1-standard-2</code> capacity. Common in <code>us-east1-c</code> and <code>us-east1-d</code>.</p>
+<p><strong>Fix</strong>: pin a different zone and relaunch just Dataflow:</p>
+<pre><code class="language-bash">BEAVER_DATAFLOW_ZONE=us-east1-b beaver repair-dataflow --path &lt;config&gt;
+</code></pre>
+<p>The default deploy also accepts this env var if you know up front:</p>
+<pre><code class="language-bash">BEAVER_DATAFLOW_ZONE=us-east1-b beaver deploy --path &lt;config&gt;
+</code></pre>
+<h2 id="sa-does-not-exist-on-iam-grant-after-sa-create-succeeded"><a class="header" href="#sa-does-not-exist-on-iam-grant-after-sa-create-succeeded">“SA does not exist” on IAM grant after SA create succeeded</a></h2>
+<p><strong>Symptom</strong>: <code>beaver deploy</code> creates a service account, then fails on the immediately-following <code>add-iam-policy-binding</code> with <code>Service account beaver-…@… does not exist</code>.</p>
+<p><strong>Cause</strong>: IAM consistency lag — newly-created SAs are not visible to IAM bindings for ~10–20 seconds.</p>
+<p><strong>Fix</strong>: Beaver already handles this. <code>create_sa</code> polls <code>describe</code> for up to 10s after create, and every grant is wrapped in <code>run_iam_grant_with_retry</code> (5s × 6 attempts). If you still hit it, GCP is unusually laggy — re-running <code>deploy</code> should converge.</p>
+<h2 id="dataflow-worker-writes-failing-bucket-access-denied"><a class="header" href="#dataflow-worker-writes-failing-bucket-access-denied">Dataflow worker writes failing: bucket access denied</a></h2>
+<p><strong>Symptom</strong>: Worker logs show <code>Permission denied on bucket dataflow-staging-&lt;region&gt;-&lt;projectnum&gt;</code>.</p>
+<p><strong>Cause</strong>: The Dataflow SA only has <code>objectAdmin</code> on Beaver’s own bucket; the auto-managed staging bucket needs a separate grant.</p>
+<p><strong>Fix</strong>: Beaver grants both at deploy time (<code>grant_bucket(dataflow_staging, ..., "roles/storage.objectAdmin")</code>). If you see this after a successful deploy, the grant was applied — re-run <code>repair-dataflow</code> to relaunch with a fresh template upload.</p>
+<h2 id="dashboard-alertchart-shows-no-data-available"><a class="header" href="#dashboard-alertchart-shows-no-data-available">Dashboard alertChart shows “no data available”</a></h2>
+<p><strong>Symptom</strong>: A component-health widget on the dashboard shows “No data available for the selected time frame” instead of red/green.</p>
+<p><strong>Cause</strong>: The backing metric isn’t emitting any data points at all. For Dataflow this happens when workers never started — <code>is_failed</code> and friends only emit while there are workers. For idle Cloud Run / Pub/Sub topics, the metrics are emitted only when there’s traffic.</p>
+<p><strong>Fix</strong>: For Dataflow, the dashboard policy already has a <code>conditionAbsent</code> clause that flips red after 10 min of no data. Wait the duration, or relaunch via <code>repair-dataflow</code> to get real metric data flowing.</p>
+<h2 id="gcloud-monitoring-channels-create-says-command-not-found"><a class="header" href="#gcloud-monitoring-channels-create-says-command-not-found"><code>gcloud monitoring channels create</code> says command not found</a></h2>
+<p><strong>Symptom</strong>: Notification channel provisioning fails with “unknown command”.</p>
+<p><strong>Cause</strong>: The command lives under <code>gcloud beta monitoring channels</code>, not <code>gcloud monitoring channels</code>.</p>
+<p><strong>Fix</strong>: Beaver invokes the beta-prefixed form already. If you see this on your own, install/update <code>gcloud beta</code>:</p>
+<pre><code class="language-bash">gcloud components install beta
+</code></pre>
+<h2 id="gcloud-alpha-monitoring-policies-says-components-not-installed"><a class="header" href="#gcloud-alpha-monitoring-policies-says-components-not-installed"><code>gcloud alpha monitoring policies</code> says “components not installed”</a></h2>
+<p><strong>Fix</strong>: <code>gcloud components install alpha</code>. Beaver’s precheck runs this automatically (<code>ensure_alpha_components</code>).</p>
+<h2 id="beaver-destroy-panics-with-no-such-file-or-directory"><a class="header" href="#beaver-destroy-panics-with-no-such-file-or-directory"><code>beaver destroy</code> panics with “No such file or directory”</a></h2>
+<p><strong>Symptom</strong>: <code>Tracker.save()</code> panics during destroy.</p>
+<p><strong>Cause</strong>: Older <code>resources.yaml</code> files stored <code>config_path</code> as a relative path. If you run destroy from a different cwd than the original deploy, save fails.</p>
+<p><strong>Fix</strong>: Resolved as of the current build. <code>destroy</code> and the repair commands now rewrite <code>config_path</code> to the absolute form of the <code>--path</code> arg on load. If you hit this on an old build, hand-edit <code>resources.yaml</code> and replace <code>config_path:</code> with the absolute path.</p>
+<h2 id="pubsubbq-subscription-delivery-failing"><a class="header" href="#pubsubbq-subscription-delivery-failing">Pub/Sub→BQ subscription delivery failing</a></h2>
+<p><strong>Symptom</strong>: Events flow into Vector and the output topic, but BigQuery stays empty. Dashboard <code>BQ writes/s</code> (if you still have backlog widgets) shows nothing.</p>
+<p><strong>Cause</strong>: The Pub/Sub service agent (<code>service-&lt;projnum&gt;@gcp-sa-pubsub.iam.gserviceaccount.com</code>) lacks <code>roles/bigquery.dataEditor</code>.</p>
+<p><strong>Fix</strong>: Beaver’s deploy step “grant Pub/Sub→BQ delivery” handles this. If you removed it manually, re-grant:</p>
+<pre><code class="language-bash">gcloud projects add-iam-policy-binding PROJECT_ID \
+  --member=serviceAccount:service-PROJECT_NUMBER@gcp-sa-pubsub.iam.gserviceaccount.com \
+  --role=roles/bigquery.dataEditor
+</code></pre>
+<h2 id="cloud-build-keeps-using-a-managed-bucket-i-cant-access"><a class="header" href="#cloud-build-keeps-using-a-managed-bucket-i-cant-access">Cloud Build keeps using a managed bucket I can’t access</a></h2>
+<p><strong>Symptom</strong>: Vector image build fails with <code>permission denied on gs://PROJECT_ID_cloudbuild</code>.</p>
+<p><strong>Cause</strong>: Cloud Build’s default GCS bucket needs Cloud Build SA permissions on it. Usually self-fixes after the first build; sometimes new projects need a one-shot enable.</p>
+<p><strong>Fix</strong>:</p>
+<pre><code class="language-bash">gcloud services enable cloudbuild.googleapis.com --project=PROJECT_ID
+</code></pre>
+<p>Beaver’s precheck enables this API automatically.</p>
+<h2 id="resources-lingering-after-destroy"><a class="header" href="#resources-lingering-after-destroy">Resources lingering after destroy</a></h2>
+<p><strong>Symptom</strong>: After <code>beaver destroy</code>, you still see Beaver-prefixed alert policies, log metrics, etc. in the GCP console.</p>
+<p><strong>Cause</strong>: Anything created <em>outside</em> <code>resources.yaml</code> is invisible to destroy. Most common case: alert policies created by hand via <code>gcloud</code> while iterating on dashboard design.</p>
+<p><strong>Fix</strong>: Clean up manually:</p>
+<pre><code class="language-bash">gcloud alpha monitoring policies list --filter='displayName:Beaver' --format='value(name)' \
+  | xargs -I{} gcloud alpha monitoring policies delete {} --quiet
+
+gcloud logging metrics list --filter='name~beaver_' --format='value(name)' \
+  | xargs -I{} gcloud logging metrics delete {} --quiet
+</code></pre>
+
+                    </main>
+
+                    <nav class="nav-wrapper" aria-label="Page navigation">
+                        <!-- Mobile navigation buttons -->
+
+
+                        <div style="clear: both"></div>
+                    </nav>
+                </div>
+            </div>
+
+            <nav class="nav-wide-wrapper" aria-label="Page navigation">
+
+            </nav>
+
+        </div>
+
+        <template id=fa-eye><span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 576 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M288 32c-80.8 0-145.5 36.8-192.6 80.6C48.6 156 17.3 208 2.5 243.7c-3.3 7.9-3.3 16.7 0 24.6C17.3 304 48.6 356 95.4 399.4C142.5 443.2 207.2 480 288 480s145.5-36.8 192.6-80.6c46.8-43.5 78.1-95.4 93-131.1c3.3-7.9 3.3-16.7 0-24.6c-14.9-35.7-46.2-87.7-93-131.1C433.5 68.8 368.8 32 288 32zM432 256c0 79.5-64.5 144-144 144s-144-64.5-144-144s64.5-144 144-144s144 64.5 144 144zM288 192c0 35.3-28.7 64-64 64c-11.5 0-22.3-3-31.6-8.4c-.2 2.8-.4 5.5-.4 8.4c0 53 43 96 96 96s96-43 96-96s-43-96-96-96c-2.8 0-5.6 .1-8.4 .4c5.3 9.3 8.4 20.1 8.4 31.6z"/></svg></span></template>
+        <template id=fa-eye-slash><span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M38.8 5.1C28.4-3.1 13.3-1.2 5.1 9.2S-1.2 34.7 9.2 42.9l592 464c10.4 8.2 25.5 6.3 33.7-4.1s6.3-25.5-4.1-33.7L525.6 386.7c39.6-40.6 66.4-86.1 79.9-118.4c3.3-7.9 3.3-16.7 0-24.6c-14.9-35.7-46.2-87.7-93-131.1C465.5 68.8 400.8 32 320 32c-68.2 0-125 26.3-169.3 60.8L38.8 5.1zM223.1 149.5C248.6 126.2 282.7 112 320 112c79.5 0 144 64.5 144 144c0 24.9-6.3 48.3-17.4 68.7L408 294.5c5.2-11.8 8-24.8 8-38.5c0-53-43-96-96-96c-2.8 0-5.6 .1-8.4 .4c5.3 9.3 8.4 20.1 8.4 31.6c0 10.2-2.4 19.8-6.6 28.3l-90.3-70.8zm223.1 298L373 389.9c-16.4 6.5-34.3 10.1-53 10.1c-79.5 0-144-64.5-144-144c0-6.9 .5-13.6 1.4-20.2L83.1 161.5C60.3 191.2 44 220.8 34.5 243.7c-3.3 7.9-3.3 16.7 0 24.6c14.9 35.7 46.2 87.7 93 131.1C174.5 443.2 239.2 480 320 480c47.8 0 89.9-12.9 126.2-32.5z"/></svg></span></template>
+        <template id=fa-copy><span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M502.6 70.63l-61.25-61.25C435.4 3.371 427.2 0 418.7 0H255.1c-35.35 0-64 28.66-64 64l.0195 256C192 355.4 220.7 384 256 384h192c35.2 0 64-28.8 64-64V93.25C512 84.77 508.6 76.63 502.6 70.63zM464 320c0 8.836-7.164 16-16 16H255.1c-8.838 0-16-7.164-16-16L239.1 64.13c0-8.836 7.164-16 16-16h128L384 96c0 17.67 14.33 32 32 32h47.1V320zM272 448c0 8.836-7.164 16-16 16H63.1c-8.838 0-16-7.164-16-16L47.98 192.1c0-8.836 7.164-16 16-16H160V128H63.99c-35.35 0-64 28.65-64 64l.0098 256C.002 483.3 28.66 512 64 512h192c35.2 0 64-28.8 64-64v-32h-47.1L272 448z"/></svg></span></template>
+        <template id=fa-play><span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 384 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M73 39c-14.8-9.1-33.4-9.4-48.5-.9S0 62.6 0 80V432c0 17.4 9.4 33.4 24.5 41.9s33.7 8.1 48.5-.9L361 297c14.3-8.7 23-24.2 23-41s-8.7-32.2-23-41L73 39z"/></svg></span></template>
+        <template id=fa-clock-rotate-left><span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M75 75L41 41C25.9 25.9 0 36.6 0 57.9V168c0 13.3 10.7 24 24 24H134.1c21.4 0 32.1-25.9 17-41l-30.8-30.8C155 85.5 203 64 256 64c106 0 192 86 192 192s-86 192-192 192c-40.8 0-78.6-12.7-109.7-34.4c-14.5-10.1-34.4-6.6-44.6 7.9s-6.6 34.4 7.9 44.6C151.2 495 201.7 512 256 512c141.4 0 256-114.6 256-256S397.4 0 256 0C185.3 0 121.3 28.7 75 75zm181 53c-13.3 0-24 10.7-24 24V256c0 6.4 2.5 12.5 7 17l72 72c9.4 9.4 24.6 9.4 33.9 0s9.4-24.6 0-33.9l-65-65V152c0-13.3-10.7-24-24-24z"/></svg></span></template>
+
+
+
+        <script>
+            window.playground_copyable = true;
+        </script>
+
+
+        <script src="elasticlunr-ef4e11c1.min.js"></script>
+        <script src="mark-09e88c2c.min.js"></script>
+        <script src="searcher-c2a407aa.js"></script>
+
+        <script src="clipboard-1626706a.min.js"></script>
+        <script src="highlight-abc7f01d.js"></script>
+        <script src="book-a0b12cfe.js"></script>
+
+        <!-- Custom JS scripts -->
+
+        <script>
+        window.addEventListener('load', function() {
+            window.setTimeout(window.print, 100);
+        });
+        </script>
+
+
+    </div>
+    </body>
+</html>

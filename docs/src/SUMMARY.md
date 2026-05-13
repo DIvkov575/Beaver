@@ -1,0 +1,15 @@
+# Summary
+
+- [Introduction](./introduction.md)
+- [Quickstart](./quickstart.md)
+- [Architecture](./architecture.md)
+- [Configuration reference](./configuration.md)
+- [Commands](./commands/index.md)
+  - [deploy](./commands/deploy.md)
+  - [destroy](./commands/destroy.md)
+  - [repair-dataflow](./commands/repair-dataflow.md)
+  - [refresh-detections](./commands/refresh-detections.md)
+  - [init](./commands/init.md)
+- [Writing Sigma rules](./sigma-rules.md)
+- [Dashboard tour](./dashboard.md)
+- [Troubleshooting](./troubleshooting.md)
