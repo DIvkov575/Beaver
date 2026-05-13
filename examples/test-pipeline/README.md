@@ -1,31 +1,36 @@
 # test-pipeline
 
-A worked example you can run by hand: five sigma rules covering different
-detection patterns, a categorized set of test payloads, and an `expected.yaml`
-manifest that tells you which rules each payload should fire.
+A self-contained worked example: five sigma rules covering different
+detection patterns, categorized test payloads, an `expected.yaml` manifest
+that tells you which rules each payload should fire, and shell scripts
+for the GCP-side bookends.
 
-There is **no orchestrator script**. The flow below is a walkthrough — run
-each step yourself and observe results in the Cloud Console.
+There is no orchestrator — run each step by hand and observe results in
+the Cloud Console.
 
 ## Layout
 
 ```
-beaver_config/
-├── beaver_config.yaml                  # input sub: beaver-test-pipeline-input-sub
-├── detections/input/                   # 5 rules
-│   ├── 01_failed_login.yml             # equality on two fields
-│   ├── 02_privileged_role_grant.yml    # list-membership on `role`
-│   ├── 03_external_iam_grant.yml       # `selection AND NOT filter` with |endswith
-│   ├── 04_suspicious_user_prefix.yml   # |startswith
-│   └── 05_bulk_data_export.yml         # list-membership on `operation`
-└── artifacts/                          # populated by deploy
-
-payloads/
-├── benign/        4 events that should match nothing
-├── single_match/  5 events, each fires exactly one rule
-├── multi_match/   2 events that fire 2-3 rules
-├── edge/          5 oddballs (malformed, empty, partial, null, unicode)
-└── expected.yaml  manifest: relative path → expected rule names
+examples/test-pipeline/
+├── beaver_config/                          # the Beaver config dir
+│   ├── beaver_config.yaml                  # input sub + dashboard config
+│   └── detections/input/                   # 5 rules
+│       ├── 01_failed_login.yml             # equality on two fields
+│       ├── 02_privileged_role_grant.yml    # list-membership on `role`
+│       ├── 03_external_iam_grant.yml       # `selection AND NOT filter` with |endswith
+│       ├── 04_suspicious_user_prefix.yml   # |startswith
+│       └── 05_bulk_data_export.yml         # list-membership on `operation`
+├── payloads/                               # test inputs
+│   ├── benign/                             4 events, match nothing
+│   ├── single_match/                       5 events, each fires one rule
+│   ├── multi_match/                        2 events, fire 2-3 rules
+│   ├── edge/                               5 oddballs
+│   └── expected.yaml                       relative path → expected rule names
+├── scripts/                                # hand-run bookends
+│   ├── input_topic.sh                      provision input pubsub
+│   ├── publish_payloads.sh                 publish every payload
+│   └── teardown_input.sh                   delete input pubsub
+└── verify.py                               local-only detection logic check
 ```
 
 ## Rule × pattern matrix
@@ -40,101 +45,87 @@ payloads/
 
 ## Walkthrough
 
-### 1. Provision the input topic
+All commands assume `cwd = examples/test-pipeline/`.
+
+### 1. Provision the input pubsub topic
 
 ```bash
 ./scripts/input_topic.sh
 ```
 
-Creates `beaver-test-pipeline-input` and `beaver-test-pipeline-input-sub`
-(idempotent).
+Idempotent. Creates `beaver-test-pipeline-input` + `…-sub`.
 
 ### 2. Deploy Beaver
 
 ```bash
-BEAVER_DATAFLOW_ZONE=us-east1-d cargo run -- deploy --path examples/test-pipeline/beaver_config
+BEAVER_DATAFLOW_ZONE=us-east1-d cargo run --manifest-path ../../Cargo.toml -- \
+    deploy --path beaver_config
 ```
 
-The `BEAVER_DATAFLOW_ZONE` override dodges `us-east1-c` capacity stockouts;
-remove it if your project's default zone has worker capacity.
-
-At the end you'll see a line like:
+`BEAVER_DATAFLOW_ZONE=us-east1-d` dodges `us-east1-c` capacity stockouts;
+omit it if your project's default zone has worker capacity. End of deploy
+prints:
 
 ```
 Dashboard: https://console.cloud.google.com/monitoring/dashboards/builder/<id>?project=<project>
 ```
 
-Open that URL — it's the SOC triage dashboard (detection feed + top rules +
-rate chart + pipeline status).
+That's the SOC triage view — open it.
 
-### 3. Publish the test payloads
+### 3. Publish every test payload
 
 ```bash
-./scripts/publish_test_payloads.sh
+./scripts/publish_payloads.sh
 ```
 
-This loops every file under `payloads/` and publishes its contents to the
-input topic. You'll see 16 `published: ...` lines.
+16 lines, one per file under `payloads/`.
 
 ### 4. Watch the pipeline drain
 
-Vector forwards messages to the output topic; the BQ subscription writes
-them to `<dataset>.table1`; Dataflow runs detections and writes warnings
-to Cloud Logging. Typical latency 30-90 seconds after publish.
-
-To check BQ:
+Vector forwards messages to the output topic → BQ subscription writes them
+to `<dataset>.table1`; Dataflow runs detections and writes warnings to
+Cloud Logging. Typical latency 30-90 seconds after publish.
 
 ```bash
-DATASET=$(grep '^[[:space:]]*dataset_id:' examples/test-pipeline/beaver_config/artifacts/resources.yaml | head -1 | awk '{print $2}')
+# Row count in BQ (expect 15 — Vector drops the malformed one)
+DATASET=$(grep '^[[:space:]]*dataset_id:' beaver_config/artifacts/resources.yaml | head -1 | awk '{print $2}')
 bq query --nouse_legacy_sql --project_id=neon-circle-400322 \
   "SELECT COUNT(*) FROM \`neon-circle-400322.$DATASET.table1\`"
-```
 
-Expected: 15 rows (the 16th payload is malformed JSON and Vector drops it).
-
-To watch detection events stream in:
-
-- Open the dashboard URL → the "Detection events (live feed)" panel
-- Or via CLI:
-
-```bash
-JOB=$(grep '^dataflow_pipeline_name:' examples/test-pipeline/beaver_config/artifacts/resources.yaml | awk '{print $2}')
+# Detection events from the Dataflow worker
+JOB=$(grep '^dataflow_pipeline_name:' beaver_config/artifacts/resources.yaml | awk '{print $2}')
 JOB_ID=$(gcloud dataflow jobs list --region=us-east1 --project=neon-circle-400322 \
   --filter="name=$JOB" --format='value(JOB_ID)' | head -1)
-
 gcloud logging read \
   "resource.type=dataflow_step AND resource.labels.job_id=$JOB_ID AND jsonPayload.message:\"BEAVER_SIEM_MATCH\"" \
   --project=neon-circle-400322 --limit=20 --format='value(jsonPayload.message)'
 ```
 
-Each line is the JSON payload your detection emitted. Compare against
-`payloads/expected.yaml` to see if everything matched as predicted.
+Cross-reference with `payloads/expected.yaml`.
 
-### 5. Verify detection logic locally (no GCP needed)
+### 5. (Optional) Verify detection logic locally
 
-`verify.py` replays each payload through the compiled `detections()` function
-locally and compares against the manifest. Useful for iterating on rules
-without redeploying.
+`verify.py` replays each payload through the compiled `detections()`
+function and compares against `expected.yaml`. No GCP calls.
 
 ```bash
-/tmp/beaver-test/detections/venv/bin/python examples/test-pipeline/verify.py
+/tmp/beaver-test/detections/venv/bin/python verify.py
 ```
 
-Output is a per-payload PASS/FAIL.
+Useful when iterating on sigma rules without redeploying.
 
 ### 6. Tear down
 
 ```bash
-cargo run -- destroy --path examples/test-pipeline/beaver_config
+cargo run --manifest-path ../../Cargo.toml -- destroy --path beaver_config
 ./scripts/teardown_input.sh
 ```
 
 Destroy removes everything Beaver provisioned (BQ, pubsub, Cloud Run,
 Dataflow, image, repo, bucket, service accounts, dashboard, log metric).
-`teardown_input.sh` removes the input topic + subscription you created in
-step 1.
+`teardown_input.sh` removes the input topic + sub from step 1.
 
-## Sanity check after teardown
+### 7. Sanity check after teardown
 
 ```bash
 gcloud storage buckets list --project=neon-circle-400322 --format='value(name)' | grep beaver
@@ -143,4 +134,4 @@ gcloud run services list --region=us-east1 --project=neon-circle-400322 --format
 gcloud dataflow jobs list --region=us-east1 --project=neon-circle-400322 --status=active --format='value(name)' | grep beaver
 ```
 
-All should return empty.
+All four should return empty.
