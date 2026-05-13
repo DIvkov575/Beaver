@@ -1,9 +1,20 @@
 [package]
-name = "Beaver"
+name = "beaver-siem"
 version = "0.2.0"
 edition = "2021"
+description = "Provisions a SIEM detection pipeline on GCP from a config and a folder of Sigma rules."
+license = "MIT"
+repository = "https://github.com/Divkov575/Beaver"
+homepage = "https://github.com/Divkov575/Beaver"
+documentation = "https://Divkov575.github.io/Beaver"
+readme = "README.md"
+keywords = ["siem", "sigma", "gcp", "dataflow", "detection"]
+categories = ["command-line-utilities"]
 
-# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+# Publishes as `beaver-siem` on crates.io but installs as `beaver` on PATH.
+[[bin]]
+name = "beaver"
+path = "src/main.rs"
 
 [build]
 incremental=true

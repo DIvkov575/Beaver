@@ -1,0 +1,19 @@
+[book]
+title = "Beaver"
+description = "SIEM pipeline-as-code for GCP."
+authors = ["Beaver contributors"]
+language = "en"
+src = "src"
+
+[build]
+build-dir = "book"
+
+[output.html]
+default-theme = "navy"
+preferred-dark-theme = "navy"
+git-repository-url = "https://github.com/Divkov575/Beaver"
+edit-url-template = "https://github.com/Divkov575/Beaver/edit/main/docs/{path}"
+
+[output.html.fold]
+enable = true
+level = 1
