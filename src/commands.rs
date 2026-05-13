@@ -9,7 +9,7 @@ use destroy::destroy;
 mod init;
 use init::init;
 mod repair;
-use repair::repair_dataflow;
+use repair::{refresh_detections, repair_dataflow};
 
 
 #[derive(Parser, Debug)]
@@ -38,6 +38,11 @@ pub enum Command {
         #[arg(short, long)]
         path: String
     },
+    #[command(about="Recompile sigma rules and relaunch Dataflow with new detections")]
+    RefreshDetections {
+        #[arg(short, long)]
+        path: String
+    },
 }
 impl Command {
     pub fn run(self) -> Result<()> {
@@ -47,6 +52,7 @@ impl Command {
             Deploy{path} => deploy(&path),
             Destroy{path} => destroy(&path),
             RepairDataflow{path} => repair_dataflow(&path),
+            RefreshDetections{path} => refresh_detections(&path),
         }
     }
 }
