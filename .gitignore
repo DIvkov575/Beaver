@@ -1,6 +1,7 @@
 .idea/
 target/
 .DS_Store
+.worktrees/
 
 src/beav
 src/conf
