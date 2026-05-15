@@ -5,7 +5,7 @@ use spinoff::{spinners, Color, Spinner};
 
 use crate::lib::{bq::{
     self
-}, config::Config, crs, dashboard, dataflow, detections_gen, gcs, pubsub, cloud_build, notifications, precheck, service_accounts};
+}, config::Config, crs, dashboard, dataflow, detections_gen, gcs, pubsub, cloud_build, cold_storage, notifications, precheck, service_accounts};
 use crate::lib::resources::{Resources, Tracker};
 use crate::lib::sigma;
 use crate::lib::utilities::{self, check_for_bq, check_for_gcloud, random_tag, validate_config_path};
@@ -55,6 +55,8 @@ pub fn deploy(path_arg: &str) -> Result<()> {
     step("BigQuery dataset + table", || bq::create(&mut tracker, &config))?;
     step("Pub/Sub topic + subscriptions", || pubsub::create(&mut tracker, &config))?;
     step("GCS bucket", || gcs::create_bucket(&mut tracker, &config))?;
+    step("Cold tier (BigLake + lifecycle + scheduled export)",
+        || cold_storage::create(&mut tracker, &config))?;
 
     let input_sub = Config::load_input_subscription(&path)?;
     let vector_sa = step("Vector service account + IAM", || {
