@@ -300,13 +300,112 @@ fn create_events_view(tracker: &mut Tracker, config: &Config) -> Result<String> 
     }
     Ok(view)
 }
-fn create_export_scheduled_query(_t: &mut Tracker, _c: &Config) -> Result<String> {
-    Err(anyhow!("Task 8"))
+pub(crate) fn build_export_sql(
+    project: &str,
+    ds: &str,
+    hot: &str,
+    bucket: &str,
+    prefix: &str,
+    age_days: u32,
+) -> String {
+    let date_expr = format!("DATE_SUB(CURRENT_DATE(), INTERVAL {} DAY)", age_days);
+    // The URI must be a literal at EXPORT DATA evaluation time, so we wrap the
+    // whole thing in EXECUTE IMMEDIATE FORMAT and interpolate the partition
+    // date into the URI and the WHERE clauses.
+    format!(
+        "EXECUTE IMMEDIATE FORMAT(\"\"\"\
+EXPORT DATA OPTIONS(\
+uri='gs://{bucket}/{prefix}/dt=%s/data-*.parquet', \
+format='PARQUET', compression='ZSTD', overwrite=true) AS \
+SELECT * FROM `{project}.{ds}.{hot}` WHERE _PARTITIONDATE = DATE '%s'; \
+DELETE FROM `{project}.{ds}.{hot}` WHERE _PARTITIONDATE = DATE '%s';\
+\"\"\", \
+FORMAT_DATE('%Y-%m-%d', {date_expr}), \
+FORMAT_DATE('%Y-%m-%d', {date_expr}), \
+FORMAT_DATE('%Y-%m-%d', {date_expr}));"
+    )
+}
+
+pub(crate) fn build_export_transfer_args(
+    project: &str,
+    dataset: &str,
+    schedule: &str,
+    params_json: &str,
+) -> Vec<String> {
+    vec![
+        "mk".into(),
+        "--transfer_config".into(),
+        format!("--project_id={}", project),
+        format!("--target_dataset={}", dataset),
+        "--display_name=beaver_events_export".into(),
+        "--data_source=scheduled_query".into(),
+        format!("--schedule={}", schedule),
+        format!("--params={}", params_json),
+    ]
+}
+
+fn create_export_scheduled_query(tracker: &mut Tracker, config: &Config) -> Result<String> {
+    let bucket = tracker.resources().bucket_name.clone();
+    let ds = tracker.resources().biq_query.dataset_id.clone();
+    let hot = tracker.resources().biq_query.table_id.clone();
+    let sql = build_export_sql(&config.project, &ds, &hot, &bucket, PARQUET_PREFIX, EXPORT_AGE_DAYS);
+    let params = serde_json::json!({ "query": sql }).to_string();
+
+    let args = build_export_transfer_args(&config.project, &ds, EXPORT_SCHEDULE, &params);
+    let argrefs: Vec<&str> = args.iter().map(String::as_str).collect();
+    let out = Command::new("bq").args(&argrefs).output()?;
+    if !out.status.success() {
+        return Err(anyhow!(
+            "bq mk transfer_config failed: {}",
+            String::from_utf8_lossy(&out.stderr)
+        ));
+    }
+    // Stdout: "... 'projects/.../transferConfigs/<id>' successfully created."
+    let stdout = String::from_utf8_lossy(&out.stdout).to_string();
+    let id = stdout
+        .split('\'')
+        .find(|s| s.contains("transferConfigs/"))
+        .unwrap_or("")
+        .to_string();
+    if id.is_empty() {
+        return Err(anyhow!("could not parse transfer config id from: {}", stdout));
+    }
+    Ok(id)
 }
 
 #[cfg(test)]
 mod arg_tests {
     use super::*;
+
+    #[test]
+    fn export_sql_targets_partition_age_and_deletes_after() {
+        let sql = build_export_sql("myproj", "myds", "events", "bucket-abc", "parquet", 13);
+        let lower = sql.to_lowercase();
+        assert!(lower.contains("export data"));
+        assert!(lower.contains("format='parquet'"));
+        assert!(lower.contains("compression='zstd'"));
+        assert!(sql.contains("gs://bucket-abc/parquet/dt="));
+        assert!(lower.contains("date_sub(current_date(), interval 13 day)"));
+        assert!(lower.contains("delete from `myproj.myds.events`"));
+        assert!(sql.contains("_PARTITIONDATE"));
+    }
+
+    #[test]
+    fn export_transfer_args_have_schedule_and_params() {
+        let args = build_export_transfer_args(
+            "myproj",
+            "myds",
+            "every 24 hours",
+            r#"{"query":"SELECT 1"}"#,
+        );
+        let joined = args.join(" ");
+        assert!(joined.contains("mk"));
+        assert!(joined.contains("--transfer_config"));
+        assert!(joined.contains("--data_source=scheduled_query"));
+        assert!(joined.contains("--target_dataset=myds"));
+        assert!(joined.contains("--schedule=every 24 hours"));
+        assert!(joined.contains("--params="));
+    }
 
     #[test]
     fn events_view_sql_unions_with_partition_date_column() {
