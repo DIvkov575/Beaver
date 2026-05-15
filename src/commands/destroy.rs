@@ -28,6 +28,7 @@ pub enum DeleteStep {
     EventsView(String),
     ColdTable(String),
     BigLakeConnection(String),
+    ExportSa(String),
 }
 
 /// Reverse of creation: alert policies → notification channels → dataflow →
@@ -71,6 +72,11 @@ pub fn plan(res: &Resources) -> Vec<DeleteStep> {
     // (and the connection is not in the dataset).
     if !res.export_scheduled_query_id.is_empty() {
         steps.push(DeleteStep::ExportScheduledQuery(res.export_scheduled_query_id.clone()));
+    }
+    // Delete SA after the scheduled query that uses it, before BqDataset
+    // teardown (no ordering dependency with the dataset, but keep together).
+    if res.export_sa_managed && !res.export_sa_email.is_empty() {
+        steps.push(DeleteStep::ExportSa(res.export_sa_email.clone()));
     }
     if !res.events_view_id.is_empty() {
         steps.push(DeleteStep::EventsView(res.events_view_id.clone()));
@@ -135,6 +141,7 @@ where
                     DeleteStep::VectorSa(_) => tracker.forget_vector_sa(),
                     DeleteStep::DataflowSa(_) => tracker.forget_dataflow_sa(),
                     DeleteStep::ExportScheduledQuery(_) => tracker.forget_export_scheduled_query(),
+                    DeleteStep::ExportSa(_) => tracker.forget_export_sa(),
                     DeleteStep::EventsView(_) => tracker.forget_events_view(),
                     DeleteStep::ColdTable(_) => tracker.forget_cold_table(),
                     DeleteStep::BigLakeConnection(_) => tracker.forget_biglake_connection(),
@@ -166,6 +173,8 @@ fn dispatch_real(step: &DeleteStep, config: &Config, dataset_id: &str) -> Result
         DeleteStep::DataflowSa(email) => service_accounts::delete_sa(email, &config.project),
         DeleteStep::ExportScheduledQuery(id) =>
             cold_storage::destroy_scheduled_query(id, &config.project),
+        DeleteStep::ExportSa(email) =>
+            service_accounts::delete_sa(email, &config.project),
         DeleteStep::EventsView(view) =>
             cold_storage::destroy_view(dataset_id, view, &config.project),
         DeleteStep::ColdTable(t) =>
