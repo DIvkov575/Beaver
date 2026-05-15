@@ -5,7 +5,7 @@ use std::path::Path;
 use crate::lib::config::Config;
 use crate::lib::resources::{Resources, Tracker};
 use crate::lib::utilities::{check_for_bq, check_for_gcloud, validate_config_path};
-use crate::lib::{bq, cloud_build, crs, dashboard, dataflow, gcs, notifications, pubsub, service_accounts};
+use crate::lib::{bq, cloud_build, cold_storage, crs, dashboard, dataflow, gcs, notifications, pubsub, service_accounts};
 
 #[derive(Debug, PartialEq, Eq)]
 pub enum DeleteStep {
@@ -24,6 +24,10 @@ pub enum DeleteStep {
     GcsBucket(String),
     VectorSa(String),
     DataflowSa(String),
+    ExportScheduledQuery(String),
+    EventsView(String),
+    ColdTable(String),
+    BigLakeConnection(String),
 }
 
 /// Reverse of creation: alert policies → notification channels → dataflow →
@@ -61,6 +65,21 @@ pub fn plan(res: &Resources) -> Vec<DeleteStep> {
     }
     if !res.output_pubsub.topic_id.is_empty() {
         steps.push(DeleteStep::PubsubTopic(res.output_pubsub.topic_id.clone()));
+    }
+    // Cold tier: scheduled query, view, external table, BigLake connection.
+    // Must precede BqDataset removal so the view/cold-table delete first
+    // (and the connection is not in the dataset).
+    if !res.export_scheduled_query_id.is_empty() {
+        steps.push(DeleteStep::ExportScheduledQuery(res.export_scheduled_query_id.clone()));
+    }
+    if !res.events_view_id.is_empty() {
+        steps.push(DeleteStep::EventsView(res.events_view_id.clone()));
+    }
+    if !res.cold_table_id.is_empty() {
+        steps.push(DeleteStep::ColdTable(res.cold_table_id.clone()));
+    }
+    if !res.biglake_connection_id.is_empty() {
+        steps.push(DeleteStep::BigLakeConnection(res.biglake_connection_id.clone()));
     }
     if !res.biq_query.dataset_id.is_empty() {
         steps.push(DeleteStep::BqDataset(res.biq_query.dataset_id.clone()));
@@ -115,6 +134,10 @@ where
                     DeleteStep::GcsBucket(_) => tracker.forget_bucket(),
                     DeleteStep::VectorSa(_) => tracker.forget_vector_sa(),
                     DeleteStep::DataflowSa(_) => tracker.forget_dataflow_sa(),
+                    DeleteStep::ExportScheduledQuery(_) => tracker.forget_export_scheduled_query(),
+                    DeleteStep::EventsView(_) => tracker.forget_events_view(),
+                    DeleteStep::ColdTable(_) => tracker.forget_cold_table(),
+                    DeleteStep::BigLakeConnection(_) => tracker.forget_biglake_connection(),
                 };
                 if let Err(e) = forget {
                     error!("forget after {:?} failed: {}", step, e);
@@ -124,7 +147,7 @@ where
     }
 }
 
-fn dispatch_real(step: &DeleteStep, config: &Config) -> Result<()> {
+fn dispatch_real(step: &DeleteStep, config: &Config, dataset_id: &str) -> Result<()> {
     match step {
         DeleteStep::Dashboard(id) => dashboard::delete_dashboard(id, &config.project),
         DeleteStep::LogMetric(name) => dashboard::delete_log_metric(name, &config.project),
@@ -141,6 +164,14 @@ fn dispatch_real(step: &DeleteStep, config: &Config) -> Result<()> {
         DeleteStep::GcsBucket(name) => gcs::delete_bucket(name),
         DeleteStep::VectorSa(email) => service_accounts::delete_sa(email, &config.project),
         DeleteStep::DataflowSa(email) => service_accounts::delete_sa(email, &config.project),
+        DeleteStep::ExportScheduledQuery(id) =>
+            cold_storage::destroy_scheduled_query(id, &config.project),
+        DeleteStep::EventsView(view) =>
+            cold_storage::destroy_view(dataset_id, view, &config.project),
+        DeleteStep::ColdTable(t) =>
+            cold_storage::destroy_cold_table(dataset_id, t, &config.project),
+        DeleteStep::BigLakeConnection(id) =>
+            cold_storage::destroy_connection(id, &config.project, &config.region),
     }
 }
 
@@ -171,8 +202,9 @@ pub fn destroy(path_arg: &str) -> Result<()> {
         return Ok(());
     }
 
+    let dataset_id = resources.biq_query.dataset_id.clone();
     let mut tracker = Tracker::new(&mut resources);
-    execute(steps, &mut tracker, |step| dispatch_real(step, &config));
+    execute(steps, &mut tracker, |step| dispatch_real(step, &config, &dataset_id));
 
     if plan(tracker.resources()).is_empty() {
         std::fs::remove_file(&resources_path).ok();
@@ -396,9 +428,10 @@ mod tests {
         assert!(bucket_exists(&bucket), "bucket {} missing", bucket);
 
         let steps = plan(&res);
+        let dataset_id = res.biq_query.dataset_id.clone();
         {
             let mut tracker = Tracker::new(&mut res);
-            execute(steps, &mut tracker, |s| dispatch_real(s, &config));
+            execute(steps, &mut tracker, |s| dispatch_real(s, &config, &dataset_id));
         }
 
 
