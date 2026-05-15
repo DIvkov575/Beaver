@@ -202,7 +202,7 @@ fn create_component_health_policies(
     // before calling create_health_policy (which takes &mut tracker).
     let (
         crs_instance, dataflow_job, out_topic, bq_sub, df_sub,
-        bq_dataset, bq_table, bucket
+        bq_dataset, bq_table, bucket, export_sq
     ) = {
         let r = tracker.resources();
         (
@@ -214,6 +214,7 @@ fn create_component_health_policies(
             r.biq_query.dataset_id.clone(),
             r.biq_query.table_id.clone(),
             r.bucket_name.clone(),
+            r.export_scheduled_query_id.clone(),
         )
     };
     let mut out = Vec::new();
@@ -313,6 +314,30 @@ r#"  - displayName: "is_failed > 0"
             &noop_threshold(
                 &format!(r#"resource.type="gcs_bucket" AND metric.type="storage.googleapis.com/storage/total_bytes" AND resource.label.bucket_name="{}""#, bucket),
                 1e30,
+            ))?,
+    });
+
+    // ---- Cold tier (Parquet) bytes: no-op (informational only).
+    out.push(ComponentHealth {
+        label: "Cold tier".to_string(),
+        policy_name: create_health_policy(tracker, config,
+            &format!("Beaver Cold tier ({}/parquet)", bucket),
+            &noop_threshold(
+                &format!(r#"resource.type="gcs_bucket" AND metric.type="storage.googleapis.com/storage/total_bytes" AND resource.label.bucket_name="{}""#, bucket),
+                1e30,
+            ))?,
+    });
+
+    // ---- Daily export scheduled query: no-op tile showing run count.
+    // export_sq may be a full transferConfigs/<uuid> path; strip to the trailing id.
+    let sq_id = export_sq.rsplit('/').next().unwrap_or(&export_sq);
+    out.push(ComponentHealth {
+        label: "Export job".to_string(),
+        policy_name: create_health_policy(tracker, config,
+            &format!("Beaver export job ({})", sq_id),
+            &noop_threshold(
+                &format!(r#"resource.type="bigquery_dts_config" AND metric.type="bigquerydatatransfer.googleapis.com/transfer_config/transfer_run_count" AND resource.label.config_id="{}""#, sq_id),
+                1e18,
             ))?,
     });
 
