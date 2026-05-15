@@ -25,3 +25,19 @@ Beaver SIEM is a cutting-edge **data security log analysis tool** designed to pr
 [//]: # (### **enabling apis**)
 [//]: # (gcloud services enable cloudscheduler.googleapis.com run.googleapis.com)
 
+
+## Storage tiers
+
+Beaver writes events into a **hot** BigQuery table (`<dataset>.<table>`,
+day-partitioned by ingestion time with a 14-day partition expiration).
+Daily, a BigQuery scheduled query rolls 13-day-old partitions out to
+`gs://<bucket>/parquet/dt=YYYY-MM-DD/*.parquet` (zstd, Hive-partitioned)
+and deletes them from the hot table. The cold prefix is exposed through a
+BigLake external table (`<dataset>.events_cold`); the view
+`<dataset>.events_all` unions hot + cold and exposes a unified `partition_date`
+column.
+
+GCS lifecycle: Standard → Nearline (30d) → Coldline (90d) → Archive (365d).
+
+Tune retention/export age in `src/lib/cold_storage.rs` (constants at top).
+The schema is unchanged: a single `data: JSON` column on both tiers.
