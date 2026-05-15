@@ -95,13 +95,61 @@ pub fn destroy_connection(connection_id: &str, project: &str, region: &str) -> R
     Ok(())
 }
 
-// Stubs filled in by Tasks 4–8.
-fn create_biglake_connection(_config: &Config) -> Result<String> {
-    Err(anyhow!("Task 4"))
+pub(crate) fn build_biglake_connection_args(id: &str, project: &str, region: &str) -> Vec<String> {
+    vec![
+        "mk".into(),
+        "--connection".into(),
+        "--connection_type=CLOUD_RESOURCE".into(),
+        format!("--project_id={}", project),
+        format!("--location={}", region),
+        id.into(),
+    ]
+}
+
+fn create_biglake_connection(config: &Config) -> Result<String> {
+    let suffix: String = rand::thread_rng()
+        .sample_iter(&Alphanumeric)
+        .take(6)
+        .map(char::from)
+        .map(|c| c.to_ascii_lowercase())
+        .collect();
+    let id = format!("beaver_biglake_{}", suffix);
+    let args = build_biglake_connection_args(&id, &config.project, &config.region);
+    let argrefs: Vec<&str> = args.iter().map(String::as_str).collect();
+    let out = Command::new("bq").args(&argrefs).output()?;
+    if !out.status.success() {
+        return Err(anyhow!(
+            "bq mk --connection failed: {}",
+            String::from_utf8_lossy(&out.stderr)
+        ));
+    }
+    info!("biglake connection created: {}", id);
+    Ok(id)
+}
+
+pub(crate) fn connection_service_account(id: &str, project: &str, region: &str) -> Result<String> {
+    let out = Command::new("bq")
+        .args([
+            "show", "--connection",
+            "--project_id", project,
+            "--location", region,
+            "--format=value(cloudResource.serviceAccountId)",
+            id,
+        ])
+        .output()?;
+    if !out.status.success() {
+        return Err(anyhow!(
+            "bq show --connection failed: {}",
+            String::from_utf8_lossy(&out.stderr)
+        ));
+    }
+    let sa = String::from_utf8_lossy(&out.stdout).trim().to_string();
+    if sa.is_empty() {
+        return Err(anyhow!("connection {} has no service account", id));
+    }
+    Ok(sa)
 }
 fn apply_lifecycle_and_grant(_t: &mut Tracker, _c: &Config, _conn: &str) -> Result<()> {
-    let _ = LIFECYCLE_JSON; // referenced by Task 5
-    let _: Option<NamedTempFile> = None; // referenced by Task 5
     Err(anyhow!("Task 5"))
 }
 fn seed_sentinel_parquet(_t: &mut Tracker, _c: &Config) -> Result<()> {
@@ -117,14 +165,19 @@ fn create_export_scheduled_query(_t: &mut Tracker, _c: &Config) -> Result<String
     Err(anyhow!("Task 8"))
 }
 
-#[allow(dead_code)]
-fn _suppress_unused_warnings() {
-    let _ = (
-        HOT_RETENTION_DAYS,
-        EXPORT_AGE_DAYS,
-        EXPORT_SCHEDULE,
-        Alphanumeric,
-    );
-    let _: Option<&dyn Fn() -> String> = None;
-    let _ = std::iter::empty::<rand::rngs::ThreadRng>();
+#[cfg(test)]
+mod arg_tests {
+    use super::*;
+
+    #[test]
+    fn biglake_connection_args_have_cloud_resource_type() {
+        let args = build_biglake_connection_args("conn_abc", "myproj", "us-east1");
+        let joined = args.join(" ");
+        assert!(joined.contains("mk"));
+        assert!(joined.contains("--connection"));
+        assert!(joined.contains("--connection_type=CLOUD_RESOURCE"));
+        assert!(joined.contains("--project_id=myproj"));
+        assert!(joined.contains("--location=us-east1"));
+        assert!(joined.contains("conn_abc"));
+    }
 }
