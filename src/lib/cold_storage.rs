@@ -9,6 +9,8 @@ use rand::Rng;
 use tempfile::NamedTempFile;
 use crate::lib::config::Config;
 use crate::lib::resources::Tracker;
+use crate::lib::service_accounts;
+use crate::lib::utilities::random_tag;
 
 pub(crate) const HOT_RETENTION_DAYS: u32 = 14;
 pub(crate) const EXPORT_AGE_DAYS: u32 = 13;
@@ -34,7 +36,13 @@ pub fn create(tracker: &mut Tracker, config: &Config) -> Result<()> {
     let view = create_events_view(tracker, config)?;
     tracker.record_events_view(view)?;
 
-    let sq = create_export_scheduled_query(tracker, config)?;
+    // The scheduled query needs a runner identity. Create a dedicated SA,
+    // grant it the BQ + GCS roles it needs, then pass it via
+    // --service_account_name to bq mk --transfer_config.
+    let export_sa = create_export_service_account(tracker, config)?;
+    tracker.record_export_sa(export_sa.clone(), true)?;
+
+    let sq = create_export_scheduled_query(tracker, config, &export_sa)?;
     tracker.record_export_scheduled_query(sq)?;
 
     Ok(())
@@ -393,7 +401,65 @@ pub(crate) fn build_export_transfer_args(
     ]
 }
 
-fn create_export_scheduled_query(tracker: &mut Tracker, config: &Config) -> Result<String> {
+fn create_export_service_account(tracker: &mut Tracker, config: &Config) -> Result<String> {
+    let bucket = tracker.resources().bucket_name.clone();
+    let account_id = format!("beaver-export-{}", random_tag(6));
+    let sa = service_accounts::create_sa(&account_id, "Beaver export job", config)?;
+    let email = sa.email;
+
+    // jobUser + dataEditor at project, objectAdmin on the parquet bucket.
+    service_accounts::grant_project(&config.project, &email, "roles/bigquery.jobUser")?;
+    service_accounts::grant_project(&config.project, &email, "roles/bigquery.dataEditor")?;
+    service_accounts::grant_bucket(&bucket, &email, "roles/storage.objectAdmin")?;
+
+    // The user invoking `bq mk --transfer_config --service_account_name=<email>`
+    // must be able to impersonate the SA. Without this, BQ DTS refuses to
+    // create the transfer with a PERMISSION_DENIED on serviceAccountTokenCreator.
+    let invoker = current_user_principal()?;
+    grant_sa_token_creator(&email, &invoker, &config.project)?;
+
+    Ok(email)
+}
+
+fn current_user_principal() -> Result<String> {
+    let out = Command::new("gcloud")
+        .args(["config", "get-value", "account"])
+        .output()?;
+    if !out.status.success() {
+        return Err(anyhow!("gcloud config get-value account failed: {}",
+            String::from_utf8_lossy(&out.stderr)));
+    }
+    let raw = String::from_utf8_lossy(&out.stdout).trim().to_string();
+    if raw.is_empty() {
+        return Err(anyhow!("no active gcloud account configured"));
+    }
+    // Service accounts vs user accounts use different IAM principal prefixes.
+    if raw.ends_with(".iam.gserviceaccount.com") {
+        Ok(format!("serviceAccount:{}", raw))
+    } else {
+        Ok(format!("user:{}", raw))
+    }
+}
+
+fn grant_sa_token_creator(sa_email: &str, member: &str, project: &str) -> Result<()> {
+    let out = Command::new("gcloud")
+        .args([
+            "iam", "service-accounts", "add-iam-policy-binding", sa_email,
+            "--member", member,
+            "--role", "roles/iam.serviceAccountTokenCreator",
+            "--project", project,
+        ])
+        .output()?;
+    if !out.status.success() {
+        return Err(anyhow!(
+            "grant tokenCreator on {} to {} failed: {}",
+            sa_email, member, String::from_utf8_lossy(&out.stderr)
+        ));
+    }
+    Ok(())
+}
+
+fn create_export_scheduled_query(tracker: &mut Tracker, config: &Config, export_sa: &str) -> Result<String> {
     let bucket = tracker.resources().bucket_name.clone();
     let ds = tracker.resources().biq_query.dataset_id.clone();
     let hot = tracker.resources().biq_query.table_id.clone();
@@ -402,7 +468,8 @@ fn create_export_scheduled_query(tracker: &mut Tracker, config: &Config) -> Resu
 
     let args = build_export_transfer_args(&config.project, &ds, &config.region, EXPORT_SCHEDULE, &params);
     let argrefs: Vec<&str> = args.iter().map(String::as_str).collect();
-    let out = Command::new("bq").args(&argrefs).output()?;
+    let sa_flag = format!("--service_account_name={}", export_sa);
+    let out = Command::new("bq").args(&argrefs).arg(&sa_flag).output()?;
     if !out.status.success() {
         return Err(anyhow!(
             "bq mk transfer_config failed (exit {}): stderr={} stdout={}",
@@ -467,9 +534,13 @@ mod integration_tests {
         let cold_table = res.cold_table_id.clone();
         let view = res.events_view_id.clone();
         let sq = res.export_scheduled_query_id.clone();
+        let export_sa = res.export_sa_email.clone();
 
         if !sq.is_empty() {
             let _ = destroy_scheduled_query(&sq, &config.project);
+        }
+        if !export_sa.is_empty() {
+            let _ = crate::lib::service_accounts::delete_sa(&export_sa, &config.project);
         }
         if !view.is_empty() {
             let _ = destroy_view(&dataset_id, &view, &config.project);

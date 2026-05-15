@@ -43,6 +43,10 @@ pub struct Resources {
     pub events_view_id: String,
     #[serde(default)]
     pub export_scheduled_query_id: String,
+    #[serde(default)]
+    pub export_sa_email: String,
+    #[serde(default)]
+    pub export_sa_managed: bool,
 }
 
 impl Resources {
@@ -73,6 +77,8 @@ impl Resources {
             cold_table_id: String::new(),
             events_view_id: String::new(),
             export_scheduled_query_id: String::new(),
+            export_sa_email: String::new(),
+            export_sa_managed: false,
         }
     }
 
@@ -305,6 +311,17 @@ impl<'a> Tracker<'a> {
     }
     pub fn forget_export_scheduled_query(&mut self) -> Result<()> {
         self.res.export_scheduled_query_id.clear();
+        self.persist()
+    }
+
+    pub fn record_export_sa(&mut self, email: String, managed: bool) -> Result<()> {
+        self.res.export_sa_email = email;
+        self.res.export_sa_managed = managed;
+        self.persist()
+    }
+    pub fn forget_export_sa(&mut self) -> Result<()> {
+        self.res.export_sa_email.clear();
+        self.res.export_sa_managed = false;
         self.persist()
     }
 }
