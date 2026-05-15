@@ -149,8 +149,48 @@ pub(crate) fn connection_service_account(id: &str, project: &str, region: &str) 
     }
     Ok(sa)
 }
-fn apply_lifecycle_and_grant(_t: &mut Tracker, _c: &Config, _conn: &str) -> Result<()> {
-    Err(anyhow!("Task 5"))
+pub(crate) fn build_grant_object_viewer_args(bucket: &str, sa: &str) -> Vec<String> {
+    vec![
+        "storage".into(),
+        "buckets".into(),
+        "add-iam-policy-binding".into(),
+        format!("gs://{}", bucket),
+        format!("--member=serviceAccount:{}", sa),
+        "--role=roles/storage.objectViewer".into(),
+    ]
+}
+
+fn apply_lifecycle_and_grant(tracker: &mut Tracker, config: &Config, connection_id: &str) -> Result<()> {
+    let bucket = tracker.resources().bucket_name.clone();
+    if bucket.is_empty() {
+        return Err(anyhow!("bucket not yet created; cold tier must run after GCS step"));
+    }
+
+    let lifecycle_file = NamedTempFile::new()?;
+    std::fs::write(lifecycle_file.path(), LIFECYCLE_JSON)?;
+    let bucket_uri = format!("gs://{}", bucket);
+    let lifecycle_path_str = lifecycle_file.path().display().to_string();
+    let out = Command::new("gsutil")
+        .args(["lifecycle", "set", &lifecycle_path_str, &bucket_uri])
+        .output()?;
+    if !out.status.success() {
+        return Err(anyhow!(
+            "gsutil lifecycle set failed: {}",
+            String::from_utf8_lossy(&out.stderr)
+        ));
+    }
+
+    let sa = connection_service_account(connection_id, &config.project, &config.region)?;
+    let args = build_grant_object_viewer_args(&bucket, &sa);
+    let argrefs: Vec<&str> = args.iter().map(String::as_str).collect();
+    let out2 = Command::new("gcloud").args(&argrefs).output()?;
+    if !out2.status.success() {
+        return Err(anyhow!(
+            "gcloud add-iam-policy-binding failed: {}",
+            String::from_utf8_lossy(&out2.stderr)
+        ));
+    }
+    Ok(())
 }
 fn seed_sentinel_parquet(_t: &mut Tracker, _c: &Config) -> Result<()> {
     Err(anyhow!("Task 6"))
@@ -168,6 +208,21 @@ fn create_export_scheduled_query(_t: &mut Tracker, _c: &Config) -> Result<String
 #[cfg(test)]
 mod arg_tests {
     use super::*;
+
+    #[test]
+    fn iam_grant_args_target_bucket() {
+        let args = build_grant_object_viewer_args(
+            "bucket-abc",
+            "biglake-sa@example.iam.gserviceaccount.com",
+        );
+        let joined = args.join(" ");
+        assert!(joined.contains("storage"));
+        assert!(joined.contains("buckets"));
+        assert!(joined.contains("add-iam-policy-binding"));
+        assert!(joined.contains("gs://bucket-abc"));
+        assert!(joined.contains("--member=serviceAccount:biglake-sa@example.iam.gserviceaccount.com"));
+        assert!(joined.contains("--role=roles/storage.objectViewer"));
+    }
 
     #[test]
     fn biglake_connection_args_have_cloud_resource_type() {
