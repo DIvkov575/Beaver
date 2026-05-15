@@ -374,6 +374,73 @@ fn create_export_scheduled_query(tracker: &mut Tracker, config: &Config) -> Resu
 }
 
 #[cfg(test)]
+mod integration_tests {
+    use super::*;
+    use crate::lib::bq;
+    use crate::lib::resources::Tracker;
+    use crate::lib::test_helpers::{test_config, tempdir_resources, bq_dataset_exists};
+
+    /// End-to-end smoke against a real GCP project. Provisions a hot dataset+table,
+    /// runs cold_storage::create, then tears everything down. Requires:
+    ///   - gcloud + bq authenticated against BEAVER_TEST_PROJECT (default in test_helpers).
+    ///   - A pre-existing GCS bucket whose name is passed via BEAVER_TEST_BUCKET — we
+    ///     do NOT provision one here because gcs::create_bucket has its own ignored
+    ///     tests and we want this smoke focused on cold-tier wiring.
+    #[test]
+    #[ignore]
+    fn create_cold_tier_against_real_gcp() {
+        let config = test_config();
+        let bucket = std::env::var("BEAVER_TEST_BUCKET")
+            .expect("set BEAVER_TEST_BUCKET to a real GCS bucket in the test project");
+
+        let (_dir, mut res) = tempdir_resources();
+        res.bucket_name = bucket;
+
+        // Provision hot dataset + table via the real bq::create path so the cold
+        // tier has something to point at.
+        {
+            let mut tracker = Tracker::new(&mut res);
+            bq::create(&mut tracker, &config).expect("bq::create failed");
+        }
+        let dataset_id = res.biq_query.dataset_id.clone();
+        assert!(bq_dataset_exists(&dataset_id, &config.project));
+
+        // Now exercise cold_storage::create end-to-end.
+        let result = {
+            let mut tracker = Tracker::new(&mut res);
+            create(&mut tracker, &config)
+        };
+
+        // Teardown FIRST, regardless of outcome — we never want to leak state.
+        let connection_id = res.biglake_connection_id.clone();
+        let cold_table = res.cold_table_id.clone();
+        let view = res.events_view_id.clone();
+        let sq = res.export_scheduled_query_id.clone();
+
+        if !sq.is_empty() {
+            let _ = destroy_scheduled_query(&sq, &config.project);
+        }
+        if !view.is_empty() {
+            let _ = destroy_view(&dataset_id, &view, &config.project);
+        }
+        if !cold_table.is_empty() {
+            let _ = destroy_cold_table(&dataset_id, &cold_table, &config.project);
+        }
+        if !connection_id.is_empty() {
+            let _ = destroy_connection(&connection_id, &config.project, &config.region);
+        }
+        let _ = bq::delete_dataset(&dataset_id, &config.project);
+
+        // Now assert outcome.
+        result.expect("cold_storage::create failed");
+        assert!(!connection_id.is_empty(), "biglake connection not recorded");
+        assert!(!cold_table.is_empty(), "cold table not recorded");
+        assert!(!view.is_empty(), "events view not recorded");
+        assert!(!sq.is_empty(), "export scheduled query not recorded");
+    }
+}
+
+#[cfg(test)]
 mod arg_tests {
     use super::*;
 
