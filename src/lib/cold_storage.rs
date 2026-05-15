@@ -272,8 +272,33 @@ fn create_cold_table(tracker: &mut Tracker, config: &Config, conn: &str) -> Resu
     }
     Ok(table)
 }
-fn create_events_view(_t: &mut Tracker, _c: &Config) -> Result<String> {
-    Err(anyhow!("Task 7"))
+pub(crate) fn build_events_view_sql(project: &str, ds: &str, hot: &str, cold: &str) -> String {
+    format!(
+        "SELECT data, DATE(_PARTITIONTIME) AS partition_date \
+         FROM `{project}.{ds}.{hot}` \
+         UNION ALL \
+         SELECT data, PARSE_DATE('%Y-%m-%d', dt) AS partition_date \
+         FROM `{project}.{ds}.{cold}`"
+    )
+}
+
+fn create_events_view(tracker: &mut Tracker, config: &Config) -> Result<String> {
+    let ds = tracker.resources().biq_query.dataset_id.clone();
+    let hot = tracker.resources().biq_query.table_id.clone();
+    let cold = tracker.resources().cold_table_id.clone();
+    let view = "events_all".to_string();
+    let sql = build_events_view_sql(&config.project, &ds, &hot, &cold);
+    let fq = format!("{}:{}.{}", config.project, ds, view);
+    let out = Command::new("bq")
+        .args(["mk", "--use_legacy_sql=false", "--view", &sql, &fq])
+        .output()?;
+    if !out.status.success() {
+        return Err(anyhow!(
+            "bq mk view failed: {}",
+            String::from_utf8_lossy(&out.stderr)
+        ));
+    }
+    Ok(view)
 }
 fn create_export_scheduled_query(_t: &mut Tracker, _c: &Config) -> Result<String> {
     Err(anyhow!("Task 8"))
@@ -282,6 +307,17 @@ fn create_export_scheduled_query(_t: &mut Tracker, _c: &Config) -> Result<String
 #[cfg(test)]
 mod arg_tests {
     use super::*;
+
+    #[test]
+    fn events_view_sql_unions_with_partition_date_column() {
+        let sql = build_events_view_sql("myproj", "myds", "events", "events_cold");
+        let lower = sql.to_lowercase();
+        assert!(lower.contains("union all"));
+        assert!(sql.contains("`myproj.myds.events`"));
+        assert!(sql.contains("`myproj.myds.events_cold`"));
+        assert!(sql.contains("data"));
+        assert!(sql.contains("partition_date"));
+    }
 
     #[test]
     fn sentinel_sql_writes_zero_rows_partition_zero() {
