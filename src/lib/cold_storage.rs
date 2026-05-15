@@ -192,11 +192,85 @@ fn apply_lifecycle_and_grant(tracker: &mut Tracker, config: &Config, connection_
     }
     Ok(())
 }
-fn seed_sentinel_parquet(_t: &mut Tracker, _c: &Config) -> Result<()> {
-    Err(anyhow!("Task 6"))
+pub(crate) fn build_sentinel_export_sql(
+    project: &str,
+    ds: &str,
+    hot: &str,
+    bucket: &str,
+    prefix: &str,
+) -> String {
+    let uri = format!("gs://{}/{}/dt=1970-01-01/sentinel-*.parquet", bucket, prefix);
+    format!(
+        "EXPORT DATA OPTIONS(\
+            uri='{uri}', format='PARQUET', compression='ZSTD', overwrite=true) AS \
+         SELECT * FROM `{project}.{ds}.{hot}` WHERE FALSE;"
+    )
 }
-fn create_cold_table(_t: &mut Tracker, _c: &Config, _conn: &str) -> Result<String> {
-    Err(anyhow!("Task 6"))
+
+fn seed_sentinel_parquet(tracker: &mut Tracker, config: &Config) -> Result<()> {
+    let bucket = tracker.resources().bucket_name.clone();
+    let ds = tracker.resources().biq_query.dataset_id.clone();
+    let hot = tracker.resources().biq_query.table_id.clone();
+    let sql = build_sentinel_export_sql(&config.project, &ds, &hot, &bucket, PARQUET_PREFIX);
+    let out = Command::new("bq")
+        .args(["query", "--use_legacy_sql=false", "--project_id", &config.project, &sql])
+        .output()?;
+    if !out.status.success() {
+        return Err(anyhow!(
+            "sentinel parquet seed failed: {}",
+            String::from_utf8_lossy(&out.stderr)
+        ));
+    }
+    info!(
+        "sentinel parquet written to gs://{}/{}/dt=1970-01-01/",
+        bucket, PARQUET_PREFIX
+    );
+    Ok(())
+}
+
+pub(crate) fn build_external_table_definition_json(
+    connection_qualified: &str,
+    bucket: &str,
+    prefix: &str,
+) -> String {
+    format!(
+        r#"{{
+  "sourceFormat": "PARQUET",
+  "sourceUris": ["gs://{bucket}/{prefix}/*"],
+  "connectionId": "{connection_qualified}",
+  "hivePartitioningOptions": {{
+    "mode": "AUTO",
+    "sourceUriPrefix": "gs://{bucket}/{prefix}/",
+    "requirePartitionFilter": true
+  }},
+  "maxStaleness": "INTERVAL 1 HOUR",
+  "metadataCacheMode": "AUTOMATIC"
+}}"#
+    )
+}
+
+fn create_cold_table(tracker: &mut Tracker, config: &Config, conn: &str) -> Result<String> {
+    let bucket = tracker.resources().bucket_name.clone();
+    let dataset = tracker.resources().biq_query.dataset_id.clone();
+    let table = "events_cold".to_string();
+    let qualified_conn = format!("{}.{}.{}", config.project, config.region, conn);
+
+    let def_json = build_external_table_definition_json(&qualified_conn, &bucket, PARQUET_PREFIX);
+    let tmp = NamedTempFile::new()?;
+    std::fs::write(tmp.path(), def_json)?;
+
+    let fq = format!("{}:{}.{}", config.project, dataset, table);
+    let def_arg = format!("--external_table_definition=@{}", tmp.path().display());
+    let out = Command::new("bq")
+        .args(["mk", "--table", &def_arg, &fq])
+        .output()?;
+    if !out.status.success() {
+        return Err(anyhow!(
+            "bq mk cold table failed: {}",
+            String::from_utf8_lossy(&out.stderr)
+        ));
+    }
+    Ok(table)
 }
 fn create_events_view(_t: &mut Tracker, _c: &Config) -> Result<String> {
     Err(anyhow!("Task 7"))
@@ -208,6 +282,32 @@ fn create_export_scheduled_query(_t: &mut Tracker, _c: &Config) -> Result<String
 #[cfg(test)]
 mod arg_tests {
     use super::*;
+
+    #[test]
+    fn sentinel_sql_writes_zero_rows_partition_zero() {
+        let sql = build_sentinel_export_sql("myproj", "myds", "events", "bucket-abc", "parquet");
+        let lower = sql.to_lowercase();
+        assert!(lower.contains("export data"));
+        assert!(lower.contains("format='parquet'"));
+        assert!(lower.contains("compression='zstd'"));
+        assert!(sql.contains("gs://bucket-abc/parquet/dt=1970-01-01/"));
+        assert!(lower.contains("where false"));
+        assert!(sql.contains("`myproj.myds.events`"));
+    }
+
+    #[test]
+    fn cold_table_definition_uses_parquet_hive_with_connection() {
+        let def = build_external_table_definition_json(
+            "myproj.us-east1.conn_abc",
+            "bucket-abc",
+            "parquet",
+        );
+        assert!(def.contains("\"sourceFormat\": \"PARQUET\""));
+        assert!(def.contains("\"hivePartitioningOptions\""));
+        assert!(def.contains("\"sourceUriPrefix\": \"gs://bucket-abc/parquet/\""));
+        assert!(def.contains("\"connectionId\": \"myproj.us-east1.conn_abc\""));
+        assert!(def.contains("\"mode\": \"AUTO\""));
+    }
 
     #[test]
     fn iam_grant_args_target_bucket() {
