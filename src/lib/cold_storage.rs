@@ -133,7 +133,7 @@ pub(crate) fn connection_service_account(id: &str, project: &str, region: &str) 
             "show", "--connection",
             "--project_id", project,
             "--location", region,
-            "--format=value(cloudResource.serviceAccountId)",
+            "--format=json",
             id,
         ])
         .output()?;
@@ -143,9 +143,16 @@ pub(crate) fn connection_service_account(id: &str, project: &str, region: &str) 
             String::from_utf8_lossy(&out.stderr)
         ));
     }
-    let sa = String::from_utf8_lossy(&out.stdout).trim().to_string();
+    let stdout = String::from_utf8_lossy(&out.stdout);
+    let v: serde_json::Value = serde_json::from_str(&stdout)
+        .map_err(|e| anyhow!("bq show --connection JSON parse failed: {} (stdout: {})", e, stdout))?;
+    let sa = v.get("cloudResource")
+        .and_then(|c| c.get("serviceAccountId"))
+        .and_then(|s| s.as_str())
+        .unwrap_or("")
+        .to_string();
     if sa.is_empty() {
-        return Err(anyhow!("connection {} has no service account", id));
+        return Err(anyhow!("connection {} has no service account in JSON: {}", id, stdout));
     }
     Ok(sa)
 }
@@ -183,14 +190,29 @@ fn apply_lifecycle_and_grant(tracker: &mut Tracker, config: &Config, connection_
     let sa = connection_service_account(connection_id, &config.project, &config.region)?;
     let args = build_grant_object_viewer_args(&bucket, &sa);
     let argrefs: Vec<&str> = args.iter().map(String::as_str).collect();
-    let out2 = Command::new("gcloud").args(&argrefs).output()?;
-    if !out2.status.success() {
-        return Err(anyhow!(
-            "gcloud add-iam-policy-binding failed: {}",
-            String::from_utf8_lossy(&out2.stderr)
-        ));
+
+    // BigLake SAs are created lazily and take ~30–60s to propagate to IAM after
+    // `bq mk --connection`. Retry on the "Service account ... does not exist"
+    // error with linear backoff.
+    let mut delay = std::time::Duration::from_secs(10);
+    let mut last_err = String::new();
+    for attempt in 1..=8 {
+        let out2 = Command::new("gcloud").args(&argrefs).output()?;
+        if out2.status.success() {
+            return Ok(());
+        }
+        last_err = String::from_utf8_lossy(&out2.stderr).to_string();
+        if !last_err.contains("does not exist") {
+            return Err(anyhow!("gcloud add-iam-policy-binding failed: {}", last_err));
+        }
+        info!("biglake SA not yet visible to IAM (attempt {}/8); waiting {:?}", attempt, delay);
+        std::thread::sleep(delay);
+        delay = std::cmp::min(delay + std::time::Duration::from_secs(10), std::time::Duration::from_secs(30));
     }
-    Ok(())
+    Err(anyhow!(
+        "gcloud add-iam-policy-binding failed after retries: {}",
+        last_err
+    ))
 }
 pub(crate) fn build_sentinel_export_sql(
     project: &str,
@@ -199,11 +221,13 @@ pub(crate) fn build_sentinel_export_sql(
     bucket: &str,
     prefix: &str,
 ) -> String {
+    // BQ can't export JSON-typed columns to Parquet, so we cast to STRING on
+    // the way out. The view re-parses with SAFE.PARSE_JSON on the cold side.
     let uri = format!("gs://{}/{}/dt=1970-01-01/sentinel-*.parquet", bucket, prefix);
     format!(
         "EXPORT DATA OPTIONS(\
             uri='{uri}', format='PARQUET', compression='ZSTD', overwrite=true) AS \
-         SELECT * FROM `{project}.{ds}.{hot}` WHERE FALSE;"
+         SELECT TO_JSON_STRING(data) AS data FROM `{project}.{ds}.{hot}` WHERE FALSE;"
     )
 }
 
@@ -213,12 +237,19 @@ fn seed_sentinel_parquet(tracker: &mut Tracker, config: &Config) -> Result<()> {
     let hot = tracker.resources().biq_query.table_id.clone();
     let sql = build_sentinel_export_sql(&config.project, &ds, &hot, &bucket, PARQUET_PREFIX);
     let out = Command::new("bq")
-        .args(["query", "--use_legacy_sql=false", "--project_id", &config.project, &sql])
+        .args([
+            "query", "--use_legacy_sql=false",
+            "--project_id", &config.project,
+            "--location", &config.region,
+            &sql,
+        ])
         .output()?;
     if !out.status.success() {
         return Err(anyhow!(
-            "sentinel parquet seed failed: {}",
-            String::from_utf8_lossy(&out.stderr)
+            "sentinel parquet seed failed (exit {}): stderr={} stdout={}",
+            out.status.code().unwrap_or(-1),
+            String::from_utf8_lossy(&out.stderr),
+            String::from_utf8_lossy(&out.stdout),
         ));
     }
     info!(
@@ -228,24 +259,26 @@ fn seed_sentinel_parquet(tracker: &mut Tracker, config: &Config) -> Result<()> {
     Ok(())
 }
 
-pub(crate) fn build_external_table_definition_json(
+pub(crate) fn build_cold_table_ddl(
+    project: &str,
+    dataset: &str,
+    table: &str,
     connection_qualified: &str,
     bucket: &str,
     prefix: &str,
 ) -> String {
     format!(
-        r#"{{
-  "sourceFormat": "PARQUET",
-  "sourceUris": ["gs://{bucket}/{prefix}/*"],
-  "connectionId": "{connection_qualified}",
-  "hivePartitioningOptions": {{
-    "mode": "AUTO",
-    "sourceUriPrefix": "gs://{bucket}/{prefix}/",
-    "requirePartitionFilter": true
-  }},
-  "maxStaleness": "INTERVAL 1 HOUR",
-  "metadataCacheMode": "AUTOMATIC"
-}}"#
+        "CREATE EXTERNAL TABLE `{project}.{dataset}.{table}` \
+         WITH PARTITION COLUMNS \
+         WITH CONNECTION `{connection_qualified}` \
+         OPTIONS ( \
+           format = 'PARQUET', \
+           uris = ['gs://{bucket}/{prefix}/*'], \
+           hive_partition_uri_prefix = 'gs://{bucket}/{prefix}/', \
+           require_hive_partition_filter = true, \
+           max_staleness = INTERVAL '1' HOUR, \
+           metadata_cache_mode = 'AUTOMATIC' \
+         );"
     )
 }
 
@@ -255,29 +288,37 @@ fn create_cold_table(tracker: &mut Tracker, config: &Config, conn: &str) -> Resu
     let table = "events_cold".to_string();
     let qualified_conn = format!("{}.{}.{}", config.project, config.region, conn);
 
-    let def_json = build_external_table_definition_json(&qualified_conn, &bucket, PARQUET_PREFIX);
-    let tmp = NamedTempFile::new()?;
-    std::fs::write(tmp.path(), def_json)?;
-
-    let fq = format!("{}:{}.{}", config.project, dataset, table);
-    let def_arg = format!("--external_table_definition=@{}", tmp.path().display());
+    let ddl = build_cold_table_ddl(
+        &config.project, &dataset, &table, &qualified_conn, &bucket, PARQUET_PREFIX,
+    );
     let out = Command::new("bq")
-        .args(["mk", "--table", &def_arg, &fq])
+        .args([
+            "query", "--use_legacy_sql=false",
+            "--project_id", &config.project,
+            "--location", &config.region,
+            &ddl,
+        ])
         .output()?;
     if !out.status.success() {
         return Err(anyhow!(
-            "bq mk cold table failed: {}",
-            String::from_utf8_lossy(&out.stderr)
+            "create cold table DDL failed (exit {}): stderr={} stdout={}",
+            out.status.code().unwrap_or(-1),
+            String::from_utf8_lossy(&out.stderr),
+            String::from_utf8_lossy(&out.stdout),
         ));
     }
     Ok(table)
 }
 pub(crate) fn build_events_view_sql(project: &str, ds: &str, hot: &str, cold: &str) -> String {
+    // Cold rows store `data` as STRING (JSON cannot be Parquet-exported), so
+    // re-parse it here for analyst ergonomics. Hot stays native JSON.
+    // Hive AUTO mode infers `dt` as DATE from the `dt=YYYY-MM-DD` folder name,
+    // so no PARSE_DATE is needed on the cold side.
     format!(
         "SELECT data, DATE(_PARTITIONTIME) AS partition_date \
          FROM `{project}.{ds}.{hot}` \
          UNION ALL \
-         SELECT data, PARSE_DATE('%Y-%m-%d', dt) AS partition_date \
+         SELECT SAFE.PARSE_JSON(data) AS data, dt AS partition_date \
          FROM `{project}.{ds}.{cold}`"
     )
 }
@@ -290,12 +331,18 @@ fn create_events_view(tracker: &mut Tracker, config: &Config) -> Result<String> 
     let sql = build_events_view_sql(&config.project, &ds, &hot, &cold);
     let fq = format!("{}:{}.{}", config.project, ds, view);
     let out = Command::new("bq")
-        .args(["mk", "--use_legacy_sql=false", "--view", &sql, &fq])
+        .args([
+            "mk", "--use_legacy_sql=false",
+            "--location", &config.region,
+            "--view", &sql, &fq,
+        ])
         .output()?;
     if !out.status.success() {
         return Err(anyhow!(
-            "bq mk view failed: {}",
-            String::from_utf8_lossy(&out.stderr)
+            "bq mk view failed (exit {}): stderr={} stdout={}",
+            out.status.code().unwrap_or(-1),
+            String::from_utf8_lossy(&out.stderr),
+            String::from_utf8_lossy(&out.stdout),
         ));
     }
     Ok(view)
@@ -317,7 +364,7 @@ pub(crate) fn build_export_sql(
 EXPORT DATA OPTIONS(\
 uri='gs://{bucket}/{prefix}/dt=%s/data-*.parquet', \
 format='PARQUET', compression='ZSTD', overwrite=true) AS \
-SELECT * FROM `{project}.{ds}.{hot}` WHERE _PARTITIONDATE = DATE '%s'; \
+SELECT TO_JSON_STRING(data) AS data FROM `{project}.{ds}.{hot}` WHERE _PARTITIONDATE = DATE '%s'; \
 DELETE FROM `{project}.{ds}.{hot}` WHERE _PARTITIONDATE = DATE '%s';\
 \"\"\", \
 FORMAT_DATE('%Y-%m-%d', {date_expr}), \
@@ -329,6 +376,7 @@ FORMAT_DATE('%Y-%m-%d', {date_expr}));"
 pub(crate) fn build_export_transfer_args(
     project: &str,
     dataset: &str,
+    region: &str,
     schedule: &str,
     params_json: &str,
 ) -> Vec<String> {
@@ -337,6 +385,7 @@ pub(crate) fn build_export_transfer_args(
         "--transfer_config".into(),
         format!("--project_id={}", project),
         format!("--target_dataset={}", dataset),
+        format!("--location={}", region),
         "--display_name=beaver_events_export".into(),
         "--data_source=scheduled_query".into(),
         format!("--schedule={}", schedule),
@@ -351,13 +400,15 @@ fn create_export_scheduled_query(tracker: &mut Tracker, config: &Config) -> Resu
     let sql = build_export_sql(&config.project, &ds, &hot, &bucket, PARQUET_PREFIX, EXPORT_AGE_DAYS);
     let params = serde_json::json!({ "query": sql }).to_string();
 
-    let args = build_export_transfer_args(&config.project, &ds, EXPORT_SCHEDULE, &params);
+    let args = build_export_transfer_args(&config.project, &ds, &config.region, EXPORT_SCHEDULE, &params);
     let argrefs: Vec<&str> = args.iter().map(String::as_str).collect();
     let out = Command::new("bq").args(&argrefs).output()?;
     if !out.status.success() {
         return Err(anyhow!(
-            "bq mk transfer_config failed: {}",
-            String::from_utf8_lossy(&out.stderr)
+            "bq mk transfer_config failed (exit {}): stderr={} stdout={}",
+            out.status.code().unwrap_or(-1),
+            String::from_utf8_lossy(&out.stderr),
+            String::from_utf8_lossy(&out.stdout),
         ));
     }
     // Stdout: "... 'projects/.../transferConfigs/<id>' successfully created."
@@ -462,6 +513,7 @@ mod arg_tests {
         let args = build_export_transfer_args(
             "myproj",
             "myds",
+            "us-east1",
             "every 24 hours",
             r#"{"query":"SELECT 1"}"#,
         );
@@ -470,6 +522,7 @@ mod arg_tests {
         assert!(joined.contains("--transfer_config"));
         assert!(joined.contains("--data_source=scheduled_query"));
         assert!(joined.contains("--target_dataset=myds"));
+        assert!(joined.contains("--location=us-east1"));
         assert!(joined.contains("--schedule=every 24 hours"));
         assert!(joined.contains("--params="));
     }
@@ -498,17 +551,21 @@ mod arg_tests {
     }
 
     #[test]
-    fn cold_table_definition_uses_parquet_hive_with_connection() {
-        let def = build_external_table_definition_json(
+    fn cold_table_ddl_uses_parquet_hive_with_connection() {
+        let ddl = build_cold_table_ddl(
+            "myproj", "myds", "events_cold",
             "myproj.us-east1.conn_abc",
             "bucket-abc",
             "parquet",
         );
-        assert!(def.contains("\"sourceFormat\": \"PARQUET\""));
-        assert!(def.contains("\"hivePartitioningOptions\""));
-        assert!(def.contains("\"sourceUriPrefix\": \"gs://bucket-abc/parquet/\""));
-        assert!(def.contains("\"connectionId\": \"myproj.us-east1.conn_abc\""));
-        assert!(def.contains("\"mode\": \"AUTO\""));
+        assert!(ddl.contains("CREATE EXTERNAL TABLE"));
+        assert!(ddl.contains("`myproj.myds.events_cold`"));
+        assert!(ddl.contains("WITH CONNECTION `myproj.us-east1.conn_abc`"));
+        assert!(ddl.contains("format = 'PARQUET'"));
+        assert!(ddl.contains("uris = ['gs://bucket-abc/parquet/*']"));
+        assert!(ddl.contains("hive_partition_uri_prefix = 'gs://bucket-abc/parquet/'"));
+        assert!(ddl.contains("require_hive_partition_filter = true"));
+        assert!(ddl.contains("WITH PARTITION COLUMNS"));
     }
 
     #[test]
