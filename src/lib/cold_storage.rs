@@ -364,20 +364,20 @@ pub(crate) fn build_export_sql(
     age_days: u32,
 ) -> String {
     let date_expr = format!("DATE_SUB(CURRENT_DATE(), INTERVAL {} DAY)", age_days);
-    // The URI must be a literal at EXPORT DATA evaluation time, so we wrap the
-    // whole thing in EXECUTE IMMEDIATE FORMAT and interpolate the partition
-    // date into the URI and the WHERE clauses.
+    // EXECUTE IMMEDIATE accepts exactly one statement, and EXPORT DATA's uri
+    // must be a string literal. We wrap only the EXPORT in EXECUTE IMMEDIATE
+    // (to interpolate the date into the uri), then DELETE the partition with
+    // a plain statement that references the date expression directly.
     format!(
         "EXECUTE IMMEDIATE FORMAT(\"\"\"\
 EXPORT DATA OPTIONS(\
 uri='gs://{bucket}/{prefix}/dt=%s/data-*.parquet', \
 format='PARQUET', compression='ZSTD', overwrite=true) AS \
-SELECT TO_JSON_STRING(data) AS data FROM `{project}.{ds}.{hot}` WHERE _PARTITIONDATE = DATE '%s'; \
-DELETE FROM `{project}.{ds}.{hot}` WHERE _PARTITIONDATE = DATE '%s';\
+SELECT TO_JSON_STRING(data) AS data FROM `{project}.{ds}.{hot}` WHERE _PARTITIONDATE = DATE '%s'\
 \"\"\", \
 FORMAT_DATE('%Y-%m-%d', {date_expr}), \
-FORMAT_DATE('%Y-%m-%d', {date_expr}), \
-FORMAT_DATE('%Y-%m-%d', {date_expr}));"
+FORMAT_DATE('%Y-%m-%d', {date_expr})); \
+DELETE FROM `{project}.{ds}.{hot}` WHERE _PARTITIONDATE = {date_expr};"
     )
 }
 
