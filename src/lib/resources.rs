@@ -33,6 +33,16 @@ pub struct Resources {
     pub dashboard_id: String,
     #[serde(default)]
     pub log_metric_name: String,
+    #[serde(default)]
+    pub biglake_connection_id: String,
+    #[serde(default)]
+    pub cold_bucket_prefix: String,
+    #[serde(default)]
+    pub cold_table_id: String,
+    #[serde(default)]
+    pub events_view_id: String,
+    #[serde(default)]
+    pub export_scheduled_query_id: String,
 }
 
 impl Resources {
@@ -58,6 +68,11 @@ impl Resources {
             dataflow_sa_managed: false,
             dashboard_id: String::new(),
             log_metric_name: String::new(),
+            biglake_connection_id: String::new(),
+            cold_bucket_prefix: String::new(),
+            cold_table_id: String::new(),
+            events_view_id: String::new(),
+            export_scheduled_query_id: String::new(),
         }
     }
 
@@ -251,6 +266,47 @@ impl<'a> Tracker<'a> {
         self.res.log_metric_name.clear();
         self.persist()
     }
+
+    pub fn record_biglake_connection(&mut self, id: String) -> Result<()> {
+        self.res.biglake_connection_id = id;
+        self.persist()
+    }
+    pub fn forget_biglake_connection(&mut self) -> Result<()> {
+        self.res.biglake_connection_id.clear();
+        self.persist()
+    }
+    pub fn record_cold_bucket_prefix(&mut self, p: String) -> Result<()> {
+        self.res.cold_bucket_prefix = p;
+        self.persist()
+    }
+    pub fn forget_cold_bucket_prefix(&mut self) -> Result<()> {
+        self.res.cold_bucket_prefix.clear();
+        self.persist()
+    }
+    pub fn record_cold_table(&mut self, id: String) -> Result<()> {
+        self.res.cold_table_id = id;
+        self.persist()
+    }
+    pub fn forget_cold_table(&mut self) -> Result<()> {
+        self.res.cold_table_id.clear();
+        self.persist()
+    }
+    pub fn record_events_view(&mut self, id: String) -> Result<()> {
+        self.res.events_view_id = id;
+        self.persist()
+    }
+    pub fn forget_events_view(&mut self) -> Result<()> {
+        self.res.events_view_id.clear();
+        self.persist()
+    }
+    pub fn record_export_scheduled_query(&mut self, id: String) -> Result<()> {
+        self.res.export_scheduled_query_id = id;
+        self.persist()
+    }
+    pub fn forget_export_scheduled_query(&mut self) -> Result<()> {
+        self.res.export_scheduled_query_id.clear();
+        self.persist()
+    }
 }
 
 #[cfg(test)]
@@ -371,6 +427,25 @@ mod tests {
         let back = read_back(dir.path());
         assert!(back.bucket_name.is_empty());
         assert_eq!(back.output_pubsub.topic_id, "topic");
+    }
+
+    #[test]
+    fn cold_tier_fields_roundtrip() {
+        let (dir, config) = setup();
+        let mut res = Resources::empty(&config, dir.path());
+        let mut t = Tracker::new(&mut res);
+        t.record_biglake_connection("conn1".into()).unwrap();
+        t.record_cold_bucket_prefix("parquet".into()).unwrap();
+        t.record_cold_table("events_cold".into()).unwrap();
+        t.record_events_view("events_all".into()).unwrap();
+        t.record_export_scheduled_query("sq1".into()).unwrap();
+
+        let back = read_back(dir.path());
+        assert_eq!(back.biglake_connection_id, "conn1");
+        assert_eq!(back.cold_bucket_prefix, "parquet");
+        assert_eq!(back.cold_table_id, "events_cold");
+        assert_eq!(back.events_view_id, "events_all");
+        assert_eq!(back.export_scheduled_query_id, "sq1");
     }
 
     #[test]
