@@ -44,7 +44,7 @@ impl BqTable {
     }
 }
 
-pub fn create_dataset_unnamed(project_id: &str) -> Result<String> {
+pub fn create_dataset_unnamed(project_id: &str, region: &str) -> Result<String> {
     let mut random_string: String;
     let mut dataset_id_binding: String;
 
@@ -61,7 +61,8 @@ pub fn create_dataset_unnamed(project_id: &str) -> Result<String> {
             .collect();
         dataset_id_binding = format!("beaver_datalake_{}", random_string);
         let dataset_formatted_binding = format!("{}:beaver_datalake_{}", project_id, random_string);
-        let args: Vec<&str> = Vec::from(["mk", "--dataset", &dataset_formatted_binding, ]);
+        let location_arg = format!("--location={}", region);
+        let args: Vec<&str> = Vec::from(["mk", "--dataset", &location_arg, &dataset_formatted_binding]);
 
 
         let output = Command::new("bq").args(args).output()?;
@@ -141,7 +142,7 @@ pub fn create(tracker: &mut Tracker, config: &Config) -> Result<()> {
     info!("creating bq...");
     let project_id = tracker.resources().biq_query.project_id.clone();
 
-    let dataset_id = create_dataset_unnamed(&project_id)?;
+    let dataset_id = create_dataset_unnamed(&project_id, &config.region)?;
     tracker.record_bq_dataset(dataset_id.clone())?;
 
     let table_id = String::from("table1");
