@@ -90,6 +90,26 @@ pub fn deploy(path_arg: &str) -> Result<()> {
             config.region,
             service_accounts::project_number(&config.project)?
         );
+        // Dataflow auto-creates this bucket on first job run, but the IAM grant
+        // has to land before that. On a fresh project the bucket doesn't exist
+        // yet — create it so the grant has a target.
+        let exists = std::process::Command::new("gcloud")
+            .args(["storage", "buckets", "describe", &format!("gs://{}", dataflow_staging)])
+            .output()?;
+        if !exists.status.success() {
+            let mk = std::process::Command::new("gcloud")
+                .args(["storage", "buckets", "create",
+                    &format!("gs://{}", dataflow_staging),
+                    "--project", &config.project,
+                    "--location", &config.region])
+                .output()?;
+            if !mk.status.success() {
+                return Err(anyhow::anyhow!(
+                    "dataflow staging bucket create failed: {}",
+                    String::from_utf8_lossy(&mk.stderr)
+                ));
+            }
+        }
         service_accounts::grant_bucket(&dataflow_staging, &sa.email, "roles/storage.objectAdmin")?;
         service_accounts::grant_project(&config.project, &sa.email, "roles/dataflow.worker")?;
         service_accounts::grant_project(&config.project, &sa.email, "roles/logging.logWriter")?;

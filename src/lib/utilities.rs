@@ -45,10 +45,15 @@ pub fn generate_vector_config(path: &Path, resources: &Resources, config: &Confi
     // get various ASTs
     let mut raw_sources_yaml= get!(beaver_config, "sources",).clone();
     let mut unaltered_sources_yaml = raw_sources_yaml.as_mapping_mut().unwrap();
+    // Cloud Run health-checks by probing $PORT (default 8080); we make Vector
+    // bind there via an http_server source. The source name is misleading
+    // ("sink") but it is genuinely a Vector source.
+    // Use `http_server` — the canonical name; `type: http` was an alias that
+    // current Vector versions no longer accept under sources.
     unaltered_sources_yaml.insert(
             Value::String("healthcheck_sink".into()),
             Value::Mapping(Mapping::from_iter([
-                (Value::String("type".into()), Value::String("http".into())),
+                (Value::String("type".into()), Value::String("http_server".into())),
                 (Value::String("address".into()), Value::String("0.0.0.0:8080".into())),
             ]))
     );

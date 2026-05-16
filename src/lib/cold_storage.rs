@@ -49,8 +49,9 @@ pub fn create(tracker: &mut Tracker, config: &Config) -> Result<()> {
 }
 
 pub fn destroy_scheduled_query(id: &str, project: &str) -> Result<()> {
+    // bq requires --project_id BEFORE the positional id.
     let out = Command::new("bq")
-        .args(["rm", "-f", "--transfer_config", id, "--project_id", project])
+        .args(["rm", "-f", "--project_id", project, "--transfer_config", id])
         .output()?;
     if !out.status.success() {
         return Err(anyhow!(

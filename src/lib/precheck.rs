@@ -19,6 +19,10 @@ const REQUIRED_APIS: &[&str] = &[
     "dataflow.googleapis.com",
     "monitoring.googleapis.com",
     "iam.googleapis.com",
+    // Cold tier dependencies.
+    "biglake.googleapis.com",
+    "bigqueryconnection.googleapis.com",
+    "bigquerydatatransfer.googleapis.com",
 ];
 
 pub fn run(config: &Config) -> Result<()> {
