@@ -88,7 +88,9 @@ transforms:
   transform1:
     type: remap
     inputs:
-      - pubsub-in
+      - pubsub_in
+    source: |
+      . = .
 ");
 
     let mut resources = Resources::empty(&config, &path);

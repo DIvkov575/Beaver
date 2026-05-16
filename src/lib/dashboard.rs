@@ -328,18 +328,11 @@ r#"  - displayName: "is_failed > 0"
             ))?,
     });
 
-    // ---- Daily export scheduled query: no-op tile showing run count.
-    // export_sq may be a full transferConfigs/<uuid> path; strip to the trailing id.
-    let sq_id = export_sq.rsplit('/').next().unwrap_or(&export_sq);
-    out.push(ComponentHealth {
-        label: "Export job".to_string(),
-        policy_name: create_health_policy(tracker, config,
-            &format!("Beaver export job ({})", sq_id),
-            &noop_threshold(
-                &format!(r#"resource.type="bigquery_dts_config" AND metric.type="bigquerydatatransfer.googleapis.com/transfer_config/transfer_run_count" AND resource.label.config_id="{}""#, sq_id),
-                1e18,
-            ))?,
-    });
+    // No dedicated "Export job" tile: the BigQuery Data Transfer Service does
+    // not expose a per-config run-count metric Cloud Monitoring will accept in
+    // an alert-policy filter. The Cold tier bytes tile already surfaces the
+    // meaningful signal — parquet bytes growing means daily exports work.
+    let _ = export_sq;
 
     // ---- Log-based metric: no-op (only emits when detections fire).
     out.push(ComponentHealth {
