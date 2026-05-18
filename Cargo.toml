@@ -36,7 +36,6 @@ rand = { version = "0.8.5", features = [] }
 tempfile = { version = "3.9.0", features = [] }
 include-bytes-zstd = "0.1.0"
 run_script = "0.10.1"
-python-parser = "0.2.0"
 fern = "0.6.2"
 humantime = "2.1.0"
 log = "0.4.20"

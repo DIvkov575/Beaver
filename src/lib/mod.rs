@@ -14,6 +14,7 @@ pub mod service_accounts;
 pub mod precheck;
 pub mod dashboard;
 pub mod cold_storage;
+pub mod sigma_beam_io;
 
 #[cfg(test)]
 pub mod test_helpers;

@@ -5,7 +5,7 @@ use std::path::Path;
 use crate::lib::config::Config;
 use crate::lib::resources::{Resources, Tracker};
 use crate::lib::utilities::{check_for_bq, check_for_gcloud, validate_config_path};
-use crate::lib::{bq, cloud_build, cold_storage, crs, dashboard, dataflow, gcs, notifications, pubsub, service_accounts};
+use crate::lib::{bq, cloud_build, cold_storage, crs, dashboard, dataflow, gcs, notifications, pubsub, service_accounts, sigma_beam_io};
 
 #[derive(Debug, PartialEq, Eq)]
 pub enum DeleteStep {
@@ -29,6 +29,11 @@ pub enum DeleteStep {
     ColdTable(String),
     BigLakeConnection(String),
     ExportSa(String),
+    AlertsSubscription(String),
+    AlertsTopic(String),
+    DlqTopic(String),
+    AlertsTable(String),
+    RulesPrefix(String),  // bucket name; rules live at gs://<bucket>/rules/
 }
 
 /// Reverse of creation: alert policies → notification channels → dataflow →
@@ -54,6 +59,18 @@ pub fn plan(res: &Resources) -> Vec<DeleteStep> {
     }
     if !res.dataflow_pipeline_name.is_empty() {
         steps.push(DeleteStep::DataflowJob(res.dataflow_pipeline_name.clone()));
+    }
+    // sigma_beam alerts/DLQ: the alerts subscription depends on its topic
+    // and the alerts BQ table — delete the subscription first. Topic +
+    // table deletes are independent of each other after that.
+    if !res.alerts_subscription_id.is_empty() {
+        steps.push(DeleteStep::AlertsSubscription(res.alerts_subscription_id.clone()));
+    }
+    if !res.alerts_topic_id.is_empty() {
+        steps.push(DeleteStep::AlertsTopic(res.alerts_topic_id.clone()));
+    }
+    if !res.dlq_topic_id.is_empty() {
+        steps.push(DeleteStep::DlqTopic(res.dlq_topic_id.clone()));
     }
     if !res.crs_instance.is_empty() {
         steps.push(DeleteStep::CrsService(res.crs_instance.clone()));
@@ -87,6 +104,10 @@ pub fn plan(res: &Resources) -> Vec<DeleteStep> {
     if !res.biglake_connection_id.is_empty() {
         steps.push(DeleteStep::BigLakeConnection(res.biglake_connection_id.clone()));
     }
+    // alerts BQ table must go before the dataset that holds it.
+    if !res.alerts_table_id.is_empty() {
+        steps.push(DeleteStep::AlertsTable(res.alerts_table_id.clone()));
+    }
     if !res.biq_query.dataset_id.is_empty() {
         steps.push(DeleteStep::BqDataset(res.biq_query.dataset_id.clone()));
     }
@@ -95,6 +116,11 @@ pub fn plan(res: &Resources) -> Vec<DeleteStep> {
     }
     if !res.artifact_registry_repo.is_empty() {
         steps.push(DeleteStep::ArtifactRepo(res.artifact_registry_repo.clone()));
+    }
+    // Clear the rules prefix before nuking the bucket so any per-object
+    // lifecycle hooks don't fight us on the recursive bucket delete.
+    if !res.rules_gcs_prefix.is_empty() && !res.bucket_name.is_empty() {
+        steps.push(DeleteStep::RulesPrefix(res.bucket_name.clone()));
     }
     if !res.bucket_name.is_empty() {
         steps.push(DeleteStep::GcsBucket(res.bucket_name.clone()));
@@ -145,6 +171,11 @@ where
                     DeleteStep::EventsView(_) => tracker.forget_events_view(),
                     DeleteStep::ColdTable(_) => tracker.forget_cold_table(),
                     DeleteStep::BigLakeConnection(_) => tracker.forget_biglake_connection(),
+                    DeleteStep::AlertsSubscription(_) => tracker.forget_alerts_subscription(),
+                    DeleteStep::AlertsTopic(_) => tracker.forget_alerts_topic(),
+                    DeleteStep::DlqTopic(_) => tracker.forget_dlq_topic(),
+                    DeleteStep::AlertsTable(_) => tracker.forget_alerts_table(),
+                    DeleteStep::RulesPrefix(_) => tracker.forget_rules_prefix(),
                 };
                 if let Err(e) = forget {
                     error!("forget after {:?} failed: {}", step, e);
@@ -181,6 +212,16 @@ fn dispatch_real(step: &DeleteStep, config: &Config, dataset_id: &str) -> Result
             cold_storage::destroy_cold_table(dataset_id, t, &config.project),
         DeleteStep::BigLakeConnection(id) =>
             cold_storage::destroy_connection(id, &config.project, &config.region),
+        DeleteStep::AlertsSubscription(id) =>
+            sigma_beam_io::destroy_alerts_subscription(id, config),
+        DeleteStep::AlertsTopic(id) =>
+            sigma_beam_io::destroy_alerts_topic(id, config),
+        DeleteStep::DlqTopic(id) =>
+            sigma_beam_io::destroy_dlq_topic(id, config),
+        DeleteStep::AlertsTable(t) =>
+            sigma_beam_io::destroy_alerts_table(&config.project, dataset_id, t),
+        DeleteStep::RulesPrefix(bucket) =>
+            sigma_beam_io::destroy_rules_prefix(bucket),
     }
 }
 
