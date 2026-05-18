@@ -8,7 +8,17 @@ use run_script::ScriptOptions;
 // Shells out to bash because activating a venv from inside Rust's process table is awkward.
 pub fn setup_detections_venv(path_to_config: &Path) -> Result<()> {
     let path = path_to_config.join("detections");
-    let args = vec![path.to_str().unwrap().to_string()];
+    // Resolve sigma_beam path relative to the beaver repo root. Beaver is
+    // typically invoked from the repo, so use CARGO_MANIFEST_DIR at compile
+    // time; fall back to a sibling lookup if the env-var isn't set.
+    let manifest = std::env::var("CARGO_MANIFEST_DIR")
+        .unwrap_or_else(|_| ".".to_string());
+    let sigma_beam_path = std::path::Path::new(&manifest)
+        .join("sigma_beam")
+        .to_string_lossy()
+        .into_owned();
+
+    let args = vec![path.to_str().unwrap().to_string(), sigma_beam_path];
     let options = ScriptOptions::new();
 
     let (code, output, error) = run_script::run(
@@ -16,7 +26,12 @@ pub fn setup_detections_venv(path_to_config: &Path) -> Result<()> {
         cd $1 || exit
         python3 -m venv venv
         source venv/bin/activate
-        pip3 install git+https://github.com/matanolabs/pySigma-backend-matano.git 'apache-beam[gcp]'
+        pip3 install --upgrade pip
+        # pySigma for compile-time rule validation; apache-beam for the
+        # template build; sigma_beam as a local editable install so the
+        # template's `from sigma_beam.correlation_pipeline import run` works.
+        pip3 install 'pysigma>=0.11,<0.12' 'apache-beam[gcp]>=2.55,<3'
+        pip3 install -e "$2"
         "#,
         &args,
         &options,

@@ -5,7 +5,7 @@ use spinoff::{spinners, Color, Spinner};
 
 use crate::lib::{bq::{
     self
-}, config::Config, crs, dashboard, dataflow, detections_gen, gcs, pubsub, cloud_build, cold_storage, notifications, precheck, service_accounts};
+}, config::Config, crs, dashboard, dataflow, detections_gen, gcs, pubsub, cloud_build, cold_storage, notifications, precheck, service_accounts, sigma_beam_io};
 use crate::lib::resources::{Resources, Tracker};
 use crate::lib::sigma;
 use crate::lib::utilities::{self, check_for_bq, check_for_gcloud, random_tag, validate_config_path};
@@ -115,6 +115,26 @@ pub fn deploy(path_arg: &str) -> Result<()> {
         service_accounts::grant_project(&config.project, &sa.email, "roles/logging.logWriter")?;
         Ok::<_, anyhow::Error>(())
     })?;
+
+    step("sigma_beam alerts + DLQ (Pub/Sub + BQ table + subscription)",
+        || sigma_beam_io::create(&mut tracker, &config))?;
+    step("grant Dataflow SA publisher on alerts + DLQ", || {
+        let sa = tracker.resources().dataflow_sa_email.clone();
+        let alerts = tracker.resources().alerts_topic_id.clone();
+        let dlq = tracker.resources().dlq_topic_id.clone();
+        if sa.is_empty() {
+            return Err(anyhow::anyhow!(
+                "dataflow SA missing — wire up step order regressed",
+            ));
+        }
+        service_accounts::grant_pubsub_topic(&alerts, &sa,
+            "roles/pubsub.publisher", &config.project)?;
+        service_accounts::grant_pubsub_topic(&dlq, &sa,
+            "roles/pubsub.publisher", &config.project)?;
+        Ok::<_, anyhow::Error>(())
+    })?;
+    step("upload Sigma rules to GCS",
+        || sigma_beam_io::upload_rules(&path, &mut tracker, &config))?;
 
     step("upload Dataflow template", || dataflow::create_template(&path, &mut tracker, &config))?;
     step("launch Dataflow streaming job", || dataflow::create_pipeline(&mut tracker, &config))?;

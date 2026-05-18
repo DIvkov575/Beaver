@@ -16,3 +16,5 @@ archive.tar.gz
 */*.tar
 
 output.logdocs/book/
+
+sigma_beam/

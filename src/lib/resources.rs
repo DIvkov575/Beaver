@@ -47,6 +47,17 @@ pub struct Resources {
     pub export_sa_email: String,
     #[serde(default)]
     pub export_sa_managed: bool,
+    // sigma_beam-related resources
+    #[serde(default)]
+    pub rules_gcs_prefix: String,
+    #[serde(default)]
+    pub alerts_topic_id: String,
+    #[serde(default)]
+    pub alerts_subscription_id: String,
+    #[serde(default)]
+    pub alerts_table_id: String,
+    #[serde(default)]
+    pub dlq_topic_id: String,
 }
 
 impl Resources {
@@ -79,6 +90,11 @@ impl Resources {
             export_scheduled_query_id: String::new(),
             export_sa_email: String::new(),
             export_sa_managed: false,
+            rules_gcs_prefix: String::new(),
+            alerts_topic_id: String::new(),
+            alerts_subscription_id: String::new(),
+            alerts_table_id: String::new(),
+            dlq_topic_id: String::new(),
         }
     }
 
@@ -322,6 +338,47 @@ impl<'a> Tracker<'a> {
     pub fn forget_export_sa(&mut self) -> Result<()> {
         self.res.export_sa_email.clear();
         self.res.export_sa_managed = false;
+        self.persist()
+    }
+
+    pub fn record_rules_prefix(&mut self, p: String) -> Result<()> {
+        self.res.rules_gcs_prefix = p;
+        self.persist()
+    }
+    pub fn forget_rules_prefix(&mut self) -> Result<()> {
+        self.res.rules_gcs_prefix.clear();
+        self.persist()
+    }
+    pub fn record_alerts_topic(&mut self, id: String) -> Result<()> {
+        self.res.alerts_topic_id = id;
+        self.persist()
+    }
+    pub fn forget_alerts_topic(&mut self) -> Result<()> {
+        self.res.alerts_topic_id.clear();
+        self.persist()
+    }
+    pub fn record_alerts_subscription(&mut self, id: String) -> Result<()> {
+        self.res.alerts_subscription_id = id;
+        self.persist()
+    }
+    pub fn forget_alerts_subscription(&mut self) -> Result<()> {
+        self.res.alerts_subscription_id.clear();
+        self.persist()
+    }
+    pub fn record_alerts_table(&mut self, id: String) -> Result<()> {
+        self.res.alerts_table_id = id;
+        self.persist()
+    }
+    pub fn forget_alerts_table(&mut self) -> Result<()> {
+        self.res.alerts_table_id.clear();
+        self.persist()
+    }
+    pub fn record_dlq_topic(&mut self, id: String) -> Result<()> {
+        self.res.dlq_topic_id = id;
+        self.persist()
+    }
+    pub fn forget_dlq_topic(&mut self) -> Result<()> {
+        self.res.dlq_topic_id.clear();
         self.persist()
     }
 }

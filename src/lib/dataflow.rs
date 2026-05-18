@@ -23,6 +23,26 @@ pub fn create_template(path_to_config: &Path, tracker: &mut Tracker, config: &Co
     let bucket = res.bucket_name.clone();
     let subscription = res.output_pubsub.subscription_id_2.clone();
 
+    // sigma_beam runtime args. Use values already tracked on Resources where
+    // present; fall back to deterministic defaults derived from the bucket
+    // so callers that haven't wired the alerts/DLQ provisioning yet still
+    // get a buildable template.
+    let rules_uri = if res.rules_gcs_prefix.is_empty() {
+        format!("gs://{}/rules", bucket)
+    } else {
+        res.rules_gcs_prefix.clone()
+    };
+    let alerts_topic = if res.alerts_topic_id.is_empty() {
+        "beaver-alerts".to_string()
+    } else {
+        res.alerts_topic_id.clone()
+    };
+    let dlq_topic = if res.dlq_topic_id.is_empty() {
+        "beaver-dlq".to_string()
+    } else {
+        res.dlq_topic_id.clone()
+    };
+
     let detections_path = path_to_config.join("detections");
     let staging = format!("gs://{}/staging", bucket);
     let temp = format!("gs://{}/temp", bucket);
@@ -36,11 +56,18 @@ pub fn create_template(path_to_config: &Path, tracker: &mut Tracker, config: &Co
         template_path,
         config.region.clone(),
         temp,
+        rules_uri,
+        alerts_topic,
+        dlq_topic,
     ];
 
     // Pin --temp_location to our bucket so the dataflow worker SA, which has
     // storage.objectAdmin only on this bucket, can write temp files. Without
     // this, Dataflow defaults to a managed bucket the SA can't touch.
+    //
+    // Args resolved here become *build-time* constants in the resulting
+    // Classic Template — to make them launch-time configurable we'd need
+    // to refactor sigma_beam's options to use Beam ValueProviders.
     let (code, output, error) = run_script::run(
         r#"
         cd $1
@@ -48,11 +75,14 @@ pub fn create_template(path_to_config: &Path, tracker: &mut Tracker, config: &Co
         python ../artifacts/detections_gen.py \
             --runner=DataflowRunner \
             --project $2 \
-            --subscription $3 \
+            --input_subscription $3 \
             --staging_location $4 \
             --template_location $5 \
             --region $6 \
-            --temp_location $7
+            --temp_location $7 \
+            --rules_uri $8 \
+            --alerts_topic $9 \
+            --dlq_topic ${10}
         "#,
         &args,
         &ScriptOptions::new(),
