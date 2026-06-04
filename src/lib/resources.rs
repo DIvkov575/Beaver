@@ -47,6 +47,8 @@ pub struct Resources {
     pub export_sa_email: String,
     #[serde(default)]
     pub export_sa_managed: bool,
+    #[serde(default)]
+    pub dataflow_staging_bucket: String,
 }
 
 impl Resources {
@@ -79,6 +81,7 @@ impl Resources {
             export_scheduled_query_id: String::new(),
             export_sa_email: String::new(),
             export_sa_managed: false,
+            dataflow_staging_bucket: String::new(),
         }
     }
 
@@ -322,6 +325,15 @@ impl<'a> Tracker<'a> {
     pub fn forget_export_sa(&mut self) -> Result<()> {
         self.res.export_sa_email.clear();
         self.res.export_sa_managed = false;
+        self.persist()
+    }
+
+    pub fn record_dataflow_staging_bucket(&mut self, name: String) -> Result<()> {
+        self.res.dataflow_staging_bucket = name;
+        self.persist()
+    }
+    pub fn forget_dataflow_staging_bucket(&mut self) -> Result<()> {
+        self.res.dataflow_staging_bucket.clear();
         self.persist()
     }
 }
