@@ -4,7 +4,7 @@ beaver:
 
 
 sources:
- - pubsub_in:
+  pubsub_in:
     type: gcp_pubsub
     project: "neon-circle-400322"
     subscription: "input1"
@@ -12,10 +12,12 @@ sources:
       codec: "json"
 
 transforms:
- - transform1:
+  transform1:
     type: remap
     inputs:
-      - pubsub-in
+      - pubsub_in
+    source: |
+      . = .
 
 # Optional SOC triage dashboard (Cloud Monitoring). Uncomment to provision.
 # dashboard:
