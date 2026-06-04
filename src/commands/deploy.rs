@@ -110,6 +110,7 @@ pub fn deploy(path_arg: &str) -> Result<()> {
                 ));
             }
         }
+        tracker.record_dataflow_staging_bucket(dataflow_staging.clone())?;
         service_accounts::grant_bucket(&dataflow_staging, &sa.email, "roles/storage.objectAdmin")?;
         service_accounts::grant_project(&config.project, &sa.email, "roles/dataflow.worker")?;
         service_accounts::grant_project(&config.project, &sa.email, "roles/logging.logWriter")?;
