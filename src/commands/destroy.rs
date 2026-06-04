@@ -29,6 +29,7 @@ pub enum DeleteStep {
     ColdTable(String),
     BigLakeConnection(String),
     ExportSa(String),
+    DataflowStagingBucket(String),
 }
 
 /// Reverse of creation: alert policies → notification channels → dataflow →
@@ -99,6 +100,9 @@ pub fn plan(res: &Resources) -> Vec<DeleteStep> {
     if !res.bucket_name.is_empty() {
         steps.push(DeleteStep::GcsBucket(res.bucket_name.clone()));
     }
+    if !res.dataflow_staging_bucket.is_empty() {
+        steps.push(DeleteStep::DataflowStagingBucket(res.dataflow_staging_bucket.clone()));
+    }
     // Service accounts last: only after every consumer (CRS, Dataflow) and
     // every IAM-bound resource (sub, topic, bucket) is gone, so resource-scoped
     // bindings clean up automatically when the resource disappears. Only delete
@@ -138,6 +142,7 @@ where
                     DeleteStep::ArtifactImage(_) => tracker.forget_image(),
                     DeleteStep::ArtifactRepo(_) => tracker.forget_artifact_repo(),
                     DeleteStep::GcsBucket(_) => tracker.forget_bucket(),
+                    DeleteStep::DataflowStagingBucket(_) => tracker.forget_dataflow_staging_bucket(),
                     DeleteStep::VectorSa(_) => tracker.forget_vector_sa(),
                     DeleteStep::DataflowSa(_) => tracker.forget_dataflow_sa(),
                     DeleteStep::ExportScheduledQuery(_) => tracker.forget_export_scheduled_query(),
@@ -169,6 +174,7 @@ fn dispatch_real(step: &DeleteStep, config: &Config, dataset_id: &str) -> Result
         DeleteStep::ArtifactImage(url) => cloud_build::delete_image(url, config),
         DeleteStep::ArtifactRepo(name) => cloud_build::delete_repo(name, config),
         DeleteStep::GcsBucket(name) => gcs::delete_bucket(name),
+        DeleteStep::DataflowStagingBucket(name) => gcs::delete_bucket(name),
         DeleteStep::VectorSa(email) => service_accounts::delete_sa(email, &config.project),
         DeleteStep::DataflowSa(email) => service_accounts::delete_sa(email, &config.project),
         DeleteStep::ExportScheduledQuery(id) =>
@@ -511,5 +517,17 @@ mod tests {
         res.dataflow_sa_managed = false;
         // User-supplied SAs are not in beaver's lifecycle; planner ignores them.
         assert!(plan(&res).is_empty());
+    }
+
+    #[test]
+    fn plan_includes_dataflow_staging_bucket() {
+        let mut res = empty_resources();
+        res.dataflow_staging_bucket = "dataflow-staging-us-east1-123456".into();
+        res.bucket_name = "beaver_abc".into();
+
+        let steps = plan(&res);
+        let staging_idx = steps.iter().position(|s| matches!(s, DeleteStep::DataflowStagingBucket(_))).unwrap();
+        let main_idx = steps.iter().position(|s| matches!(s, DeleteStep::GcsBucket(_))).unwrap();
+        assert!(staging_idx > main_idx, "staging bucket should be deleted after main bucket");
     }
 }
