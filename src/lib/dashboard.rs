@@ -317,21 +317,10 @@ r#"  - displayName: "is_failed > 0"
             ))?,
     });
 
-    // ---- Cold tier (Parquet) bytes: no-op (informational only).
-    out.push(ComponentHealth {
-        label: "Cold tier".to_string(),
-        policy_name: create_health_policy(tracker, config,
-            &format!("Beaver Cold tier ({}/parquet)", bucket),
-            &noop_threshold(
-                &format!(r#"resource.type="gcs_bucket" AND metric.type="storage.googleapis.com/storage/total_bytes" AND resource.label.bucket_name="{}""#, bucket),
-                1e30,
-            ))?,
-    });
-
-    // No dedicated "Export job" tile: the BigQuery Data Transfer Service does
-    // not expose a per-config run-count metric Cloud Monitoring will accept in
-    // an alert-policy filter. The Cold tier bytes tile already surfaces the
-    // meaningful signal — parquet bytes growing means daily exports work.
+    // Cold tier + Export job: removed. The GCS bucket tile above already shows
+    // total bucket bytes (GCS metrics are bucket-level, not prefix-level, so a
+    // separate cold-tier tile was identical). BQ DTS does not expose a per-config
+    // metric usable in alert-policy filters, so no export-job tile is possible.
     let _ = export_sq;
 
     // ---- Log-based metric: no-op (only emits when detections fire).
