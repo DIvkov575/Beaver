@@ -1,0 +1,3 @@
+[submodule "sigma_beam"]
+	path = sigma_beam
+	url = https://github.com/DIvkov575/sigma-beam-backend.git

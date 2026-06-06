@@ -15,7 +15,6 @@ archive.tar
 archive.tar.gz
 */*.tar
 
-output.logdocs/book/
-
-sigma_beam/
+output.log
+docs/book/
 CLAUDE.md
