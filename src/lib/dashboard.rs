@@ -491,11 +491,13 @@ r#"    - xPos: {x}
             .join("\n")
     };
     let links_indented = indent_md(&resource_links, "            ");
-    let feed_y = after_health_y;
-    let charts_y = after_health_y + 4;
-    let worker_logs_y = after_health_y + 8;
-    let notif_y = after_health_y + 12;
-    let alert_chart_base_y = after_health_y + 16;
+
+    let sigma_beam_y = after_health_y + 16;
+    let feed_y = sigma_beam_y + 4;
+    let charts_y = feed_y + 4;
+    let worker_logs_y = charts_y + 4;
+    let notif_y = worker_logs_y + 4;
+    let alert_chart_base_y = notif_y + 4;
 
     let mut yaml = format!(
         r#"displayName: "{display}"
@@ -513,7 +515,38 @@ mosaicLayout:
 {links_indented}
           format: MARKDOWN
     # ---- Component health grid: one uniform alertChart per resource ----
-{health_tiles}    - xPos: 0
+{health_tiles}    # ---- sigma_beam alerts + DLQ ----
+    - xPos: 0
+      yPos: {sigma_beam_y}
+      width: 6
+      height: 4
+      widget:
+        title: "Alerts / min (sigma_beam)"
+        xyChart:
+          dataSets:
+            - timeSeriesQuery:
+                timeSeriesFilter:
+                  filter: 'resource.type="pubsub_topic" AND resource.labels.topic_id="beaver-alerts" AND metric.type="pubsub.googleapis.com/topic/send_message_operation_count"'
+                  aggregation:
+                    alignmentPeriod: 60s
+                    perSeriesAligner: ALIGN_RATE
+              plotType: LINE
+    - xPos: 6
+      yPos: {sigma_beam_y}
+      width: 6
+      height: 4
+      widget:
+        title: "DLQ Depth"
+        xyChart:
+          dataSets:
+            - timeSeriesQuery:
+                timeSeriesFilter:
+                  filter: 'resource.type="pubsub_subscription" AND resource.labels.subscription_id:"beaver-dlq" AND metric.type="pubsub.googleapis.com/subscription/num_undelivered_messages"'
+                  aggregation:
+                    alignmentPeriod: 60s
+                    perSeriesAligner: ALIGN_MEAN
+              plotType: LINE
+    - xPos: 0
       yPos: {feed_y}
       width: 12
       height: 4
