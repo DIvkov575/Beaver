@@ -1,0 +1,13 @@
+title: brute_force_5_in_60s
+id: c0c0c100-0001-4000-9000-000000000001
+status: experimental
+level: high
+correlation:
+  type: event_count
+  rules:
+    - a1f1f100-0001-4000-9000-000000000001
+  group-by:
+    - src_ip
+  timespan: 1m
+  condition:
+    gte: 5
