@@ -536,15 +536,15 @@ mosaicLayout:
       width: 6
       height: 4
       widget:
-        title: "DLQ Depth"
+        title: "DLQ messages / min"
         xyChart:
           dataSets:
             - timeSeriesQuery:
                 timeSeriesFilter:
-                  filter: 'resource.type="pubsub_subscription" AND resource.labels.subscription_id:"beaver-dlq" AND metric.type="pubsub.googleapis.com/subscription/num_undelivered_messages"'
+                  filter: 'resource.type="pubsub_topic" AND resource.labels.topic_id="beaver-dlq" AND metric.type="pubsub.googleapis.com/topic/send_message_operation_count"'
                   aggregation:
                     alignmentPeriod: 60s
-                    perSeriesAligner: ALIGN_MEAN
+                    perSeriesAligner: ALIGN_RATE
               plotType: LINE
     - xPos: 0
       yPos: {feed_y}
