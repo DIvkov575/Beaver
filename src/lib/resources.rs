@@ -58,6 +58,8 @@ pub struct Resources {
     pub alerts_table_id: String,
     #[serde(default)]
     pub dlq_topic_id: String,
+    #[serde(default)]
+    pub dataflow_staging_bucket: String,
 }
 
 impl Resources {
@@ -95,6 +97,7 @@ impl Resources {
             alerts_subscription_id: String::new(),
             alerts_table_id: String::new(),
             dlq_topic_id: String::new(),
+            dataflow_staging_bucket: String::new(),
         }
     }
 
@@ -379,6 +382,14 @@ impl<'a> Tracker<'a> {
     }
     pub fn forget_dlq_topic(&mut self) -> Result<()> {
         self.res.dlq_topic_id.clear();
+        self.persist()
+    }
+    pub fn record_dataflow_staging_bucket(&mut self, name: String) -> Result<()> {
+        self.res.dataflow_staging_bucket = name;
+        self.persist()
+    }
+    pub fn forget_dataflow_staging_bucket(&mut self) -> Result<()> {
+        self.res.dataflow_staging_bucket.clear();
         self.persist()
     }
 }
