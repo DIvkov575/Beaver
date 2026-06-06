@@ -492,7 +492,7 @@ r#"    - xPos: {x}
     };
     let links_indented = indent_md(&resource_links, "            ");
 
-    let sigma_beam_y = after_health_y + 16;
+    let sigma_beam_y = after_health_y;
     let feed_y = sigma_beam_y + 4;
     let charts_y = feed_y + 4;
     let worker_logs_y = charts_y + 4;
