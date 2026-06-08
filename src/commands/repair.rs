@@ -127,6 +127,7 @@ pub fn refresh_detections(path_arg: &str) -> Result<()> {
     }
 
     step("compile sigma rules", || {
+        sigma::setup_detections_venv(path)?;
         sigma::generate_detections(path)?;
         detections_gen::generate_detections_file(path)
     })?;

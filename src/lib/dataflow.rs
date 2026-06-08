@@ -48,6 +48,13 @@ pub fn create_template(path_to_config: &Path, tracker: &mut Tracker, config: &Co
     let temp = format!("gs://{}/temp", bucket);
     let template_path = format!("gs://{}/templates/{}", bucket, TEMPLATE_NAME);
 
+    // Absolute path to the sigma_beam package source so we can build a wheel and
+    // ship it to Dataflow workers via --extra_packages. cloudpickle pickles
+    // installed modules *by reference*, so the workers must be able to
+    // `import sigma_beam` to unpickle the DoFns — a local editable install on
+    // the launcher is not enough.
+    let sigma_beam_src = crate::lib::utilities::sigma_beam_dir();
+
     let args = vec![
         detections_path.to_str().unwrap().to_string(),
         config.project.clone(),
@@ -59,6 +66,7 @@ pub fn create_template(path_to_config: &Path, tracker: &mut Tracker, config: &Co
         rules_uri,
         alerts_topic,
         dlq_topic,
+        sigma_beam_src,
     ];
 
     // Pin --temp_location to our bucket so the dataflow worker SA, which has
@@ -70,19 +78,28 @@ pub fn create_template(path_to_config: &Path, tracker: &mut Tracker, config: &Co
     // to refactor sigma_beam's options to use Beam ValueProviders.
     let (code, output, error) = run_script::run(
         r#"
-        cd $1
+        cd "$1"
         source venv/bin/activate
+        # Build a sigma_beam wheel and ship it to workers via --extra_packages.
+        # Without this, workers run stock apache-beam[gcp] and fail to unpickle
+        # the DoFns with `ModuleNotFoundError: No module named 'sigma_beam'`.
+        WHEEL_DIR=$(mktemp -d)
+        trap 'rm -rf "$WHEEL_DIR"' EXIT
+        pip wheel "${11}" --no-deps -w "$WHEEL_DIR" || exit 1
+        WHEEL=$(ls "$WHEEL_DIR"/sigma_beam-*.whl | head -1)
+        if [ -z "$WHEEL" ]; then echo "sigma_beam wheel build produced no artifact" >&2; exit 1; fi
         python ../artifacts/detections_gen.py \
             --runner=DataflowRunner \
-            --project $2 \
-            --input_subscription $3 \
-            --staging_location $4 \
-            --template_location $5 \
-            --region $6 \
-            --temp_location $7 \
-            --rules_uri $8 \
-            --alerts_topic $9 \
-            --dlq_topic ${10}
+            --project "$2" \
+            --input_subscription "$3" \
+            --staging_location "$4" \
+            --template_location "$5" \
+            --region "$6" \
+            --temp_location "$7" \
+            --rules_uri "$8" \
+            --alerts_topic "$9" \
+            --dlq_topic "${10}" \
+            --extra_packages "$WHEEL"
         "#,
         &args,
         &ScriptOptions::new(),

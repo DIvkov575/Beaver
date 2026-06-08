@@ -112,7 +112,10 @@ fn create_alerts_subscription(
             &topic_arg,
             &table_arg,
             "--use-table-schema",
-            "--write-metadata=false",
+            // `--write-metadata` is a value-less boolean flag in gcloud; passing
+            // `=false` is rejected. Omitting it leaves metadata-writing off (the
+            // default), which is what we want — the alert payload maps 1:1 to the
+            // table schema via `--use-table-schema`.
             &format!("--project={}", project),
         ])
         .output()?;

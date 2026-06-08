@@ -1,5 +1,11 @@
 # sigma-beam Integration Handoff
 
+> **GCP validation (2026-06-07):** A live deploy to `neon-circle-400322` surfaced and
+> fixed six deploy/runtime bugs: gcloud flag, stale Dataflow entrypoint, committed broken
+> venv symlink, uninvoked venv setup, runtime-vs-compile-time `CARGO_MANIFEST_DIR`, and
+> sigma_beam not shipped to Dataflow workers (`--extra_packages`).
+> Full write-up: [`docs/gcp-validation-results.md`](gcp-validation-results.md).
+
 ## What Was Done
 
 Integrated `DIvkov575/sigma-beam-backend` into Beaver as a git submodule at `./sigma_beam`. Added three features to the sigma_beam Python package, wired them into Beaver's deploy pipeline, and fixed all test failures.
