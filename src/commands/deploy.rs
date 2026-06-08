@@ -44,6 +44,7 @@ pub fn deploy(path_arg: &str) -> Result<()> {
     let mut tracker = Tracker::new(&mut resources);
 
     step("compile sigma rules", || {
+        sigma::setup_detections_venv(&path)?;
         sigma::generate_detections(&path)?;
         detections_gen::generate_detections_file(&path)
     })?;

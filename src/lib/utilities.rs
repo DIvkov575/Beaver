@@ -138,6 +138,22 @@ pub fn overlap<T: Eq>(a: &[T], b:&[T]) -> bool {
     return false
 }
 
+/// Absolute path to the bundled `sigma_beam` package source, baked in at
+/// *compile* time via `env!`. Two consumers need it: `setup_detections_venv`
+/// (`pip install -e` into the build venv) and the Dataflow template build
+/// (`pip wheel` → `--extra_packages` so workers can `import sigma_beam`).
+///
+/// Must be `env!` (compile-time), not `std::env::var` (runtime): the latter is
+/// unset when the release binary runs outside `cargo`, and the venv/build
+/// scripts `cd` into the detections dir first, so a relative `"."` fallback
+/// would resolve against the wrong directory.
+pub fn sigma_beam_dir() -> String {
+    std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
+        .join("sigma_beam")
+        .to_string_lossy()
+        .into_owned()
+}
+
 pub fn random_tag(count: usize) -> String {
     thread_rng()
         .sample_iter(&Alphanumeric)
