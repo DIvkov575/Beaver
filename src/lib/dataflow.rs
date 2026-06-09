@@ -339,3 +339,83 @@ pub fn delete_job(name: &str, config: &Config) -> Result<()> {
     }
     Ok(())
 }
+
+/// Drains the running Dataflow job. Unlike `delete_job` (cancel), drain tells
+/// the job to stop reading new input but finish processing all in-flight
+/// elements — correlation windows flush their accumulated state before the job
+/// enters DRAINED. Pub/Sub messages arriving after the drain request queue
+/// until the replacement job starts.
+pub fn drain_job(name: &str, config: &Config) -> Result<()> {
+    info!("draining dataflow job: {}", name);
+
+    let lookup = Command::new("gcloud")
+        .args([
+            "dataflow", "jobs", "list",
+            "--region", &config.region,
+            "--project", &config.project,
+            "--filter", &format!("name={}", name),
+            "--format=value(JOB_ID)",
+            "--status=active",
+        ])
+        .output()?;
+    let job_id = String::from_utf8_lossy(&lookup.stdout).trim().to_string();
+    if job_id.is_empty() {
+        info!("no active dataflow job named {}; nothing to drain", name);
+        return Ok(());
+    }
+
+    let drain = Command::new("gcloud")
+        .args([
+            "dataflow", "jobs", "drain", &job_id,
+            "--region", &config.region,
+            "--project", &config.project,
+        ])
+        .output()?;
+    if !drain.status.success() {
+        let stderr = String::from_utf8_lossy(&drain.stderr);
+        return Err(anyhow!("dataflow drain failed: {}", stderr));
+    }
+    info!("drain request accepted for job {}", name);
+    Ok(())
+}
+
+/// Polls until the Dataflow job reaches JOB_STATE_DRAINED (or a terminal
+/// failure state). Timeout is 10 minutes because draining a streaming job with
+/// large correlation windows can take several minutes as it flushes all pending
+/// timers and in-flight bundles.
+pub fn wait_for_drained(name: &str, config: &Config) -> Result<()> {
+    info!("waiting for Dataflow job {} to reach Drained state", name);
+    let job_id = lookup_job_id(name, config)?;
+    let timeout = std::time::Duration::from_secs(600);
+    let interval = std::time::Duration::from_secs(15);
+    let start = std::time::Instant::now();
+    let mut last_state = String::new();
+    loop {
+        let state = describe_state(&job_id, config)?;
+        if state != last_state {
+            info!("Dataflow state: {}", state);
+            last_state = state.clone();
+        }
+        match state.as_str() {
+            "JOB_STATE_DRAINED" => return Ok(()),
+            "JOB_STATE_FAILED" | "JOB_STATE_CANCELLED" | "JOB_STATE_UPDATED" => {
+                let errs = recent_errors(&job_id, config);
+                return Err(anyhow!(
+                    "Dataflow job {} entered {} while draining (expected DRAINED).\n\
+                     Recent worker errors:\n{}",
+                    name, state, errs
+                ));
+            }
+            _ => {}
+        }
+        if start.elapsed() > timeout {
+            let errs = recent_errors(&job_id, config);
+            return Err(anyhow!(
+                "Dataflow job {} did not reach DRAINED within {:?} (last state: {}).\n\
+                 Recent worker errors:\n{}",
+                name, timeout, state, errs
+            ));
+        }
+        std::thread::sleep(interval);
+    }
+}

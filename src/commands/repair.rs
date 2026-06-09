@@ -24,7 +24,7 @@ fn step<T, F: FnOnce() -> Result<T>>(label: &str, f: F) -> Result<T> {
 /// the existing `resources.yaml`. SAs, grants, bucket and CRS are reused — if
 /// those are broken, run a full destroy/deploy instead. Idempotent if the job
 /// is already RUNNING.
-pub fn repair_dataflow(path_arg: &str) -> Result<()> {
+pub fn repair_dataflow(path_arg: &str, use_cancel: bool) -> Result<()> {
     info!("=======Repairing Dataflow======");
     println!("\nBeaver repair-dataflow");
     println!("======================\n");
@@ -72,11 +72,27 @@ pub fn repair_dataflow(path_arg: &str) -> Result<()> {
         }
     }
 
-    // Best-effort cancel of the existing (failed/cancelled) job. delete_job
-    // returns Ok if the job is already inactive.
-    let _ = step("cancel existing job (best-effort)", || {
-        dataflow::delete_job(&current_name, &config)
-    });
+    // Only attempt shutdown if the job is known to be active. Jobs in terminal
+    // states or jobs that no longer exist (None) don't need a stop command.
+    let needs_shutdown = matches!(
+        state.as_deref(),
+        Some("Running") | Some("Queued") | Some("Pending") | Some("Draining")
+    );
+
+    if needs_shutdown {
+        if use_cancel {
+            let _ = step("cancel existing job (immediate)", || {
+                dataflow::delete_job(&current_name, &config)
+            });
+        } else {
+            step("drain existing job (flushing windows)", || {
+                dataflow::drain_job(&current_name, &config)
+            })?;
+            step("wait for drain to complete (up to 10 min)", || {
+                dataflow::wait_for_drained(&current_name, &config)
+            })?;
+        }
+    }
 
     let mut tracker = Tracker::new(&mut resources);
 
@@ -98,7 +114,7 @@ pub fn repair_dataflow(path_arg: &str) -> Result<()> {
 /// Recompiles Sigma rules, regenerates the detections Python module, re-uploads
 /// the Dataflow template, cancels the running job, and launches a fresh one
 /// with the new code. Use after editing rules in `beaver_config/sigma/`.
-pub fn refresh_detections(path_arg: &str) -> Result<()> {
+pub fn refresh_detections(path_arg: &str, use_cancel: bool) -> Result<()> {
     info!("=======Refreshing Detections======");
     println!("\nBeaver refresh-detections");
     println!("=========================\n");
@@ -132,11 +148,28 @@ pub fn refresh_detections(path_arg: &str) -> Result<()> {
         detections_gen::generate_detections_file(path)
     })?;
 
-    // Cancel the existing job unconditionally — even if it's Running, it's
-    // running stale code. delete_job is a no-op for inactive jobs.
-    let _ = step("cancel existing job", || {
-        dataflow::delete_job(&current_name, &config)
-    });
+    // Only attempt shutdown if the job is in an active state. Terminal or
+    // unknown states (job deleted from GCP) skip straight to relaunch.
+    let state = dataflow::current_state(&current_name, &config).unwrap_or(None);
+    let needs_shutdown = matches!(
+        state.as_deref(),
+        Some("Running") | Some("Queued") | Some("Pending") | Some("Draining")
+    );
+
+    if needs_shutdown {
+        if use_cancel {
+            let _ = step("cancel existing job (immediate)", || {
+                dataflow::delete_job(&current_name, &config)
+            });
+        } else {
+            step("drain existing job (flushing windows)", || {
+                dataflow::drain_job(&current_name, &config)
+            })?;
+            step("wait for drain to complete (up to 10 min)", || {
+                dataflow::wait_for_drained(&current_name, &config)
+            })?;
+        }
+    }
 
     let mut tracker = Tracker::new(&mut resources);
 
@@ -151,6 +184,14 @@ pub fn refresh_detections(path_arg: &str) -> Result<()> {
         dataflow::wait_for_running(&new_name, &config)
     })?;
 
-    println!("\nRefreshed: Dataflow job {} is Running with new detections.\n", new_name);
+    let mode = if needs_shutdown {
+        if use_cancel { "cancelled" } else { "drained" }
+    } else {
+        "was already stopped"
+    };
+    println!(
+        "\nRefreshed: old job {} {}, new job {} is Running with new detections.\n",
+        current_name, mode, new_name
+    );
     Ok(())
 }
