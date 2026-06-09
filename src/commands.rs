@@ -36,12 +36,18 @@ pub enum Command {
     #[command(about="Relaunch the Dataflow job for an existing deploy")]
     RepairDataflow {
         #[arg(short, long)]
-        path: String
+        path: String,
+        /// Use cancel (immediate kill) instead of drain (graceful flush)
+        #[arg(long, default_value_t = false)]
+        cancel: bool,
     },
     #[command(about="Recompile sigma rules and relaunch Dataflow with new detections")]
     RefreshDetections {
         #[arg(short, long)]
-        path: String
+        path: String,
+        /// Use cancel (immediate kill) instead of drain (graceful flush)
+        #[arg(long, default_value_t = false)]
+        cancel: bool,
     },
 }
 impl Command {
@@ -51,8 +57,8 @@ impl Command {
             Init{force, dev, path} => init(force, dev, path),
             Deploy{path} => deploy(&path),
             Destroy{path} => destroy(&path),
-            RepairDataflow{path} => repair_dataflow(&path),
-            RefreshDetections{path} => refresh_detections(&path),
+            RepairDataflow{path, cancel} => repair_dataflow(&path, cancel),
+            RefreshDetections{path, cancel} => refresh_detections(&path, cancel),
         }
     }
 }
