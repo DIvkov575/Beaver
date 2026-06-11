@@ -48,8 +48,7 @@ pub fn create_log_metric(tracker: &mut Tracker, config: &Config) -> Result<Strin
     // call as a JSON-encoded *string* under `jsonPayload.message`, not as a
     // parsed nested object. So we substring-match on the message and regex
     // out the rule_name field.
-    let metric_yaml = format!(
-        r#"description: "Beaver SIEM detection events, per rule"
+    let metric_yaml = r#"description: "Beaver SIEM detection events, per rule"
 filter: |
   resource.type="dataflow_step" AND jsonPayload.message:"BEAVER_SIEM_MATCH"
 metricDescriptor:
@@ -60,8 +59,7 @@ metricDescriptor:
       valueType: STRING
 labelExtractors:
   rule_name: REGEXP_EXTRACT(jsonPayload.message, "\"rule_name\":\\s*\"([^\"]+)\"")
-"#
-    );
+"#.to_string();
     let tmp = tempfile::NamedTempFile::new()?;
     std::fs::write(tmp.path(), &metric_yaml)?;
 
@@ -466,7 +464,7 @@ r#"    - xPos: {x}
             label = c.label, policy = c.policy_name,
         ));
     }
-    let health_rows = (component_health.len() + cols - 1) / cols;
+    let health_rows = component_health.len().div_ceil(cols);
     let after_health_y = 2 + health_rows * cell_h;
 
     // Compact one-line resource links (height 2 widget). Each link deep-jumps

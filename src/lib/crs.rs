@@ -1,5 +1,5 @@
 use anyhow::{anyhow, Result};
-use std::process::{Command, ExitStatus, Output};
+use std::process::Command;
 use log::{error, info};
 use rand::distributions::Alphanumeric;
 use rand::Rng;
@@ -71,7 +71,7 @@ fn create_crs_named(service_name: &str, config: &Config) -> Result<()>{
 // Bumps the service to gen2 execution. The bucket-volume mount that should
 // happen here is still TODO; flags are scaffolded but commented out until the
 // mount path/bucket-name plumbing is wired through.
-fn mount_gcs_crs(config: &Config, resources: &Resources) -> Result<()> {
+fn mount_gcs_crs(_config: &Config, resources: &Resources) -> Result<()> {
     log_func_call!();
     let crs_instance_name = resources.crs_instance.clone();
     let args = vec!["beta", "run", "services", "update", &crs_instance_name,

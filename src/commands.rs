@@ -1,4 +1,3 @@
-use std::io;
 use anyhow::Result;
 use clap::{self, Parser};
 

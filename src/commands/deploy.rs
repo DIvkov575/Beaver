@@ -33,20 +33,20 @@ pub fn deploy(path_arg: &str) -> Result<()> {
     println!("=============\n");
 
     let path = Path::new(path_arg);
-    validate_config_path(&path)?;
+    validate_config_path(path)?;
     check_for_bq()?;
     check_for_gcloud()?;
 
-    let config: Config = Config::from_path(&path);
+    let config: Config = Config::from_path(path);
     step("environment precheck", || precheck::run(&config))?;
 
-    let mut resources = Resources::empty(&config, &path);
+    let mut resources = Resources::empty(&config, path);
     let mut tracker = Tracker::new(&mut resources);
 
     step("compile sigma rules", || {
-        sigma::setup_detections_venv(&path)?;
-        sigma::generate_detections(&path)?;
-        detections_gen::generate_detections_file(&path)
+        sigma::setup_detections_venv(path)?;
+        sigma::generate_detections(path)?;
+        detections_gen::generate_detections_file(path)
     })?;
 
     step("grant Pub/Sub→BQ delivery", || {
@@ -59,7 +59,7 @@ pub fn deploy(path_arg: &str) -> Result<()> {
     step("Cold tier (BigLake + lifecycle + scheduled export)",
         || cold_storage::create(&mut tracker, &config))?;
 
-    let input_sub = Config::load_input_subscription(&path)?;
+    let input_sub = Config::load_input_subscription(path)?;
     let vector_sa = step("Vector service account + IAM", || {
         let vector_sa_id = format!("beaver-vector-{}", random_tag(6));
         let sa = service_accounts::create_sa(&vector_sa_id, "Beaver Vector", &config)?;
@@ -73,8 +73,8 @@ pub fn deploy(path_arg: &str) -> Result<()> {
     })?;
     let _ = vector_sa;
 
-    step("write vector.yaml", || utilities::generate_vector_config(&path, tracker.resources(), &config))?;
-    step("build Vector docker image (Cloud Build)", || cloud_build::create_docker_image(&path, &mut tracker, &config))?;
+    step("write vector.yaml", || utilities::generate_vector_config(path, tracker.resources(), &config))?;
+    step("build Vector docker image (Cloud Build)", || cloud_build::create_docker_image(path, &mut tracker, &config))?;
     step("deploy Vector Cloud Run service", || crs::create_vector(&mut tracker, &config))?;
 
     step("Dataflow service account + IAM", || {
@@ -136,15 +136,15 @@ pub fn deploy(path_arg: &str) -> Result<()> {
         Ok::<_, anyhow::Error>(())
     })?;
     step("upload Sigma rules to GCS",
-        || sigma_beam_io::upload_rules(&path, &mut tracker, &config))?;
+        || sigma_beam_io::upload_rules(path, &mut tracker, &config))?;
 
-    step("upload Dataflow template", || dataflow::create_template(&path, &mut tracker, &config))?;
+    step("upload Dataflow template", || dataflow::create_template(path, &mut tracker, &config))?;
     step("launch Dataflow streaming job", || dataflow::create_pipeline(&mut tracker, &config))?;
     let pipeline_name = tracker.resources().dataflow_pipeline_name.clone();
     step("wait for Dataflow workers to come up (up to 5 min)",
          || dataflow::wait_for_running(&pipeline_name, &config))?;
 
-    let notif_count = if let Some(notifications_cfg) = Config::load_notifications(&path)? {
+    let notif_count = if let Some(notifications_cfg) = Config::load_notifications(path)? {
         step("notification channels + alert policies", || {
             let name_to_id = notifications::create_channels(&mut tracker, &config, &notifications_cfg)?;
             notifications::create_alert_policies(&mut tracker, &config, &notifications_cfg, &name_to_id)?;
@@ -153,7 +153,7 @@ pub fn deploy(path_arg: &str) -> Result<()> {
     } else { 0 };
 
     let mut dashboard_url: Option<String> = None;
-    if let Some(dashboard_cfg) = Config::load_dashboard(&path)? {
+    if let Some(dashboard_cfg) = Config::load_dashboard(path)? {
         let url = step("SOC dashboard + log-based metric", || {
             let metric_name = dashboard::create_log_metric(&mut tracker, &config)?;
             let id = dashboard::create_dashboard(

@@ -1,5 +1,5 @@
 use anyhow::Result;
-use std::path::{Path, PathBuf};
+use std::path::Path;
 use log::{error, info};
 use run_script::ScriptOptions;
 
@@ -49,7 +49,7 @@ pub fn generate_detections(path_to_config: &Path) -> Result<()> {
     let output_path = vec![path.join("output").to_str().unwrap().to_string()];
     let options = ScriptOptions::new();
 
-    let (code, output, error) = run_script::run(
+    let (_code, output, error) = run_script::run(
         r#"
         cd $1
         source ../venv/bin/activate
@@ -66,7 +66,7 @@ pub fn generate_detections(path_to_config: &Path) -> Result<()> {
         &options,
     ).unwrap();
 
-    if error != "" {
+    if !error.is_empty() {
         error!("{}", error);
     } else {
         output.lines().for_each(|line| info!("{}", line));

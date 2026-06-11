@@ -28,32 +28,28 @@ pub fn init(force: bool, dev:bool, path: Option<String>) -> Result<()> {
         region = Select::new("Select GCP Region:", regions).prompt()?;
         project = Text::new("Enter GCP project-id:").prompt()?;
     }
-    loop {
-        let config_path: String;
-        match path {
-            Some(x) => config_path = x,
-            None => config_path = Text::new("Enter config dir name:").prompt()?,
-        }
+    let config_path: String = match path {
+        Some(x) => x,
+        None => Text::new("Enter config dir name:").prompt()?,
+    };
 
-        let path = PathBuf::from(&config_path);
-        if path.exists() & !force  {
-            println!("Directory already exists");
-            std::process::exit(0);
-        } else if path.exists() & force{
-            println!("Directory already exists... ");
-            println!("Deleting dir: {:?}", path.as_os_str());
-            fs::remove_dir_all(path)?;
-        }
-
-        let mut spinner = Spinner::new(spinners::Dots, "Creating Config Dir...", Color::Blue);
-        create_config_dir(&config_path, region, &project)?;
-        spinner.success("Config Directory Created");
-
-        let mut spinner = Spinner::new(spinners::Dots, "installing pysigma backend...", Color::Blue);
-        setup_detections_venv(Path::new(&config_path))?;
-        spinner.success("Pysigma backend created");
-        break;
+    let path = PathBuf::from(&config_path);
+    if path.exists() & !force  {
+        println!("Directory already exists");
+        std::process::exit(0);
+    } else if path.exists() & force{
+        println!("Directory already exists... ");
+        println!("Deleting dir: {:?}", path.as_os_str());
+        fs::remove_dir_all(path)?;
     }
+
+    let mut spinner = Spinner::new(spinners::Dots, "Creating Config Dir...", Color::Blue);
+    create_config_dir(&config_path, region, &project)?;
+    spinner.success("Config Directory Created");
+
+    let mut spinner = Spinner::new(spinners::Dots, "installing pysigma backend...", Color::Blue);
+    setup_detections_venv(Path::new(&config_path))?;
+    spinner.success("Pysigma backend created");
 
     Ok(())
 }
@@ -62,7 +58,7 @@ pub fn init(force: bool, dev:bool, path: Option<String>) -> Result<()> {
 /// `beaver_config.yaml` and the embedded sigma/Dockerfile/template assets.
 pub fn create_config_dir(file_path: &str, region: &str, project: &str) -> Result<()> {
     let path = Path::new(file_path);
-    fs::create_dir_all(&path)?;
+    fs::create_dir_all(path)?;
     fs::create_dir_all(path.join("detections"))?;
     fs::create_dir_all(path.join("detections").join("input"))?;
     fs::create_dir_all(path.join("detections").join("output"))?;
@@ -93,23 +89,23 @@ transforms:
       . = .
 ");
 
-    let mut resources = Resources::empty(&config, &path);
+    let resources = Resources::empty(&config, path);
     resources.save();
 
-    let mut beaver_conf_file = OpenOptions::new().write(true).create(true).open(path.join("beaver_config.yaml"))?;
-    beaver_conf_file.write(config_file.as_bytes())?;
+    let mut beaver_conf_file = OpenOptions::new().write(true).create(true).truncate(true).open(path.join("beaver_config.yaml"))?;
+    beaver_conf_file.write_all(config_file.as_bytes())?;
 
-    let mut sigma_generate= OpenOptions::new().write(true).create(true).open(path.join("detections").join("sigma_generate.py"))?;
-    sigma_generate.write(&include_bytes_zstd!("src/beaver_config/detections/sigma_generate.py", 21))?;
+    let mut sigma_generate = OpenOptions::new().write(true).create(true).truncate(true).open(path.join("detections").join("sigma_generate.py"))?;
+    sigma_generate.write_all(&include_bytes_zstd!("src/beaver_config/detections/sigma_generate.py", 21))?;
 
-    let mut test_sigma_files = OpenOptions::new().write(true).create(true).open(path.join("detections").join("detections_template.py"))?;
-    test_sigma_files.write(&include_bytes_zstd!("dataflow/detections_template.py", 21))?;
+    let mut test_sigma_files = OpenOptions::new().write(true).create(true).truncate(true).open(path.join("detections").join("detections_template.py"))?;
+    test_sigma_files.write_all(&include_bytes_zstd!("dataflow/detections_template.py", 21))?;
 
-    let mut docker_file= OpenOptions::new().write(true).create(true).open(path.join("artifacts").join("Dockerfile"))?;
-    docker_file.write(&include_bytes_zstd!("src/beaver_config/artifacts/Dockerfile", 21))?;
+    let mut docker_file = OpenOptions::new().write(true).create(true).truncate(true).open(path.join("artifacts").join("Dockerfile"))?;
+    docker_file.write_all(&include_bytes_zstd!("src/beaver_config/artifacts/Dockerfile", 21))?;
 
-    let mut test_sigma_files = OpenOptions::new().write(true).create(true).open(path.join("detections").join("input").join("se.yml"))?;
-    test_sigma_files.write(&include_bytes_zstd!("src/beaver_config/detections/input/se.yml", 21))?;
+    let mut test_sigma_files = OpenOptions::new().write(true).create(true).truncate(true).open(path.join("detections").join("input").join("se.yml"))?;
+    test_sigma_files.write_all(&include_bytes_zstd!("src/beaver_config/detections/input/se.yml", 21))?;
 
 
     Ok(())

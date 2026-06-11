@@ -1,5 +1,3 @@
-use std::fmt::format;
-use std::path::Component::ParentDir;
 use std::process::Command;
 use anyhow::Result;
 use log::{error, info};
@@ -7,7 +5,7 @@ use rand::distributions::Alphanumeric;
 use rand::Rng;
 use serde::{Deserialize, Serialize};
 use crate::lib::config::Config;
-use crate::lib::resources::{Resources, Tracker};
+use crate::lib::resources::Tracker;
 use crate::MiscError;
 
 

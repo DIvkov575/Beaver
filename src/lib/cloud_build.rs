@@ -1,14 +1,9 @@
-use std::fmt::{format, Display};
 use std::path::Path;
 use std::process::Command;
 use crate::lib::config::Config;
 use anyhow::Result;
 use log::{error, info};
-use rand::distributions::Alphanumeric;
-use rand::{thread_rng, Rng};
-use serde::{Deserialize, Serialize};
-use crate::lib::bq::BqTable;
-use crate::lib::resources::{Resources, Tracker};
+use crate::lib::resources::Tracker;
 use crate::lib::utilities::{log_output, random_tag};
 use crate::MiscError;
 

@@ -82,13 +82,13 @@ mod integration_tests {
     }
 }
 
-pub fn upload_to_bucket(local_location: &str, resources: &Resources, config: &Config) -> Result<()> {
+pub fn upload_to_bucket(local_location: &str, resources: &Resources, _config: &Config) -> Result<()> {
     info!("uploading to bucket...");
     let destination_bucket_binding = format!("gs://{}", resources.bucket_name.clone());
     let args: Vec<&str> = Vec::from([
         "storage",
         "cp",
-        &local_location,
+        local_location,
         &destination_bucket_binding,
     ]);
 
