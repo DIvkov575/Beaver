@@ -44,7 +44,7 @@ pub fn generate_vector_config(path: &Path, resources: &Resources, config: &Confi
 
     // get various ASTs
     let mut raw_sources_yaml= get!(beaver_config, "sources",).clone();
-    let mut unaltered_sources_yaml = raw_sources_yaml.as_mapping_mut().unwrap();
+    let unaltered_sources_yaml = raw_sources_yaml.as_mapping_mut().unwrap();
     // Cloud Run health-checks by probing $PORT (default 8080); we make Vector
     // bind there via an http_server source. The source name is misleading
     // ("sink") but it is genuinely a Vector source.
@@ -67,8 +67,8 @@ pub fn generate_vector_config(path: &Path, resources: &Resources, config: &Confi
         (Value::String("bq_writing_pubsub".into()), Value::Mapping(Mapping::from_iter([
             (Value::String("type".into()), Value::String("gcp_pubsub".into())),
             (Value::String("inputs".into()), Value::Sequence(serde_yaml::Sequence::from(transforms))),
-            (Value::String("project".into()), Value::String(config.project.clone().into())),
-            (Value::String("topic".into()), Value::String(output_pubsub.topic_id.clone().into())),
+            (Value::String("project".into()), Value::String(config.project.clone())),
+            (Value::String("topic".into()), Value::String(output_pubsub.topic_id.clone())),
             (Value::String("encoding".into()), Value::Mapping(Mapping::from_iter([
                 ("codec".into(), "json".into())
             ]))),
@@ -94,10 +94,10 @@ fn get_transforms(transforms_yaml: &Value) -> Vec<Value> {
         .iter()
         .map(|mapping| mapping
             .iter()
-            .map(|(key, value)|
+            .map(|(key, _value)|
                 key.as_str().unwrap().to_string()
             ).collect::<Vec<String>>()[0].clone())
-        .map(|x| Value::String(x))
+        .map(Value::String)
         .collect::<Vec<Value>>();
     transforms
 }
@@ -110,19 +110,19 @@ pub fn validate_config_path(path: &Path) -> anyhow::Result<()> {
 }
 pub fn check_for_python3() -> anyhow::Result<()> {
     match Command::new("python3").arg("--version").output() {
-        Ok(_) => return Ok(()),
+        Ok(_) => Ok(()),
         Err(_) => panic!("Please ensure you have gcloud (google-cloud-sdk) installed"),
     }
 }
 pub fn check_for_gcloud() -> anyhow::Result<()> {
     match Command::new("gcloud").output() {
-        Ok(_) => return Ok(()),
+        Ok(_) => Ok(()),
         Err(_) => panic!("Please ensure you have gcloud (google-cloud-sdk) installed"),
     }
 }
 pub fn check_for_bq() -> anyhow::Result<()> {
     match Command::new("bq").output() {
-        Ok(_) => return Ok(()),
+        Ok(_) => Ok(()),
         Err(_) => panic!("Please ensure you have bq (biqquery utility tool installed)"),
     }
 }
@@ -135,7 +135,7 @@ pub fn overlap<T: Eq>(a: &[T], b:&[T]) -> bool {
             }
         }
     }
-    return false
+    false
 }
 
 /// Absolute path to the bundled `sigma_beam` package source, baked in at

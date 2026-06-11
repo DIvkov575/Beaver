@@ -16,16 +16,13 @@ pub struct Config {
 
 impl Config {
     pub fn new(region: &str, project: &str, service_account: Option<&str>) -> Config {
-        let service_account_binding: Option<String>;
-        let formatted_service_account_binding: Option<String>;
-
-        if service_account.is_none() {
-            service_account_binding = None;
-            formatted_service_account_binding = None;
-        } else {
-            service_account_binding = Some(service_account.unwrap().to_string());
-            formatted_service_account_binding = Some(format!("--impersonate-service-account={}", service_account.unwrap()));
-        }
+        let (service_account_binding, formatted_service_account_binding) = match service_account {
+            Some(sa) => (
+                Some(sa.to_string()),
+                Some(format!("--impersonate-service-account={}", sa)),
+            ),
+            None => (None, None),
+        };
 
         Self {
             region: region.to_string(),
@@ -46,8 +43,8 @@ impl Config {
         let region_binding = get!(beaver_config, "beaver", "region",).as_str().unwrap().to_owned();
         let project_id_binding = get!(beaver_config, "beaver", "project_id",).as_str().unwrap().to_owned();
         let billing_account = beaver_config
-            .get(&Value::String("beaver".into()))
-            .and_then(|v| v.get(&Value::String("billing_account".into())))
+            .get(Value::String("beaver".into()))
+            .and_then(|v| v.get(Value::String("billing_account".into())))
             .and_then(|v| v.as_str())
             .map(String::from);
 
@@ -66,11 +63,11 @@ impl Config {
         let mapping: Mapping = serde_yaml::from_reader(
             File::open(path_to_config.join("beaver_config.yaml"))?
         )?;
-        let sources = mapping.get(&Value::String("sources".into()))
+        let sources = mapping.get(Value::String("sources".into()))
             .ok_or_else(|| anyhow::anyhow!("missing sources section"))?;
-        let pubsub_in = sources.get(&Value::String("pubsub_in".into()))
+        let pubsub_in = sources.get(Value::String("pubsub_in".into()))
             .ok_or_else(|| anyhow::anyhow!("missing sources.pubsub_in"))?;
-        let sub = pubsub_in.get(&Value::String("subscription".into()))
+        let sub = pubsub_in.get(Value::String("subscription".into()))
             .and_then(|v| v.as_str())
             .ok_or_else(|| anyhow::anyhow!("missing sources.pubsub_in.subscription"))?;
         Ok(sub.to_string())

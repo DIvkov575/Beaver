@@ -1,3 +1,6 @@
+#![allow(dead_code)]
+#![allow(special_module_name)]
+
 mod commands;
 mod lib;
 
@@ -25,7 +28,7 @@ pub fn main() -> Result<()> {
 
     let default_panic_hook = panic::take_hook();
     set_hook(Box::new(move |info| {
-        default_panic_hook(&info);
+        default_panic_hook(info);
         error!("{:?}", info);
     }));
 

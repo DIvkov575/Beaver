@@ -1,4 +1,3 @@
-use std::fmt::Display;
 use std::process::Command;
 use crate::lib::config::Config;
 use anyhow::Result;
@@ -270,10 +269,10 @@ pub fn create_pubsub_to_bq(resources: &mut Resources, config: &Config) -> Result
 
     // creates pubsub topic and subscriptions -> writes to biq query table
     let bq_table= &resources.biq_query;
-    let mut pubsub= &mut resources.output_pubsub;
+    let pubsub= &mut resources.output_pubsub;
 
-    let topic_id = create_pubsub_topic(&config)?;
-    let subscription_id = create_bq_subscription(&topic_id, &bq_table, &config)?;
+    let topic_id = create_pubsub_topic(config)?;
+    let subscription_id = create_bq_subscription(&topic_id, bq_table, config)?;
 
     pubsub.topic_id = topic_id;
     pubsub.bq_subscription_id = subscription_id;

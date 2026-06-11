@@ -16,9 +16,6 @@ categories = ["command-line-utilities"]
 name = "beaver"
 path = "src/main.rs"
 
-[build]
-incremental=true
-
 #[build-dependencies]
 #tar = "0.4.40"
 #flate2 = "1.0"
