@@ -173,7 +173,7 @@ impl ThresholdConfig {
         let mut m = Mapping::new();
         m.insert(
             Value::String("value".into()),
-            Value::Number(serde_yaml::Number::from(self.value as i64)),
+            Value::Number(serde_yaml::Number::from(self.value)),
         );
         m.insert(
             Value::String("color".into()),
