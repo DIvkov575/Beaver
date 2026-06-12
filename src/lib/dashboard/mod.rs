@@ -278,4 +278,93 @@ mod tests {
         assert_eq!(yaml.matches("alertChart:").count(), 3);
         let _: serde_yaml::Value = serde_yaml::from_str(&yaml).expect("valid yaml");
     }
+
+    #[test]
+    fn full_dashboard_round_trip_produces_valid_yaml_with_all_sections() {
+        let health = vec![
+            ("Cloud Run".to_string(), "projects/p/alertPolicies/cr".to_string()),
+            ("Dataflow".to_string(), "projects/p/alertPolicies/df".to_string()),
+            ("BigQuery".to_string(), "projects/p/alertPolicies/bq".to_string()),
+            ("GCS bucket".to_string(), "projects/p/alertPolicies/gcs".to_string()),
+        ];
+        let policies = vec![
+            "projects/p/alertPolicies/route-1".to_string(),
+            "projects/p/alertPolicies/route-2".to_string(),
+        ];
+        let ctx = panels::PanelContext {
+            project: "my-proj".into(),
+            region: "us-east1".into(),
+            metric_name: "beaver_detection_count_abc".into(),
+            vector_service: "beaver-vector-xyz".into(),
+            dataflow_job: "beaver-detections-xyz".into(),
+            input_subscription: "input-sub".into(),
+            output_topic: "beaver_outtopic".into(),
+            bq_subscription: "beaver_bqsub".into(),
+            dataflow_subscription: "beaver_dfsub".into(),
+            bq_dataset: "beaver_dataset".into(),
+            bq_table: "events".into(),
+            bucket: "beaver_bkt".into(),
+            vector_sa: "vector-sa@test.iam".into(),
+            dataflow_sa: "df-sa@test.iam".into(),
+            alerts_topic: "beaver-alerts".into(),
+            dlq_topic: "beaver-dlq".into(),
+        };
+        let grid = panels::build_dashboard_grid(&ctx, &health, &policies);
+        let yaml = render::render_dashboard_yaml("Beaver SIEM", &grid);
+
+        // Must be valid YAML
+        let _: serde_yaml::Value = serde_yaml::from_str(&yaml).expect("valid yaml");
+
+        // Must contain key widget types
+        assert!(yaml.contains("logsPanel:"));
+        assert!(yaml.contains("xyChart:"));
+        assert!(yaml.contains("timeSeriesTable:"));
+        assert!(yaml.contains("alertChart:"));
+
+        // Must reference all key resources
+        assert!(yaml.contains("beaver-detections-xyz"));
+        assert!(yaml.contains("beaver_outtopic"));
+        assert!(yaml.contains("beaver_bqsub"));
+        assert!(yaml.contains("beaver-alerts"));
+        assert!(yaml.contains("beaver-dlq"));
+
+        // Notification section present when policies exist
+        assert!(yaml.contains("Notification delivery"));
+        assert!(yaml.contains("Alert: route-1"));
+        assert!(yaml.contains("Alert: route-2"));
+
+        // Health grid: 4 health + 2 notification alert charts = 6
+        assert_eq!(yaml.matches("alertChart:").count(), 6);
+    }
+
+    #[test]
+    fn full_dashboard_without_notifications_omits_alerting_section() {
+        let health = vec![
+            ("Cloud Run".to_string(), "projects/p/alertPolicies/cr".to_string()),
+        ];
+        let ctx = panels::PanelContext {
+            project: "my-proj".into(),
+            region: "us-east1".into(),
+            metric_name: "m".into(),
+            vector_service: "v".into(),
+            dataflow_job: "d".into(),
+            input_subscription: "in".into(),
+            output_topic: "t".into(),
+            bq_subscription: "s1".into(),
+            dataflow_subscription: "s2".into(),
+            bq_dataset: "ds".into(),
+            bq_table: "tbl".into(),
+            bucket: "b".into(),
+            vector_sa: "v@x".into(),
+            dataflow_sa: "d@x".into(),
+            alerts_topic: "beaver-alerts".into(),
+            dlq_topic: "beaver-dlq".into(),
+        };
+        let grid = panels::build_dashboard_grid(&ctx, &health, &[]);
+        let yaml = render::render_dashboard_yaml("Test", &grid);
+        let _: serde_yaml::Value = serde_yaml::from_str(&yaml).expect("valid yaml");
+        assert!(!yaml.contains("Notification delivery"));
+        // Only 1 health alertChart
+        assert_eq!(yaml.matches("alertChart:").count(), 1);
+    }
 }
