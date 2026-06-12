@@ -181,6 +181,41 @@ pub fn pipeline_health_row(ctx: &PanelContext) -> Row {
     Row::new(4).half(backlogs).half(dlq)
 }
 
+/// Dataflow system lag and data freshness (watermark age), side by side.
+pub fn dataflow_latency_row(ctx: &PanelContext) -> Row {
+    let system_lag = Widget::xy_chart(
+        "System lag (seconds)",
+        vec![DataSet {
+            filter: format!(
+                r#"resource.type="dataflow_job" AND metric.type="dataflow.googleapis.com/job/system_lag" AND resource.label.job_name="{}""#,
+                ctx.dataflow_job
+            ),
+            alignment_period: "60s".into(),
+            aligner: "ALIGN_MAX".into(),
+            reducer: None,
+            group_by: vec![],
+            plot_type: PlotType::Line,
+        }],
+    );
+
+    let data_freshness = Widget::xy_chart(
+        "Data freshness (watermark age)",
+        vec![DataSet {
+            filter: format!(
+                r#"resource.type="dataflow_job" AND metric.type="dataflow.googleapis.com/job/data_watermark_age" AND resource.label.job_name="{}""#,
+                ctx.dataflow_job
+            ),
+            alignment_period: "60s".into(),
+            aligner: "ALIGN_MAX".into(),
+            reducer: None,
+            group_by: vec![],
+            plot_type: PlotType::Line,
+        }],
+    );
+
+    Row::new(4).half(system_lag).half(data_freshness)
+}
+
 /// Live detection event feed (BEAVER_SIEM_MATCH log entries).
 pub fn logs_row(ctx: &PanelContext) -> Row {
     Row::new(4).full(Widget::logs_panel(
@@ -259,6 +294,7 @@ pub fn build_dashboard_grid(
     grid.add_row(throughput_row(ctx));
     grid.add_row(detection_row(ctx));
     grid.add_row(pipeline_health_row(ctx));
+    grid.add_row(dataflow_latency_row(ctx));
     grid.add_row(logs_row(ctx));
     grid.add_row(worker_logs_row(ctx));
 
@@ -338,6 +374,18 @@ mod tests {
     }
 
     #[test]
+    fn dataflow_latency_row_produces_two_tiles() {
+        let ctx = test_ctx();
+        let row = dataflow_latency_row(&ctx);
+        let mut grid = Grid::new();
+        grid.add_row(row);
+        let tiles = grid.to_tiles();
+        assert_eq!(tiles.len(), 2);
+        assert_eq!(tiles[0].width, 6);
+        assert_eq!(tiles[1].width, 6);
+    }
+
+    #[test]
     fn full_dashboard_grid_is_valid_yaml() {
         let ctx = test_ctx();
         let component_health = vec![
@@ -383,9 +431,9 @@ mod tests {
             .unwrap();
 
         // Should have many tiles (resource links + 5 health + throughput x2 +
-        // detection x3 + pipeline_health x2 + logs + worker_logs + alerting +
-        // 2 alert policy charts)
-        assert!(tiles.len() >= 15, "expected at least 15 tiles, got {}", tiles.len());
+        // detection x3 + pipeline_health x2 + dataflow_latency x2 + logs +
+        // worker_logs + alerting + 2 alert policy charts)
+        assert!(tiles.len() >= 17, "expected at least 17 tiles, got {}", tiles.len());
     }
 
     #[test]
