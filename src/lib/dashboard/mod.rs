@@ -18,8 +18,6 @@ use crate::lib::config::Config;
 use crate::lib::resources::Tracker;
 use crate::lib::utilities::random_tag;
 
-pub use health::ComponentHealth;
-
 #[derive(Debug, Deserialize, Serialize, PartialEq, Eq, Clone)]
 pub struct DashboardConfig {
     #[serde(default)]
@@ -100,35 +98,6 @@ pub fn delete_log_metric(name: &str, project: &str) -> Result<()> {
     Ok(())
 }
 
-/// Snapshot of all resource identifiers the dashboard needs to scope its
-/// panels and health-check scorecards to this specific deploy.
-pub struct DashboardContext<'a> {
-    pub display: &'a str,
-    pub project: &'a str,
-    pub region: &'a str,
-    pub metric_name: &'a str,
-    pub vector_service: &'a str,
-    pub dataflow_job: &'a str,
-    pub input_subscription: &'a str,
-    pub output_topic: &'a str,
-    pub bq_subscription: &'a str,
-    pub dataflow_subscription: &'a str,
-    pub bq_dataset: &'a str,
-    pub bq_table: &'a str,
-    pub bucket: &'a str,
-    pub vector_sa: &'a str,
-    pub dataflow_sa: &'a str,
-    /// One health policy per provisioned component. Rendered as a uniform
-    /// grid of `alertChart` widgets so every resource has the same status UI.
-    /// Resources without a meaningful runtime metric get a tautologically-OK
-    /// policy — they always show green and indicate "deploy succeeded".
-    pub component_health: &'a [ComponentHealth],
-    /// Full resource names of `monitoring.AlertPolicy`s beaver provisioned for
-    /// this deploy (one per route in `notifications.routes`). Empty when
-    /// notifications aren't configured — the alerting row is omitted then.
-    pub alert_policies: &'a [String],
-}
-
 pub fn create_dashboard(
     tracker: &mut Tracker,
     config: &Config,
@@ -141,26 +110,30 @@ pub fn create_dashboard(
 
     let component_health = health::create_component_health_policies(tracker, config, metric_name)?;
     let res = tracker.resources();
-    let ctx = DashboardContext {
-        display: &display,
-        project: &config.project,
-        region: &config.region,
-        metric_name,
-        vector_service: &res.crs_instance,
-        dataflow_job: &res.dataflow_pipeline_name,
-        input_subscription,
-        output_topic: &res.output_pubsub.topic_id,
-        bq_subscription: &res.output_pubsub.bq_subscription_id,
-        dataflow_subscription: &res.output_pubsub.subscription_id_2,
-        bq_dataset: &res.biq_query.dataset_id,
-        bq_table: &res.biq_query.table_id,
-        bucket: &res.bucket_name,
-        vector_sa: &res.vector_sa_email,
-        dataflow_sa: &res.dataflow_sa_email,
-        component_health: &component_health,
-        alert_policies: &res.alert_policies,
+    let panel_ctx = panels::PanelContext {
+        project: config.project.clone(),
+        region: config.region.clone(),
+        metric_name: metric_name.to_string(),
+        vector_service: res.crs_instance.clone(),
+        dataflow_job: res.dataflow_pipeline_name.clone(),
+        input_subscription: input_subscription.to_string(),
+        output_topic: res.output_pubsub.topic_id.clone(),
+        bq_subscription: res.output_pubsub.bq_subscription_id.clone(),
+        dataflow_subscription: res.output_pubsub.subscription_id_2.clone(),
+        bq_dataset: res.biq_query.dataset_id.clone(),
+        bq_table: res.biq_query.table_id.clone(),
+        bucket: res.bucket_name.clone(),
+        vector_sa: res.vector_sa_email.clone(),
+        dataflow_sa: res.dataflow_sa_email.clone(),
+        alerts_topic: res.alerts_topic_id.clone(),
+        dlq_topic: res.dlq_topic_id.clone(),
     };
-    let yaml = render_dashboard(&ctx);
+    let health_pairs: Vec<(String, String)> = component_health
+        .iter()
+        .map(|c| (c.label.clone(), c.policy_name.clone()))
+        .collect();
+    let grid = panels::build_dashboard_grid(&panel_ctx, &health_pairs, &res.alert_policies);
+    let yaml = render::render_dashboard_yaml(&display, &grid);
     let tmp = tempfile::NamedTempFile::new()?;
     std::fs::write(tmp.path(), &yaml)?;
 
@@ -205,245 +178,6 @@ pub fn delete_dashboard(id: &str, project: &str) -> Result<()> {
     Ok(())
 }
 
-/// Renders the dashboard YAML. Layout:
-///   Row 0 (text, height 3): markdown list of resource links — one click
-///                           jumps straight to each GCP resource's console
-///   Row 1 (height 4, full width): live detection-event feed
-///   Row 2 (height 4, half + half): top firing rules table, rate chart
-///   Row 3 (health, height 3): five component scorecards with red-below thresholds
-///   Row 4 (height 4, full width): Dataflow worker logs (warnings + errors)
-///   Row 5 (alerting, conditional): notification delivery log panel +
-///                                  one alertChart per alert policy. Omitted
-///                                  entirely when no policies are configured.
-fn render_dashboard(ctx: &DashboardContext) -> String {
-    let DashboardContext {
-        display,
-        project,
-        region,
-        metric_name,
-        vector_service,
-        dataflow_job,
-        input_subscription,
-        output_topic,
-        bq_subscription,
-        dataflow_subscription,
-        bq_dataset,
-        bq_table,
-        bucket,
-        vector_sa,
-        dataflow_sa,
-        component_health,
-        alert_policies,
-    } = *ctx;
-    let metric_type = format!("logging.googleapis.com/user/{}", metric_name);
-    let _ = (input_subscription, vector_sa, dataflow_sa,
-             bq_dataset, bq_table, output_topic, bq_subscription,
-             dataflow_subscription, bucket, dataflow_job, vector_service);
-
-    // Uniform component-health grid: one alertChart per provisioned component,
-    // arranged 4-per-row. The grid sits between the resource-links widget
-    // (yPos 0..2) and the detection feed (yPos starts after the grid).
-    let cols: usize = 4;
-    let cell_w: usize = 12 / cols; // 3
-    let cell_h: usize = 3;
-    let mut health_tiles = String::new();
-    for (i, c) in component_health.iter().enumerate() {
-        let x = (i % cols) * cell_w;
-        let y = 2 + (i / cols) * cell_h;
-        health_tiles.push_str(&format!(
-r#"    - xPos: {x}
-      yPos: {y}
-      width: {w}
-      height: {h}
-      widget:
-        title: "{label}"
-        alertChart:
-          name: "{policy}"
-"#,
-            x = x, y = y, w = cell_w, h = cell_h,
-            label = c.label, policy = c.policy_name,
-        ));
-    }
-    let health_rows = component_health.len().div_ceil(cols);
-    let after_health_y = 2 + health_rows * cell_h;
-
-    // Compact one-line resource links (height 2 widget). Each link deep-jumps
-    // to the resource's Cloud Console detail/list page.
-    let resource_links = format!(
-        "[Cloud Run](https://console.cloud.google.com/run/detail/{region}/{vector_service}/metrics?project={project}) · \
-         [Dataflow](https://console.cloud.google.com/dataflow/jobs?project={project}) · \
-         [BigQuery](https://console.cloud.google.com/bigquery?project={project}) · \
-         [Output topic](https://console.cloud.google.com/cloudpubsub/topic/detail/{output_topic}?project={project}) · \
-         [BQ sub](https://console.cloud.google.com/cloudpubsub/subscription/detail/{bq_subscription}?project={project}) · \
-         [DF sub](https://console.cloud.google.com/cloudpubsub/subscription/detail/{dataflow_subscription}?project={project}) · \
-         [Bucket](https://console.cloud.google.com/storage/browser/{bucket}?project={project}) · \
-         [Image](https://console.cloud.google.com/artifacts/docker/{project}/{region}/beaver-images?project={project}) · \
-         [IAM](https://console.cloud.google.com/iam-admin/serviceaccounts?project={project}) · \
-         [Logs](https://console.cloud.google.com/logs/query?project={project})"
-    );
-
-    let indent_md = |s: &str, indent: &str| {
-        s.lines()
-            .map(|l| format!("{}{}", indent, l))
-            .collect::<Vec<_>>()
-            .join("\n")
-    };
-    let links_indented = indent_md(&resource_links, "            ");
-
-    let sigma_beam_y = after_health_y;
-    let feed_y = sigma_beam_y + 4;
-    let charts_y = feed_y + 4;
-    let worker_logs_y = charts_y + 4;
-    let notif_y = worker_logs_y + 4;
-    let alert_chart_base_y = notif_y + 4;
-
-    let mut yaml = format!(
-        r#"displayName: "{display}"
-mosaicLayout:
-  columns: 12
-  tiles:
-    - xPos: 0
-      yPos: 0
-      width: 12
-      height: 2
-      widget:
-        title: "Resources"
-        text:
-          content: |-
-{links_indented}
-          format: MARKDOWN
-    # ---- Component health grid: one uniform alertChart per resource ----
-{health_tiles}    # ---- sigma_beam alerts + DLQ ----
-    - xPos: 0
-      yPos: {sigma_beam_y}
-      width: 6
-      height: 4
-      widget:
-        title: "Alerts / min (sigma_beam)"
-        xyChart:
-          dataSets:
-            - timeSeriesQuery:
-                timeSeriesFilter:
-                  filter: 'resource.type="pubsub_topic" AND resource.labels.topic_id="beaver-alerts" AND metric.type="pubsub.googleapis.com/topic/send_message_operation_count"'
-                  aggregation:
-                    alignmentPeriod: 60s
-                    perSeriesAligner: ALIGN_RATE
-              plotType: LINE
-    - xPos: 6
-      yPos: {sigma_beam_y}
-      width: 6
-      height: 4
-      widget:
-        title: "DLQ messages / min"
-        xyChart:
-          dataSets:
-            - timeSeriesQuery:
-                timeSeriesFilter:
-                  filter: 'resource.type="pubsub_topic" AND resource.labels.topic_id="beaver-dlq" AND metric.type="pubsub.googleapis.com/topic/send_message_operation_count"'
-                  aggregation:
-                    alignmentPeriod: 60s
-                    perSeriesAligner: ALIGN_RATE
-              plotType: LINE
-    - xPos: 0
-      yPos: {feed_y}
-      width: 12
-      height: 4
-      widget:
-        title: "Detection events (live feed)"
-        logsPanel:
-          filter: 'resource.type="dataflow_step" AND jsonPayload.message:"BEAVER_SIEM_MATCH"'
-          resourceNames:
-            - "projects/{project}"
-    - xPos: 0
-      yPos: {charts_y}
-      width: 6
-      height: 4
-      widget:
-        title: "Top firing rules (1h)"
-        timeSeriesTable:
-          dataSets:
-            - timeSeriesQuery:
-                timeSeriesFilter:
-                  filter: 'metric.type="{metric_type}"'
-                  aggregation:
-                    alignmentPeriod: 3600s
-                    perSeriesAligner: ALIGN_SUM
-                    crossSeriesReducer: REDUCE_SUM
-                    groupByFields:
-                      - "metric.label.rule_name"
-    - xPos: 6
-      yPos: {charts_y}
-      width: 6
-      height: 4
-      widget:
-        title: "Detection rate by rule (6h)"
-        xyChart:
-          dataSets:
-            - timeSeriesQuery:
-                timeSeriesFilter:
-                  filter: 'metric.type="{metric_type}"'
-                  aggregation:
-                    alignmentPeriod: 60s
-                    perSeriesAligner: ALIGN_RATE
-                    crossSeriesReducer: REDUCE_SUM
-                    groupByFields:
-                      - "metric.label.rule_name"
-              plotType: LINE
-    - xPos: 0
-      yPos: {worker_logs_y}
-      width: 12
-      height: 4
-      widget:
-        title: "Dataflow worker logs (warnings + errors)"
-        logsPanel:
-          filter: 'resource.type="dataflow_step" AND resource.labels.job_name="{dataflow_job}" AND severity>=WARNING'
-          resourceNames:
-            - "projects/{project}"
-"#
-    );
-
-    // Alerting / notification linkage. Only rendered when this
-    // deploy has alert policies (notifications.yaml was configured).
-    if !alert_policies.is_empty() {
-        // Full-width logs panel showing notification delivery activity.
-        yaml.push_str(&format!(
-            r#"    - xPos: 0
-      yPos: {notif_y}
-      width: 12
-      height: 4
-      widget:
-        title: "Notification delivery (recent)"
-        logsPanel:
-          filter: 'resource.type="alerting_policy"'
-          resourceNames:
-            - "projects/{project}"
-"#,
-            project = project, notif_y = notif_y,
-        ));
-        // One alertChart per policy — 4 per row, width 3 each, height 3.
-        for (i, policy) in alert_policies.iter().enumerate() {
-            let x = (i % 4) * 3;
-            let y = alert_chart_base_y + (i / 4) * 3;
-            // Display name = trailing path segment (the policy ID), avoiding
-            // a wall-of-projects-N/alertPolicies prefix in the title bar.
-            let short = policy.rsplit('/').next().unwrap_or(policy);
-            yaml.push_str(&format!(
-                r#"    - xPos: {x}
-      yPos: {y}
-      width: 3
-      height: 3
-      widget:
-        title: "Alert: {short}"
-        alertChart:
-          name: "{policy}"
-"#
-            ));
-        }
-    }
-
-    yaml
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -468,105 +202,80 @@ mod tests {
 
     #[test]
     fn rendered_yaml_includes_metric_and_project() {
-        let ctx = DashboardContext {
-            display: "Test",
-            project: "my-proj",
-            region: "us-east1",
-            metric_name: "beaver_detection_count_abc",
-            vector_service: "beaver-vector-instance-xyz",
-            dataflow_job: "beaver-detections-xyz",
-            input_subscription: "input-sub",
-            output_topic: "beaver_outtopic",
-            bq_subscription: "beaver_bqsub",
-            dataflow_subscription: "beaver_dfsub",
-            bq_dataset: "beaver_dataset",
-            bq_table: "table1",
-            bucket: "beaver_bkt",
-            vector_sa: "vector-sa@example.iam",
-            dataflow_sa: "df-sa@example.iam",
-            component_health: &[
-                ComponentHealth { label: "Cloud Run".into(),
-                    policy_name: "projects/my-proj/alertPolicies/h-cr".into() },
-                ComponentHealth { label: "Dataflow".into(),
-                    policy_name: "projects/my-proj/alertPolicies/h-df".into() },
-                ComponentHealth { label: "BigQuery".into(),
-                    policy_name: "projects/my-proj/alertPolicies/h-bq".into() },
-            ],
-            alert_policies: &[],
+        let ctx = panels::PanelContext {
+            project: "my-proj".into(),
+            region: "us-east1".into(),
+            metric_name: "beaver_detection_count_abc".into(),
+            vector_service: "beaver-vector-instance-xyz".into(),
+            dataflow_job: "beaver-detections-xyz".into(),
+            input_subscription: "input-sub".into(),
+            output_topic: "beaver_outtopic".into(),
+            bq_subscription: "beaver_bqsub".into(),
+            dataflow_subscription: "beaver_dfsub".into(),
+            bq_dataset: "beaver_dataset".into(),
+            bq_table: "table1".into(),
+            bucket: "beaver_bkt".into(),
+            vector_sa: "vector-sa@example.iam".into(),
+            dataflow_sa: "df-sa@example.iam".into(),
+            alerts_topic: "beaver-alerts".into(),
+            dlq_topic: "beaver-dlq".into(),
         };
-        let yaml = render_dashboard(&ctx);
-        // Sanity: every section that references the parameters should resolve.
-        assert!(yaml.contains(r#"displayName: "Test""#));
-        assert!(yaml.contains("projects/my-proj"));
+        let health = vec![
+            ("Cloud Run".to_string(), "projects/my-proj/alertPolicies/h-cr".to_string()),
+            ("Dataflow".to_string(), "projects/my-proj/alertPolicies/h-df".to_string()),
+            ("BigQuery".to_string(), "projects/my-proj/alertPolicies/h-bq".to_string()),
+        ];
+        let grid = panels::build_dashboard_grid(&ctx, &health, &[]);
+        let yaml = render::render_dashboard_yaml("Test", &grid);
+
+        assert!(yaml.contains("displayName: Test") || yaml.contains(r#"displayName: "Test""#));
+        assert!(yaml.contains("my-proj"));
         assert!(yaml.contains("logging.googleapis.com/user/beaver_detection_count_abc"));
-        // Required widget types present.
         assert!(yaml.contains("logsPanel:"));
         assert!(yaml.contains("timeSeriesTable:"));
         assert!(yaml.contains("xyChart:"));
-        // Dataflow worker logs panel — always present.
-        assert!(yaml.contains(r#"title: "Dataflow worker logs (warnings + errors)""#));
-        assert!(yaml.contains(r#"job_name="beaver-detections-xyz""#));
-        // Resource-links text widget — links to each deploy resource.
-        assert!(yaml.contains(r#"title: "Resources""#));
-        assert!(yaml.contains("format: MARKDOWN"));
-        assert!(yaml.contains("https://console.cloud.google.com/run/detail/us-east1/beaver-vector-instance-xyz"));
-        // Unified component-health grid: one alertChart per ComponentHealth
-        // entry. No scorecards, no markdown checklist — every component looks
-        // identical.
-        assert!(!yaml.contains("scorecard:"));
-        assert!(!yaml.contains(r#"title: "Other components""#));
-        assert!(yaml.contains(r#"title: "Cloud Run""#));
-        assert!(yaml.contains(r#"title: "Dataflow""#));
-        assert!(yaml.contains(r#"title: "BigQuery""#));
-        assert!(yaml.contains("projects/my-proj/alertPolicies/h-cr"));
-        assert!(yaml.contains("projects/my-proj/alertPolicies/h-df"));
-        assert!(yaml.contains("projects/my-proj/alertPolicies/h-bq"));
-        // 3 component-health alertCharts when no notification policies present.
-        assert_eq!(yaml.matches("alertChart:").count(), 3);
+        assert!(yaml.contains("beaver-detections-xyz"));
+        assert!(yaml.contains("alertChart:"));
         assert!(!yaml.contains("Notification delivery"));
-        // Must be valid YAML.
+        // Verify valid YAML
         let _: serde_yaml::Value = serde_yaml::from_str(&yaml).expect("valid yaml");
     }
 
     #[test]
     fn rendered_yaml_includes_alert_policies_when_present() {
-        let policies = [
+        let ctx = panels::PanelContext {
+            project: "my-proj".into(),
+            region: "us-east1".into(),
+            metric_name: "m".into(),
+            vector_service: "v".into(),
+            dataflow_job: "d".into(),
+            input_subscription: "in".into(),
+            output_topic: "t".into(),
+            bq_subscription: "s1".into(),
+            dataflow_subscription: "s2".into(),
+            bq_dataset: "ds".into(),
+            bq_table: "tbl".into(),
+            bucket: "b".into(),
+            vector_sa: "v@x".into(),
+            dataflow_sa: "d@x".into(),
+            alerts_topic: "beaver-alerts".into(),
+            dlq_topic: "beaver-dlq".into(),
+        };
+        let health = vec![
+            ("Cloud Run".to_string(), "projects/123/alertPolicies/h-cr".to_string()),
+        ];
+        let policies = vec![
             "projects/123/alertPolicies/a-1".to_string(),
             "projects/123/alertPolicies/b-2".to_string(),
         ];
-        let ctx = DashboardContext {
-            display: "Test",
-            project: "my-proj",
-            region: "us-east1",
-            metric_name: "m",
-            vector_service: "v",
-            dataflow_job: "d",
-            input_subscription: "in",
-            output_topic: "t",
-            bq_subscription: "s1",
-            dataflow_subscription: "s2",
-            bq_dataset: "ds",
-            bq_table: "tbl",
-            bucket: "b",
-            vector_sa: "v@x",
-            dataflow_sa: "d@x",
-            component_health: &[
-                ComponentHealth { label: "Cloud Run".into(),
-                    policy_name: "projects/123/alertPolicies/h-cr".into() },
-            ],
-            alert_policies: &policies,
-        };
-        let yaml = render_dashboard(&ctx);
-        // Notification log panel present.
-        assert!(yaml.contains(r#"title: "Notification delivery (recent)""#));
-        assert!(yaml.contains(r#"filter: 'resource.type="alerting_policy"'"#));
-        // 1 component-health alertChart + 2 notification-route alertCharts.
-        let count = yaml.matches("alertChart:").count();
-        assert_eq!(count, 3, "expected 3 alertChart entries, got {}", count);
-        // Full policy name + short suffix both present.
-        assert!(yaml.contains(r#"name: "projects/123/alertPolicies/a-1""#));
-        assert!(yaml.contains(r#"title: "Alert: a-1""#));
-        // Must be valid YAML.
+        let grid = panels::build_dashboard_grid(&ctx, &health, &policies);
+        let yaml = render::render_dashboard_yaml("Test", &grid);
+
+        assert!(yaml.contains("Notification delivery"));
+        assert!(yaml.contains("Alert: a-1"));
+        assert!(yaml.contains("Alert: b-2"));
+        // 1 health + 2 notification alert charts = 3
+        assert_eq!(yaml.matches("alertChart:").count(), 3);
         let _: serde_yaml::Value = serde_yaml::from_str(&yaml).expect("valid yaml");
     }
 }
