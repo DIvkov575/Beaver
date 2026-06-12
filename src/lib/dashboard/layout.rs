@@ -138,7 +138,7 @@ mod tests {
     use super::*;
 
     fn w(name: &str) -> Widget {
-        Widget::Placeholder { title: name.to_string() }
+        Widget::text(name, "")
     }
 
     #[test]
