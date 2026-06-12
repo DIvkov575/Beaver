@@ -28,7 +28,8 @@ pub fn render_dashboard_yaml(display_name: &str, grid: &Grid) -> String {
 
     root.insert(Value::from("mosaicLayout"), Value::Mapping(mosaic));
 
-    serde_yaml::to_string(&Value::Mapping(root)).unwrap_or_default()
+    serde_yaml::to_string(&Value::Mapping(root))
+        .expect("dashboard YAML serialization from in-memory Values should never fail")
 }
 
 /// Convert a single positioned tile into a serde_yaml::Value mapping.

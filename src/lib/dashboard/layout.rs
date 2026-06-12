@@ -55,8 +55,10 @@ impl Row {
 
     /// Add a sub-grid that arranges widgets N-per-row with automatic wrapping.
     /// Cell width = 12 / cols_per_row. Internal sub-rows stack with height =
-    /// self.height each.
+    /// self.height each. Must be the only entry in the row (panics otherwise).
     pub fn grid(mut self, widgets: Vec<Widget>, cols_per_row: usize) -> Self {
+        assert!(cols_per_row > 0, "cols_per_row must be > 0");
+        assert!(self.entries.is_empty(), "grid() must be the only entry in a row");
         self.entries.push(RowEntry::Grid { widgets, cols_per_row });
         self
     }
