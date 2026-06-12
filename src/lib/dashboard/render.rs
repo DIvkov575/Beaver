@@ -23,7 +23,7 @@ pub fn render_dashboard_yaml(display_name: &str, grid: &Grid) -> String {
     let mut mosaic = Mapping::new();
     mosaic.insert(Value::from("columns"), Value::from(12u64));
 
-    let tile_values: Vec<Value> = tiles.iter().map(|t| tile_to_value(t)).collect();
+    let tile_values: Vec<Value> = tiles.iter().map(tile_to_value).collect();
     mosaic.insert(Value::from("tiles"), Value::Sequence(tile_values));
 
     root.insert(Value::from("mosaicLayout"), Value::Mapping(mosaic));
