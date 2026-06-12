@@ -2,6 +2,12 @@
 //! its per-rule panels depend on. Opt-in via the `dashboard:` section in
 //! beaver_config.yaml.
 
+pub mod widgets;
+pub mod layout;
+pub mod render;
+pub mod health;
+pub mod panels;
+
 use std::process::Command;
 
 use anyhow::{anyhow, Result};
