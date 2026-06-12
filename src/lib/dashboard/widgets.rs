@@ -357,7 +357,7 @@ impl Widget {
                 // Build timeSeriesQuery from the dataset (reuse internal structure)
                 let ds_val = dataset.to_yaml_value();
                 if let Value::Mapping(ref ds_map) = ds_val {
-                    if let Some(tsq) = ds_map.get(&Value::String("timeSeriesQuery".into())) {
+                    if let Some(tsq) = ds_map.get(Value::String("timeSeriesQuery".into())) {
                         scorecard.insert(
                             Value::String("timeSeriesQuery".into()),
                             tsq.clone(),
