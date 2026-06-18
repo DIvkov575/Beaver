@@ -89,11 +89,10 @@ mod integration_tests {
     }
 }
 
-pub fn create_docker_image(path: &Path, tracker: &mut Tracker, config: &Config) -> Result<()> {
-    info!("Building Docker image via Cloud Build and saving to Artifact Registry...");
-
+/// Ensures the shared Artifact Registry repository exists, creating it if needed.
+/// Returns the repository name. Shared by Vector and Grafana image builds.
+pub fn ensure_artifact_repo(config: &Config) -> Result<String> {
     let repository_name = "beaver-images";
-    let repository_format = "docker";
     let repository_location = &config.region;
 
     let repo_check = Command::new("gcloud")
@@ -106,7 +105,7 @@ pub fn create_docker_image(path: &Path, tracker: &mut Tracker, config: &Config) 
         info!("Creating Artifact Registry repository: {}", repository_name);
         let create_repo = Command::new("gcloud")
             .args(["artifacts", "repositories", "create", repository_name,
-                   "--repository-format", repository_format,
+                   "--repository-format", "docker",
                    "--location", repository_location,
                    "--description", "Repository for Beaver Docker images"])
             .args(config.get_project())
@@ -118,40 +117,62 @@ pub fn create_docker_image(path: &Path, tracker: &mut Tracker, config: &Config) 
             return Err(anyhow::anyhow!("Failed to create Artifact Registry repository"));
         }
     }
-    tracker.record_artifact_repo(repository_name.to_string())?;
+    Ok(repository_name.to_string())
+}
 
+/// Submits a Docker build context to Cloud Build with a retry loop.
+/// Returns the full image name on success. `image_prefix` is used to
+/// generate uniquely-named image tags (e.g. "beaver-vector-image").
+pub fn submit_build(
+    build_context_path: &Path,
+    image_prefix: &str,
+    repository_name: &str,
+    config: &Config,
+) -> Result<String> {
     let mut ctr = 0usize;
     loop {
-        if ctr >= 3 { return Err(MiscError::MaxResourceCreationRetries.into()); }
+        if ctr >= 3 {
+            return Err(MiscError::MaxResourceCreationRetries.into());
+        }
         ctr += 1;
 
-        let image_name = format!("beaver-vector-image-{}", random_tag(7));
-        let full_image_name = format!("{}-docker.pkg.dev/{}/{}/{}",
-            config.region, config.project, repository_name, image_name);
+        let image_name = format!("{}-{}", image_prefix, random_tag(7));
+        let full_image_name = format!(
+            "{}-docker.pkg.dev/{}/{}/{}",
+            config.region, config.project, repository_name, image_name
+        );
 
-        let path = path.join("artifacts").to_owned();
-        let args = vec![
-            "builds",
-            "submit",
-            "--tag",
-            &full_image_name,
-            path.to_str().unwrap()
-        ];
-
+        let build_path = build_context_path.to_str()
+            .ok_or_else(|| anyhow::anyhow!("build context path is not valid UTF-8"))?;
         let output = Command::new("gcloud")
-            .args(args.clone())
+            .args(["builds", "submit", "--tag", &full_image_name, build_path])
             .args(config.get_project())
             .output()?;
 
-        if output.stderr != [0u8; 0] { error!("{:?}", String::from_utf8(output.stderr)?) }
+        if !output.stderr.is_empty() {
+            error!("{:?}", String::from_utf8(output.stderr.clone())?);
+        }
         if output.status.success() {
             info!("{:?}", String::from_utf8(output.stdout)?);
-            tracker.record_image(full_image_name)?;
-            break;
-        } else {
-            continue;
+            return Ok(full_image_name);
         }
     }
+}
+
+pub fn create_docker_image(path: &Path, tracker: &mut Tracker, config: &Config) -> Result<()> {
+    info!("Building Docker image via Cloud Build and saving to Artifact Registry...");
+
+    let repository_name = ensure_artifact_repo(config)?;
+    tracker.record_artifact_repo(repository_name.clone())?;
+
+    let build_context = path.join("artifacts");
+    let full_image_name = submit_build(
+        &build_context,
+        "beaver-vector-image",
+        &repository_name,
+        config,
+    )?;
+    tracker.record_image(full_image_name)?;
 
     Ok(())
 }

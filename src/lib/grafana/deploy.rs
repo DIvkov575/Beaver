@@ -3,6 +3,7 @@ use std::process::Command;
 use anyhow::Result;
 use log::{error, info};
 
+use crate::lib::cloud_build;
 use crate::lib::config::Config;
 use crate::lib::grafana::dashboard::GrafanaDashboardBuilder;
 use crate::lib::grafana::provisioning;
@@ -13,8 +14,8 @@ use crate::MiscError;
 
 /// Builds and pushes the Grafana container image via Cloud Build.
 ///
-/// Creates an Artifact Registry repository (if not already present) and
-/// submits a Docker build context containing Grafana provisioning files.
+/// Reuses the shared Artifact Registry repo ("beaver-images") and the common
+/// Cloud Build submit helper from `cloud_build`.
 pub fn build_and_push_image(
     tracker: &mut Tracker,
     config: &Config,
@@ -22,51 +23,7 @@ pub fn build_and_push_image(
 ) -> Result<()> {
     info!("Building Grafana Docker image via Cloud Build...");
 
-    let repository_name = "beaver-images";
-    let repository_location = &config.region;
-
-    // Ensure the Artifact Registry repo exists (shared with Vector image).
-    let repo_check = Command::new("gcloud")
-        .args([
-            "artifacts",
-            "repositories",
-            "describe",
-            repository_name,
-            "--location",
-            repository_location,
-        ])
-        .args(config.get_project())
-        .output()?;
-
-    if !repo_check.status.success() {
-        info!(
-            "Creating Artifact Registry repository: {}",
-            repository_name
-        );
-        let create_repo = Command::new("gcloud")
-            .args([
-                "artifacts",
-                "repositories",
-                "create",
-                repository_name,
-                "--repository-format",
-                "docker",
-                "--location",
-                repository_location,
-                "--description",
-                "Repository for Beaver Docker images",
-            ])
-            .args(config.get_project())
-            .output()?;
-
-        log_output(&create_repo)?;
-
-        if !create_repo.status.success() {
-            return Err(anyhow::anyhow!(
-                "Failed to create Artifact Registry repository"
-            ));
-        }
-    }
+    let repository_name = cloud_build::ensure_artifact_repo(config)?;
 
     // Generate the dashboard JSON to bake into the image.
     let dataset_id = &tracker.resources().biq_query.dataset_id;
@@ -90,43 +47,13 @@ pub fn build_and_push_image(
         &sa_email,
     )?;
 
-    // Submit Cloud Build with retry loop (same pattern as cloud_build::create_docker_image).
-    let mut ctr = 0usize;
-    loop {
-        if ctr >= 3 {
-            return Err(MiscError::MaxResourceCreationRetries.into());
-        }
-        ctr += 1;
-
-        let image_name = format!("beaver-grafana-image-{}", random_tag(7));
-        let full_image_name = format!(
-            "{}-docker.pkg.dev/{}/{}/{}",
-            config.region, config.project, repository_name, image_name
-        );
-
-        let build_path = build_dir.path().to_str()
-            .ok_or_else(|| anyhow::anyhow!("temp dir path is not valid UTF-8"))?
-            .to_string();
-        let output = Command::new("gcloud")
-            .args([
-                "builds",
-                "submit",
-                "--tag",
-                &full_image_name,
-                &build_path,
-            ])
-            .args(config.get_project())
-            .output()?;
-
-        if output.stderr != [0u8; 0] {
-            error!("{:?}", String::from_utf8(output.stderr.clone())?);
-        }
-        if output.status.success() {
-            info!("{:?}", String::from_utf8(output.stdout)?);
-            tracker.record_grafana_image(full_image_name)?;
-            break;
-        }
-    }
+    let full_image_name = cloud_build::submit_build(
+        build_dir.path(),
+        "beaver-grafana-image",
+        &repository_name,
+        config,
+    )?;
+    tracker.record_grafana_image(full_image_name)?;
 
     Ok(())
 }
@@ -160,6 +87,11 @@ pub fn create_grafana_service(
 
         service_name = format!("beaver-grafana-{}", random_tag(4));
         let sa_flag = format!("--service-account={}", sa_email);
+        let auth_flag = if allow_anonymous {
+            "--allow-unauthenticated"
+        } else {
+            "--no-allow-unauthenticated"
+        };
         let mut args: Vec<&str> = vec![
             "run",
             "deploy",
@@ -170,7 +102,7 @@ pub fn create_grafana_service(
             "3000",
             "--min-instances=0",
             "--max-instances=1",
-            if allow_anonymous { "--allow-unauthenticated" } else { "--no-allow-unauthenticated" },
+            auth_flag,
         ];
         if !sa_email.is_empty() {
             args.push(&sa_flag);
@@ -183,12 +115,10 @@ pub fn create_grafana_service(
         log_output(&output)?;
 
         if output.status.success() {
-            // Record the service name (not URL) — used by destroy to delete.
             tracker.record_grafana_service(service_name.clone())?;
             break;
         }
 
-        // Clean up failed deploy before retrying.
         if let Err(e) = delete_grafana_service(&service_name, config) {
             error!(
                 "inline cleanup of failed Grafana CRS '{}' errored: {}",
@@ -220,59 +150,8 @@ pub fn delete_grafana_service(service_name: &str, config: &Config) -> Result<()>
 }
 
 /// Deletes the Grafana container image from Artifact Registry.
+/// Delegates to the shared `cloud_build::delete_image` helper.
 pub fn delete_grafana_image(full_url: &str, config: &Config) -> Result<()> {
     info!("deleting Grafana artifact image: {}", full_url);
-    let output = Command::new("gcloud")
-        .args([
-            "artifacts",
-            "docker",
-            "images",
-            "delete",
-            full_url,
-            "--delete-tags",
-            "--quiet",
-        ])
-        .args(config.get_project())
-        .output()?;
-    if !output.status.success() {
-        let stderr = String::from_utf8_lossy(&output.stderr);
-        return Err(anyhow::anyhow!(
-            "Grafana image delete failed: {}",
-            stderr
-        ));
-    }
-    Ok(())
-}
-
-/// Extracts the Cloud Run service URL from gcloud deploy stdout.
-/// Looks for lines matching `https://<service>-<hash>-<region>.a.run.app`.
-fn extract_service_url(stdout: &str) -> Option<String> {
-    for line in stdout.lines() {
-        let trimmed = line.trim();
-        if trimmed.starts_with("https://") && trimmed.contains(".run.app") {
-            return Some(trimmed.to_string());
-        }
-    }
-    None
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn extract_service_url_finds_url() {
-        let stdout = "Deploying container...\nService URL: \nhttps://beaver-grafana-abc-xyz.a.run.app\nDone.\n";
-        let url = extract_service_url(stdout);
-        assert_eq!(
-            url,
-            Some("https://beaver-grafana-abc-xyz.a.run.app".to_string())
-        );
-    }
-
-    #[test]
-    fn extract_service_url_returns_none_when_missing() {
-        let stdout = "Deploying container...\nDone.\n";
-        assert_eq!(extract_service_url(stdout), None);
-    }
+    cloud_build::delete_image(full_url, config)
 }
