@@ -244,13 +244,8 @@ fn dispatch_real(step: &DeleteStep, config: &Config, dataset_id: &str) -> Result
             sigma_beam_io::destroy_alerts_table(&config.project, dataset_id, t),
         DeleteStep::RulesPrefix(bucket) =>
             sigma_beam_io::destroy_rules_prefix(bucket),
-        DeleteStep::GrafanaService(name) => {
-            // The recorded value may be a full URL; extract the service name
-            // (last path segment or the hostname prefix before the first dot).
-            let svc = name.rsplit('/').next().unwrap_or(name);
-            let svc = svc.split('.').next().unwrap_or(svc);
-            grafana::deploy::delete_grafana_service(svc, config)
-        }
+        DeleteStep::GrafanaService(name) =>
+            grafana::deploy::delete_grafana_service(name, config),
         DeleteStep::GrafanaImage(url) =>
             grafana::deploy::delete_grafana_image(url, config),
         DeleteStep::GrafanaSa(email) =>

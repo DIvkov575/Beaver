@@ -37,9 +37,14 @@ impl GrafanaDashboardBuilder {
         builder.build_internal("sqlite", true)
     }
 
-    fn datasource(&self, uid: &str) -> Value {
+    fn datasource(uid: &str, preview: bool) -> Value {
+        let ds_type = if preview {
+            "frser-sqlite-datasource"
+        } else {
+            "grafana-bigquery-datasource"
+        };
         json!({
-            "type": "grafana-bigquery-datasource",
+            "type": ds_type,
             "uid": uid
         })
     }
@@ -61,7 +66,7 @@ impl GrafanaDashboardBuilder {
     }
 
     fn build_internal(&self, ds_uid: &str, preview: bool) -> Value {
-        let ds = self.datasource(ds_uid);
+        let ds = Self::datasource(ds_uid, preview);
         let fqt = self.fully_qualified_table();
         let time_filter = self.time_filter(preview);
 
@@ -275,15 +280,11 @@ impl GrafanaDashboardBuilder {
         ));
         next_id += 1;
 
-        // Processing Latency
-        panels.push(self.timeseries_panel(
+        // Dataflow System Lag (from Cloud Monitoring metrics, not BQ)
+        panels.push(self.text_panel(
             next_id,
             "Processing Latency",
-            &format!(
-                "SELECT timestamp, AVG(processing_latency_ms) as avg_latency_ms FROM `{}` WHERE {} GROUP BY timestamp ORDER BY timestamp",
-                fqt, time_filter
-            ),
-            &ds,
+            "Dataflow system lag is available via Cloud Monitoring metric:\n`dataflow.googleapis.com/job/system_lag`\n\nAdd a Prometheus/Cloud Monitoring datasource to visualize.",
             8,
             y_pos,
             8,
@@ -291,15 +292,11 @@ impl GrafanaDashboardBuilder {
         ));
         next_id += 1;
 
-        // DLQ Depth
-        panels.push(self.timeseries_panel(
+        // DLQ Depth (from Pub/Sub metrics, not a BQ table)
+        panels.push(self.text_panel(
             next_id,
             "DLQ Depth",
-            &format!(
-                "SELECT timestamp, COUNT(*) as dlq_messages FROM `{}_dlq` WHERE {} GROUP BY timestamp ORDER BY timestamp",
-                fqt, time_filter
-            ),
-            &ds,
+            "DLQ message count is available via Cloud Monitoring metric:\n`pubsub.googleapis.com/topic/send_message_operation_count`\n\nFilter by DLQ topic to monitor dead-letter queue depth.",
             16,
             y_pos,
             8,
@@ -758,7 +755,25 @@ mod tests {
                 );
                 assert_eq!(
                     ds["type"].as_str().unwrap(),
-                    "grafana-bigquery-datasource"
+                    "grafana-bigquery-datasource",
+                    "Panel '{}' has wrong datasource type",
+                    panel["title"].as_str().unwrap_or("unknown")
+                );
+            }
+        }
+    }
+
+    #[test]
+    fn test_preview_datasource_type_is_sqlite() {
+        let dashboard = GrafanaDashboardBuilder::build_preview("Preview");
+        let panels = dashboard["dashboard"]["panels"].as_array().unwrap();
+        for panel in panels {
+            if let Some(ds) = panel.get("datasource") {
+                assert_eq!(
+                    ds["type"].as_str().unwrap(),
+                    "frser-sqlite-datasource",
+                    "Preview panel '{}' should use sqlite datasource type",
+                    panel["title"].as_str().unwrap_or("unknown")
                 );
             }
         }
@@ -774,7 +789,13 @@ mod tests {
                 assert_eq!(
                     ds["uid"].as_str().unwrap(),
                     "sqlite",
-                    "Preview panel '{}' should use sqlite datasource",
+                    "Preview panel '{}' should use sqlite datasource uid",
+                    panel["title"].as_str().unwrap_or("unknown")
+                );
+                assert_eq!(
+                    ds["type"].as_str().unwrap(),
+                    "frser-sqlite-datasource",
+                    "Preview panel '{}' should use sqlite datasource type",
                     panel["title"].as_str().unwrap_or("unknown")
                 );
             }

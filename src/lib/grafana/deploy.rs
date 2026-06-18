@@ -104,13 +104,16 @@ pub fn build_and_push_image(
             config.region, config.project, repository_name, image_name
         );
 
+        let build_path = build_dir.path().to_str()
+            .ok_or_else(|| anyhow::anyhow!("temp dir path is not valid UTF-8"))?
+            .to_string();
         let output = Command::new("gcloud")
             .args([
                 "builds",
                 "submit",
                 "--tag",
                 &full_image_name,
-                build_dir.path().to_str().unwrap(),
+                &build_path,
             ])
             .args(config.get_project())
             .output()?;
@@ -136,6 +139,7 @@ pub fn create_grafana_service(
     tracker: &mut Tracker,
     config: &Config,
     sa_email: &str,
+    allow_anonymous: bool,
 ) -> Result<()> {
     info!("Deploying Grafana to Cloud Run...");
 
@@ -166,7 +170,7 @@ pub fn create_grafana_service(
             "3000",
             "--min-instances=0",
             "--max-instances=1",
-            "--allow-unauthenticated",
+            if allow_anonymous { "--allow-unauthenticated" } else { "--no-allow-unauthenticated" },
         ];
         if !sa_email.is_empty() {
             args.push(&sa_flag);
@@ -179,11 +183,8 @@ pub fn create_grafana_service(
         log_output(&output)?;
 
         if output.status.success() {
-            // Extract the service URL from stdout.
-            let stdout = String::from_utf8_lossy(&output.stdout);
-            let url = extract_service_url(&stdout)
-                .unwrap_or_else(|| service_name.clone());
-            tracker.record_grafana_service(url)?;
+            // Record the service name (not URL) — used by destroy to delete.
+            tracker.record_grafana_service(service_name.clone())?;
             break;
         }
 

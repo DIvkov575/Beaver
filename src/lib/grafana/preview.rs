@@ -126,8 +126,8 @@ fn load_dashboard_title(config_path: &Path) -> String {
         return "Beaver SIEM".to_string();
     };
     mapping
-        .get(&serde_yaml::Value::String("grafana".into()))
-        .and_then(|g| g.get(&serde_yaml::Value::String("title".into())))
+        .get(&serde_yaml::Value::String("grafana_dashboard".into()))
+        .and_then(|g| g.get(&serde_yaml::Value::String("name".into())))
         .and_then(|v| v.as_str())
         .unwrap_or("Beaver SIEM")
         .to_string()
@@ -166,21 +166,19 @@ fn generate_synthetic_sql() -> String {
     );
 
     for event in &events {
-        let ts = event["timestamp"].as_str().unwrap_or("");
-        let rule = event["rule_name"].as_str().unwrap_or("");
-        let sev = event["severity"].as_str().unwrap_or("");
-        let tactic = event["mitre_tactic"].as_str().unwrap_or("");
-        let technique = event["mitre_technique"].as_str().unwrap_or("");
-        let src = event["source_ip"].as_str().unwrap_or("");
-        let dst = event["destination_ip"].as_str().unwrap_or("");
-        let host = event["hostname"].as_str().unwrap_or("");
-        let raw = event["raw_event"].as_str().unwrap_or("{}");
-        // Escape single quotes for SQL
-        let raw_escaped = raw.replace('\'', "''");
+        let ts = event["timestamp"].as_str().unwrap_or("").replace('\'', "''");
+        let rule = event["rule_name"].as_str().unwrap_or("").replace('\'', "''");
+        let sev = event["severity"].as_str().unwrap_or("").replace('\'', "''");
+        let tactic = event["mitre_tactic"].as_str().unwrap_or("").replace('\'', "''");
+        let technique = event["mitre_technique"].as_str().unwrap_or("").replace('\'', "''");
+        let src = event["source_ip"].as_str().unwrap_or("").replace('\'', "''");
+        let dst = event["destination_ip"].as_str().unwrap_or("").replace('\'', "''");
+        let host = event["hostname"].as_str().unwrap_or("").replace('\'', "''");
+        let raw = event["raw_event"].as_str().unwrap_or("{}").replace('\'', "''");
         sql.push_str(&format!(
             "INSERT INTO events VALUES ('{ts}','{rule}','{sev}','{tactic}','{technique}','{src}','{dst}','{host}','{raw}');\n",
             ts = ts, rule = rule, sev = sev, tactic = tactic,
-            technique = technique, src = src, dst = dst, host = host, raw = raw_escaped
+            technique = technique, src = src, dst = dst, host = host, raw = raw
         ));
     }
 
@@ -300,8 +298,9 @@ mod tests {
 beaver:
   project_id: test-proj
   region: us-central1
-grafana:
-  title: "My Custom SIEM"
+grafana_dashboard:
+  name: "My Custom SIEM"
+  enabled: true
 "#;
         fs::write(config_dir.path().join("beaver_config.yaml"), config_yaml).unwrap();
 
@@ -369,7 +368,7 @@ grafana:
     #[test]
     fn load_dashboard_title_reads_grafana_section() {
         let tmp = TempDir::new().unwrap();
-        let yaml = "grafana:\n  title: \"SOC Dashboard\"\n";
+        let yaml = "grafana_dashboard:\n  name: \"SOC Dashboard\"\n  enabled: true\n";
         fs::write(tmp.path().join("beaver_config.yaml"), yaml).unwrap();
         assert_eq!(load_dashboard_title(tmp.path()), "SOC Dashboard");
     }

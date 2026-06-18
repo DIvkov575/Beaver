@@ -35,12 +35,22 @@ datasources:
 /// Generates grafana.ini with server, security, dashboard, and plugin settings.
 pub fn generate_grafana_ini(admin_password: &str, allow_anonymous: bool, port: u16) -> String {
     let anonymous_enabled = if allow_anonymous { "true" } else { "false" };
+    // Grafana INI values containing #, ;, or newlines must be quoted.
+    let safe_password = if admin_password.contains('#')
+        || admin_password.contains(';')
+        || admin_password.contains('\n')
+        || admin_password.contains('=')
+    {
+        format!("\"{}\"", admin_password.replace('"', "\\\""))
+    } else {
+        admin_password.to_string()
+    };
     format!(
         r#"[server]
 http_port = {port}
 
 [security]
-admin_password = {admin_password}
+admin_password = {safe_password}
 
 [auth.anonymous]
 enabled = {anonymous_enabled}
@@ -52,7 +62,7 @@ default_home_dashboard_path = /etc/grafana/provisioning/dashboards/beaver-siem.j
 allow_loading_unsigned_plugins = frser-sqlite-datasource
 "#,
         port = port,
-        admin_password = admin_password,
+        safe_password = safe_password,
         anonymous_enabled = anonymous_enabled,
     )
 }

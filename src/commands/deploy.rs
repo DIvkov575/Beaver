@@ -185,8 +185,9 @@ pub fn deploy(path_arg: &str) -> Result<()> {
                 crate::lib::grafana::deploy::build_and_push_image(&mut tracker, &config, &grafana_cfg)
             })?;
 
+            let allow_anon = grafana_cfg.allow_anonymous;
             step("deploy Grafana Cloud Run service", || {
-                crate::lib::grafana::deploy::create_grafana_service(&mut tracker, &config, &grafana_sa.email)
+                crate::lib::grafana::deploy::create_grafana_service(&mut tracker, &config, &grafana_sa.email, allow_anon)
             })?;
 
             let svc_url = tracker.resources().grafana_service_url.clone();
