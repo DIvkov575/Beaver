@@ -118,6 +118,10 @@ pub fn plan(res: &Resources) -> Vec<DeleteStep> {
     if !res.vector_artifact_url.is_empty() {
         steps.push(DeleteStep::ArtifactImage(res.vector_artifact_url.clone()));
     }
+    // Grafana image must be deleted before the shared repo (both live in "beaver-images").
+    if !res.grafana_image_url.is_empty() {
+        steps.push(DeleteStep::GrafanaImage(res.grafana_image_url.clone()));
+    }
     if !res.artifact_registry_repo.is_empty() {
         steps.push(DeleteStep::ArtifactRepo(res.artifact_registry_repo.clone()));
     }
@@ -132,12 +136,10 @@ pub fn plan(res: &Resources) -> Vec<DeleteStep> {
     if !res.dataflow_staging_bucket.is_empty() {
         steps.push(DeleteStep::DataflowStagingBucket(res.dataflow_staging_bucket.clone()));
     }
-    // Grafana: service first (consumer), then image, then SA.
+    // Grafana: service before SA (consumer first). Image already deleted above
+    // (before ArtifactRepo, since both share the same registry).
     if !res.grafana_service_url.is_empty() {
         steps.push(DeleteStep::GrafanaService(res.grafana_service_url.clone()));
-    }
-    if !res.grafana_image_url.is_empty() {
-        steps.push(DeleteStep::GrafanaImage(res.grafana_image_url.clone()));
     }
     if res.grafana_sa_managed && !res.grafana_sa_email.is_empty() {
         steps.push(DeleteStep::GrafanaSa(res.grafana_sa_email.clone()));
