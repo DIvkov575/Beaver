@@ -4,6 +4,7 @@ use anyhow::Result;
 use serde_yaml::{Mapping, Value};
 use crate::get;
 use crate::lib::dashboard::DashboardConfig;
+use crate::lib::grafana::GrafanaConfig;
 use crate::lib::notifications::NotificationsConfig;
 
 pub struct Config {
@@ -84,6 +85,26 @@ impl Config {
             None => Ok(None),
             Some(v) => {
                 let cfg: DashboardConfig = serde_yaml::from_value(v.clone())?;
+                cfg.validate()?;
+                if !cfg.enabled {
+                    return Ok(None);
+                }
+                Ok(Some(cfg))
+            }
+        }
+    }
+
+    /// Reads optional `grafana_dashboard:` section and validates. Returns
+    /// `None` if absent (whole feature is opt-in).
+    pub fn load_grafana_dashboard(path_to_config: &Path) -> Result<Option<GrafanaConfig>> {
+        let mapping: Mapping = serde_yaml::from_reader(
+            File::open(path_to_config.join("beaver_config.yaml"))?
+        )?;
+        let key = Value::String("grafana_dashboard".into());
+        match mapping.get(&key) {
+            None => Ok(None),
+            Some(v) => {
+                let cfg: GrafanaConfig = serde_yaml::from_value(v.clone())?;
                 cfg.validate()?;
                 if !cfg.enabled {
                     return Ok(None);

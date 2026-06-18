@@ -47,6 +47,15 @@ pub struct Resources {
     pub export_sa_email: String,
     #[serde(default)]
     pub export_sa_managed: bool,
+    // grafana-related resources
+    #[serde(default)]
+    pub grafana_service_url: String,
+    #[serde(default)]
+    pub grafana_sa_email: String,
+    #[serde(default)]
+    pub grafana_sa_managed: bool,
+    #[serde(default)]
+    pub grafana_image_url: String,
     // sigma_beam-related resources
     #[serde(default)]
     pub rules_gcs_prefix: String,
@@ -92,6 +101,10 @@ impl Resources {
             export_scheduled_query_id: String::new(),
             export_sa_email: String::new(),
             export_sa_managed: false,
+            grafana_service_url: String::new(),
+            grafana_sa_email: String::new(),
+            grafana_sa_managed: false,
+            grafana_image_url: String::new(),
             rules_gcs_prefix: String::new(),
             alerts_topic_id: String::new(),
             alerts_subscription_id: String::new(),
@@ -341,6 +354,33 @@ impl<'a> Tracker<'a> {
     pub fn forget_export_sa(&mut self) -> Result<()> {
         self.res.export_sa_email.clear();
         self.res.export_sa_managed = false;
+        self.persist()
+    }
+
+    pub fn record_grafana_service(&mut self, url: String) -> Result<()> {
+        self.res.grafana_service_url = url;
+        self.persist()
+    }
+    pub fn record_grafana_sa(&mut self, email: String, managed: bool) -> Result<()> {
+        self.res.grafana_sa_email = email;
+        self.res.grafana_sa_managed = managed;
+        self.persist()
+    }
+    pub fn record_grafana_image(&mut self, url: String) -> Result<()> {
+        self.res.grafana_image_url = url;
+        self.persist()
+    }
+    pub fn forget_grafana_service(&mut self) -> Result<()> {
+        self.res.grafana_service_url.clear();
+        self.persist()
+    }
+    pub fn forget_grafana_sa(&mut self) -> Result<()> {
+        self.res.grafana_sa_email.clear();
+        self.res.grafana_sa_managed = false;
+        self.persist()
+    }
+    pub fn forget_grafana_image(&mut self) -> Result<()> {
+        self.res.grafana_image_url.clear();
         self.persist()
     }
 

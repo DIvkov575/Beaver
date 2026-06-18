@@ -5,7 +5,7 @@ use std::path::Path;
 use crate::lib::config::Config;
 use crate::lib::resources::{Resources, Tracker};
 use crate::lib::utilities::{check_for_bq, check_for_gcloud, validate_config_path};
-use crate::lib::{bq, cloud_build, cold_storage, crs, dashboard, dataflow, gcs, notifications, pubsub, service_accounts, sigma_beam_io};
+use crate::lib::{bq, cloud_build, cold_storage, crs, dashboard, dataflow, gcs, grafana, notifications, pubsub, service_accounts, sigma_beam_io};
 
 #[derive(Debug, PartialEq, Eq)]
 pub enum DeleteStep {
@@ -35,6 +35,9 @@ pub enum DeleteStep {
     AlertsTable(String),
     RulesPrefix(String),  // bucket name; rules live at gs://<bucket>/rules/
     DataflowStagingBucket(String),
+    GrafanaService(String),
+    GrafanaImage(String),
+    GrafanaSa(String),
 }
 
 /// Reverse of creation: alert policies → notification channels → dataflow →
@@ -129,6 +132,16 @@ pub fn plan(res: &Resources) -> Vec<DeleteStep> {
     if !res.dataflow_staging_bucket.is_empty() {
         steps.push(DeleteStep::DataflowStagingBucket(res.dataflow_staging_bucket.clone()));
     }
+    // Grafana: service first (consumer), then image, then SA.
+    if !res.grafana_service_url.is_empty() {
+        steps.push(DeleteStep::GrafanaService(res.grafana_service_url.clone()));
+    }
+    if !res.grafana_image_url.is_empty() {
+        steps.push(DeleteStep::GrafanaImage(res.grafana_image_url.clone()));
+    }
+    if res.grafana_sa_managed && !res.grafana_sa_email.is_empty() {
+        steps.push(DeleteStep::GrafanaSa(res.grafana_sa_email.clone()));
+    }
     // Service accounts last: only after every consumer (CRS, Dataflow) and
     // every IAM-bound resource (sub, topic, bucket) is gone, so resource-scoped
     // bindings clean up automatically when the resource disappears. Only delete
@@ -181,6 +194,9 @@ where
                     DeleteStep::DlqTopic(_) => tracker.forget_dlq_topic(),
                     DeleteStep::AlertsTable(_) => tracker.forget_alerts_table(),
                     DeleteStep::RulesPrefix(_) => tracker.forget_rules_prefix(),
+                    DeleteStep::GrafanaService(_) => tracker.forget_grafana_service(),
+                    DeleteStep::GrafanaImage(_) => tracker.forget_grafana_image(),
+                    DeleteStep::GrafanaSa(_) => tracker.forget_grafana_sa(),
                 };
                 if let Err(e) = forget {
                     error!("forget after {:?} failed: {}", step, e);
@@ -228,6 +244,17 @@ fn dispatch_real(step: &DeleteStep, config: &Config, dataset_id: &str) -> Result
             sigma_beam_io::destroy_alerts_table(&config.project, dataset_id, t),
         DeleteStep::RulesPrefix(bucket) =>
             sigma_beam_io::destroy_rules_prefix(bucket),
+        DeleteStep::GrafanaService(name) => {
+            // The recorded value may be a full URL; extract the service name
+            // (last path segment or the hostname prefix before the first dot).
+            let svc = name.rsplit('/').next().unwrap_or(name);
+            let svc = svc.split('.').next().unwrap_or(svc);
+            grafana::deploy::delete_grafana_service(svc, config)
+        }
+        DeleteStep::GrafanaImage(url) =>
+            grafana::deploy::delete_grafana_image(url, config),
+        DeleteStep::GrafanaSa(email) =>
+            service_accounts::delete_sa(email, &config.project),
     }
 }
 

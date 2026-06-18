@@ -1,6 +1,8 @@
 use anyhow::Result;
 use clap::{self, Parser};
 
+mod dashboard;
+use dashboard::DashboardCommand;
 mod deploy;
 use deploy::deploy;
 mod destroy;
@@ -48,6 +50,11 @@ pub enum Command {
         #[arg(long, default_value_t = false)]
         cancel: bool,
     },
+    #[command(about = "Grafana dashboard preview and export")]
+    Dashboard {
+        #[command(subcommand)]
+        command: DashboardCommand,
+    },
 }
 impl Command {
     pub fn run(self) -> Result<()> {
@@ -58,6 +65,7 @@ impl Command {
             Destroy{path} => destroy(&path),
             RepairDataflow{path, cancel} => repair_dataflow(&path, cancel),
             RefreshDetections{path, cancel} => refresh_detections(&path, cancel),
+            Dashboard { command } => command.run(),
         }
     }
 }

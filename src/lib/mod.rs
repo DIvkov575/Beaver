@@ -15,6 +15,7 @@ pub mod precheck;
 pub mod dashboard;
 pub mod cold_storage;
 pub mod sigma_beam_io;
+pub mod grafana;
 
 #[cfg(test)]
 pub mod test_helpers;

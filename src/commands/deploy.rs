@@ -168,6 +168,34 @@ pub fn deploy(path_arg: &str) -> Result<()> {
         dashboard_url = Some(url);
     }
 
+    // Grafana dashboard (alternative to Cloud Monitoring)
+    let mut grafana_url: Option<String> = None;
+    if let Some(grafana_cfg) = Config::load_grafana_dashboard(path)? {
+        if grafana_cfg.enabled {
+            let grafana_sa = step("Grafana service account + IAM", || {
+                let sa_id = format!("beaver-grafana-{}", random_tag(6));
+                let sa = service_accounts::create_sa(&sa_id, "Beaver Grafana Reader", &config)?;
+                tracker.record_grafana_sa(sa.email.clone(), true)?;
+                service_accounts::grant_project(&config.project, &sa.email, "roles/bigquery.dataViewer")?;
+                service_accounts::grant_project(&config.project, &sa.email, "roles/bigquery.jobUser")?;
+                Ok::<_, anyhow::Error>(sa)
+            })?;
+
+            step("build Grafana docker image (Cloud Build)", || {
+                crate::lib::grafana::deploy::build_and_push_image(&mut tracker, &config, &grafana_cfg)
+            })?;
+
+            step("deploy Grafana Cloud Run service", || {
+                crate::lib::grafana::deploy::create_grafana_service(&mut tracker, &config, &grafana_sa.email)
+            })?;
+
+            let svc_url = tracker.resources().grafana_service_url.clone();
+            if !svc_url.is_empty() {
+                grafana_url = Some(svc_url);
+            }
+        }
+    }
+
     let res = tracker.resources();
     println!("\nDeployed:");
     println!("  BigQuery dataset    {}.{}", res.biq_query.dataset_id, res.biq_query.table_id);
@@ -182,6 +210,9 @@ pub fn deploy(path_arg: &str) -> Result<()> {
     }
     if let Some(url) = &dashboard_url {
         println!("\nDashboard: {}", url);
+    }
+    if let Some(url) = &grafana_url {
+        println!("  Grafana (Cloud Run) {}", url);
     }
     println!();
     Ok(())
