@@ -17,8 +17,6 @@ archive.tar.gz
 
 output.log
 docs/book/
-CLAUDE.md
-
 # build venvs created by deploy
 examples/**/detections/venv/
 examples/**/detections/venv
